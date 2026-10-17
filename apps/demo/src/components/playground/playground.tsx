@@ -197,6 +197,20 @@ function toolsProp({ tools, callout }: PlaygroundOptions) {
   return callout ? [...tools, "callout"] : tools;
 }
 
+/** Puts long string arrays on several lines so the snippet doesn't scroll sideways. */
+function arrayProp(name: string, values: readonly string[]) {
+  const quoted = values.map((value) => `"${value}"`);
+  const inline = `${name}={[${quoted.join(", ")}]}`;
+  if (inline.length <= 72) return inline;
+  const rows: string[] = [];
+  for (const value of quoted) {
+    const last = rows.at(-1);
+    if (last !== undefined && last.length + value.length + 2 <= 60) rows[rows.length - 1] = `${last}, ${value}`;
+    else rows.push(value);
+  }
+  return [`${name}={[`, ...rows.map((row) => `  ${row},`), "]}"].join("\n");
+}
+
 function generateCode(options: PlaygroundOptions) {
   const { theme, editable, uploads, callout, toolbarPlacement } = options;
   const props = [`persist={{ key: "my-document" }}`];
@@ -205,7 +219,7 @@ function generateCode(options: PlaygroundOptions) {
   if (!editable) props.push("editable={false}");
 
   const tools = toolsProp(options);
-  if (tools) props.push(`tools={[${tools.map((tool) => `"${tool}"`).join(", ")}]}`);
+  if (tools) props.push(arrayProp("tools", tools));
   if (toolbarPlacement === "fixed") props.push(`toolbar={{ placement: "fixed" }}`);
   if (callout) props.push("plugins={[calloutPlugin]}");
 
@@ -243,7 +257,7 @@ function generateCode(options: PlaygroundOptions) {
     "export function Editor() {",
     "  return (",
     "    <BlockEditor",
-    ...props.map((prop) => `      ${prop}`),
+    ...props.flatMap((prop) => prop.split("\n").map((line) => `      ${line}`)),
     "    />",
     "  );",
     "}",
