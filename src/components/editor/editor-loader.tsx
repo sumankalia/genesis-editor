@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 // The editor reads localStorage for its initial content, so it only renders in the browser.
-export const EditorLoader = dynamic(() => import("./block-editor"), {
+export const EditorLoader = dynamic(() => import("@/components/demo/demo-app"), {
   ssr: false,
   loading: () => (
     <div className="flex min-h-dvh flex-col">

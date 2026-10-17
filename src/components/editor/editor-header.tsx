@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import {
   CheckIcon,
   ClipboardCopyIcon,
@@ -36,12 +37,14 @@ type EditorHeaderProps = {
   saveState: SaveState;
   onCopyMarkdown: () => void;
   onReset: () => void;
+  menuItems?: ReactNode;
 };
 
 export function EditorHeader({
   saveState,
   onCopyMarkdown,
   onReset,
+  menuItems,
 }: EditorHeaderProps) {
   const { theme, setTheme } = useTheme();
 
@@ -74,6 +77,7 @@ export function EditorHeader({
                 <ClipboardCopyIcon />
                 Copy as Markdown
               </DropdownMenuItem>
+              {menuItems}
               <DropdownMenuItem variant="destructive" onSelect={onReset}>
                 <RotateCcwIcon />
                 Reset document
