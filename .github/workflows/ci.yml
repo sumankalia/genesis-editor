@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, typecheck, build, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The demo resolves genesis-editor to its built output, so build the package first.
+      - run: pnpm --filter genesis-editor build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter demo build
+      - name: Check the published file list
+        working-directory: packages/editor
+        run: npm pack --dry-run --ignore-scripts
+
+  e2e:
+    name: Browser checks
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter demo exec playwright-core install --with-deps chromium
+      - name: Start the demo
+        run: |
+          pnpm --filter demo start > demo.log 2>&1 &
+          npx --yes wait-on --timeout 60000 http://localhost:4317
+      - run: pnpm --filter demo e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: |
+            apps/demo/e2e/screenshots
+            demo.log
