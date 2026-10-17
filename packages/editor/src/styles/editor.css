@@ -1,0 +1,64 @@
+/* Appended after BlockNote's stylesheet so these win ties. Already scoped. */
+
+/* Use the host page's font instead of BlockNote's Inter stack. */
+.genesis-editor.bn-root,
+.genesis-editor .bn-default-styles {
+  font-family: var(--genesis-editor-font-family, inherit);
+}
+
+.genesis-editor .bn-side-menu .bn-button,
+.genesis-editor .bn-suggestion-menu-item {
+  cursor: pointer;
+}
+
+/* BlockNote renders a bare "Loading..." while an upload is in flight. */
+.genesis-editor .bn-file-loading-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font-size: 0;
+}
+
+.genesis-editor .bn-file-loading-preview::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--muted-foreground);
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: genesis-editor-spin 0.8s linear infinite;
+}
+
+.genesis-editor .bn-file-loading-preview::after {
+  content: "Uploading…";
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+@keyframes genesis-editor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.genesis-editor-dialog::backdrop {
+  background: rgb(0 0 0 / 0.3);
+}
+
+@media (max-width: 639px) {
+  .genesis-editor .bn-editor {
+    padding-inline: 20px;
+  }
+
+  .genesis-editor [data-content-type="heading"]:not([data-level]),
+  .genesis-editor [data-content-type="heading"][data-level="1"] {
+    --level: 2.25em;
+  }
+
+  .genesis-editor [data-content-type="heading"][data-level="2"] {
+    --level: 1.6em;
+  }
+}

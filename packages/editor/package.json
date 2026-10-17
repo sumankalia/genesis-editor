@@ -1,0 +1,94 @@
+{
+  "name": "genesis-editor",
+  "version": "0.1.0",
+  "description": "A Notion-style block editor for React: slash menu, drag handles, nesting, markdown shortcuts, and image uploads.",
+  "license": "MIT",
+  "author": "Sandeep",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandeep-code/genesis.git",
+    "directory": "packages/editor"
+  },
+  "homepage": "https://github.com/sandeep-code/genesis/tree/main/packages/editor#readme",
+  "bugs": {
+    "url": "https://github.com/sandeep-code/genesis/issues"
+  },
+  "keywords": [
+    "react",
+    "editor",
+    "block-editor",
+    "rich-text",
+    "notion",
+    "wysiwyg",
+    "markdown",
+    "blocknote",
+    "slash-menu"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "tsup && node scripts/build-css.mjs",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@blocknote/core": "~0.56.0",
+    "@blocknote/react": "~0.56.0",
+    "@blocknote/shadcn": "~0.56.0",
+    "lucide-react": "^0.525.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-plugin-react-hooks": "^7",
+    "jsdom": "^27",
+    "postcss": "^8.5.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "shadcn": "^4.22.0",
+    "tailwindcss": "^4.3.3",
+    "tsup": "^8.5.1",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8",
+    "vitest": "^4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

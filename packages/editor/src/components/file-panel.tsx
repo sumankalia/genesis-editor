@@ -1,8 +1,6 @@
-"use client";
-
 import { EmbedTab, FilePanel, type FilePanelProps } from "@blocknote/react";
 
-import { UploadTab } from "@/components/editor/upload-tab";
+import { UploadTab } from "./upload-tab";
 
 export function GenesisFilePanel({ blockId }: FilePanelProps) {
   return (

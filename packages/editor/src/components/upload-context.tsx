@@ -1,9 +1,7 @@
-"use client";
-
 import { createContext, useContext } from "react";
 
-import type { UploadStatusStore } from "@/lib/upload-status";
-import type { UploadMode } from "@/lib/uploads";
+import type { UploadStatusStore } from "../lib/upload-status";
+import type { UploadMode } from "../lib/uploads";
 
 export type UploadContextValue = {
   mode: UploadMode;

@@ -1,15 +1,13 @@
-"use client";
-
 import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useBlockNoteEditor } from "@blocknote/react";
 import { CircleAlertIcon, ImageUpIcon, LoaderCircleIcon, RotateCwIcon } from "lucide-react";
 
-import { useUploads } from "@/components/editor/upload-context";
-import { Button } from "@/components/ui/button";
-import { useUploadStatus } from "@/lib/upload-status";
-import { MAX_LOCAL_UPLOAD_BYTES } from "@/lib/uploads";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/cn";
+import { useUploadStatus } from "../lib/upload-status";
+import { MAX_LOCAL_UPLOAD_BYTES } from "../lib/uploads";
+import { Button } from "./ui";
+import { useUploads } from "./upload-context";
 
 export function UploadTab({ blockId }: { blockId: string }) {
   const editor = useBlockNoteEditor();
@@ -102,7 +100,7 @@ export function UploadTab({ blockId }: { blockId: string }) {
               className="self-start"
               onClick={() => void retryUpload(blockId)}
             >
-              <RotateCwIcon /> Retry {status.file.name}
+              <RotateCwIcon aria-hidden /> Retry {status.file.name}
             </Button>
           </div>
         </div>

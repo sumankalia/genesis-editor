@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import type { BlockNoteEditor } from "@blocknote/core";
 import { useVirtualKeyboard } from "@blocknote/react";
@@ -12,7 +10,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui";
 
 type MobileBlockToolbarProps = {
   editor: BlockNoteEditor;
