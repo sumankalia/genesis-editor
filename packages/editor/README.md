@@ -211,13 +211,25 @@ scoped to `.genesis-editor` (the root element and BlockNote's menus), and it use
 no cascade layers, so it doesn't restyle the rest of your page and your page's
 layered styles don't override the editor.
 
-The editor uses your page's font. To theme it, override these variables on
-`.genesis-editor` (and `.genesis-editor[data-color-scheme="dark"]` for dark
-mode): `--background`, `--foreground`, `--primary`, `--primary-foreground`,
-`--secondary`, `--muted`, `--muted-foreground`, `--accent`, `--popover`,
+The editor uses your page's font. To theme it, set these variables on a class you
+pass as `className` (or on `.genesis-editor` for every editor), and on
+`.your-class[data-color-scheme="dark"]` for dark mode: `--background`,
+`--foreground`, `--primary`, `--primary-foreground`, `--secondary`, `--muted`,
+`--muted-foreground`, `--accent`, `--accent-foreground`, `--popover`,
 `--popover-foreground`, `--border`, `--input`, `--ring`, `--destructive`,
-`--radius`. Set `--genesis-editor-font-family` to use a different font. BlockNote's
-own `--bn-colors-*` variables also apply.
+`--radius`. Set `--genesis-editor-font-family` to use a different font.
+BlockNote's own `--bn-colors-*` variables also apply.
+
+```css
+.brand-editor {
+  --primary: oklch(0.55 0.2 275);
+  --radius: 1rem;
+}
+```
+
+```tsx
+<BlockEditor className="brand-editor" />
+```
 
 ## License
 

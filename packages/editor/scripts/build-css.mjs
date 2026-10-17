@@ -14,6 +14,9 @@ const require = createRequire(import.meta.url);
 
 const SCOPE = ".genesis-editor";
 const WHERE = `:where(${SCOPE})`;
+// Theme variables are declared only on the outermost editor element, so values set
+// on it (for example through the `className` prop) cascade into BlockNote's parts.
+const OUTERMOST = `:where(${SCOPE}:not(${SCOPE} *))`;
 const ROOT_SELECTORS = new Set([":root", ":host", "html"]);
 const SELF_AND_DESCENDANTS = new Set([
   "*",
@@ -36,7 +39,7 @@ const ROOT_DECLS_TO_DROP = new Set([
 
 function scopeSelector(selector) {
   if (selector.includes(SCOPE)) return [selector];
-  if (ROOT_SELECTORS.has(selector)) return [WHERE];
+  if (ROOT_SELECTORS.has(selector)) return [OUTERMOST];
   if (selector === "body") return [];
   if (SELF_AND_DESCENDANTS.has(selector)) {
     const self = selector === "*" ? WHERE : `${WHERE}${selector}`;

@@ -62,7 +62,7 @@
   --radius: 0.625rem;
 }
 
-.genesis-editor[data-color-scheme="dark"] {
+:where(.genesis-editor[data-color-scheme="dark"]:not(.genesis-editor *)) {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
