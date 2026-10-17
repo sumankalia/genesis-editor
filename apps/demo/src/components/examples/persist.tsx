@@ -18,7 +18,7 @@ export default function PersistExample() {
         onPersistStatusChange={setStatus}
         initialContent={[{ type: "paragraph", content: "Type here, then reload the page." }]}
       />
-      <p className="px-[54px] text-sm text-muted-foreground">
+      <p className="px-15 text-sm text-muted-foreground">
         {status.status === "saved"
           ? `Saved at ${new Date(status.savedAt).toLocaleTimeString()}`
           : status.status === "saving"

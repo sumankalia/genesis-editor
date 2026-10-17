@@ -21,7 +21,7 @@ export default function RefExample() {
           { type: "paragraph", content: [{ type: "text", text: "Bold", styles: { bold: true } }, " and plain text."] },
         ]}
       />
-      <div className="px-[54px]">
+      <div className="px-15">
         <button
           className="rounded-md border px-2.5 py-1 text-sm hover:bg-muted"
           onClick={() => setMarkdown(editor.current?.getMarkdown() ?? "")}

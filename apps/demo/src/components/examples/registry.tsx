@@ -5,7 +5,7 @@ import type { ComponentType } from "react";
 
 function EditorSkeleton() {
   return (
-    <div className="space-y-3 px-[54px] py-2" aria-hidden>
+    <div className="space-y-3 px-15 py-2" aria-hidden>
       <div className="h-6 w-1/2 animate-pulse rounded bg-muted" />
       <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
       <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />

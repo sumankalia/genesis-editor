@@ -8,7 +8,7 @@ export default function ThemeSwitchExample() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2 px-[54px]">
+      <div className="flex gap-2 px-15">
         {(["light", "dark", "system"] as const).map((option) => (
           <button
             key={option}

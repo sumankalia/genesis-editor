@@ -8,7 +8,7 @@ import { useSiteTheme } from "@/lib/use-site-theme";
 const BlockEditor = dynamic(() => import("genesis-editor").then((m) => m.BlockEditor), {
   ssr: false,
   loading: () => (
-    <div className="space-y-3 px-[54px] py-2" aria-hidden>
+    <div className="space-y-3 px-15 py-2" aria-hidden>
       <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
       <div className="h-4 w-full animate-pulse rounded bg-muted" />
       <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />

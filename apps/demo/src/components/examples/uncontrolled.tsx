@@ -21,7 +21,7 @@ export default function UncontrolledExample() {
         ]}
         onChange={(next) => setBlocks(next)}
       />
-      <p className="px-[54px] text-sm text-muted-foreground">
+      <p className="px-15 text-sm text-muted-foreground">
         {blocks.length ? `${blocks.length} blocks after your last edit` : "Edit to see onChange fire"}
       </p>
     </div>

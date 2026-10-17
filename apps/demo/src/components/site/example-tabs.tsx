@@ -26,7 +26,7 @@ export function ExampleTabs({
       </TabsList>
       <TabsContent value="preview" forceMount className="data-[state=inactive]:hidden">
         <div
-          className="example-preview rounded-xl border bg-background px-2 py-6 sm:px-4"
+          className="example-preview rounded-xl border bg-background py-6"
           style={{ minHeight }}
         >
           {preview}

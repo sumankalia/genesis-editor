@@ -11,7 +11,7 @@ export default function ReadOnlyExample() {
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex items-center gap-2 px-[54px] text-sm">
+      <label className="flex items-center gap-2 px-15 text-sm">
         <input type="checkbox" checked={editable} onChange={(e) => setEditable(e.target.checked)} />
         Editable
       </label>
