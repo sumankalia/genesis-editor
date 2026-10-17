@@ -45,4 +45,4 @@ yarn-error.log*
 next-env.d.ts
 
 # browser check output
-e2e/screenshots/
+apps/demo/e2e/screenshots/
