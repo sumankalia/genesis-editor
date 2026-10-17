@@ -11,7 +11,7 @@
  * sits inside the editor's box, whatever the host container's width or padding.
  * It must stay wider than the side menu (2 × 22px buttons + 2px gap + 4px offset).
  */
-:where(.genesis-editor) {
+:where(.genesis-editor:not(.genesis-editor *)) {
   --genesis-gutter: 3.75rem;
 }
 
@@ -100,7 +100,7 @@
 
 @media (max-width: 639px) {
   /* The mobile block toolbar replaces the hover side menu on small screens. */
-  :where(.genesis-editor[data-mobile-toolbar]) {
+  :where(.genesis-editor[data-mobile-toolbar]:not(.genesis-editor *)) {
     --genesis-gutter: 1.25rem;
   }
 
