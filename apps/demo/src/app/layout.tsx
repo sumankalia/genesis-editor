@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import "genesis-editor/style.css";
 import "./globals.css";
 
 const geistSans = Geist({

@@ -1,4 +1,4 @@
-import type { PartialBlock } from "@blocknote/core";
+import type { PartialBlock } from "genesis-editor";
 
 export const starterDocument: PartialBlock[] = [
   {

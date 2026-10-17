@@ -13,6 +13,7 @@ import {
   RotateCcwIcon,
   SunIcon,
 } from "lucide-react";
+import type { PersistStatus } from "genesis-editor";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
@@ -27,14 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export type SaveState =
-  | { status: "idle" }
-  | { status: "saving" }
-  | { status: "saved"; savedAt: number }
-  | { status: "error" };
-
 type EditorHeaderProps = {
-  saveState: SaveState;
+  saveState: PersistStatus;
   onCopyMarkdown: () => void;
   onReset: () => void;
   menuItems?: ReactNode;
@@ -106,7 +101,7 @@ export function EditorHeader({
   );
 }
 
-function SaveIndicator({ state }: { state: SaveState }) {
+function SaveIndicator({ state }: { state: PersistStatus }) {
   const relative = useRelativeTime(state.status === "saved" ? state.savedAt : null);
 
   let icon = null;

@@ -1,4 +1,4 @@
-import { EditorLoader } from "@/components/editor/editor-loader";
+import { EditorLoader } from "@/components/demo/editor-loader";
 
 export default function Home() {
   return <EditorLoader />;

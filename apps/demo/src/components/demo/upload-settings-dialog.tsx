@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MOCK_UPLOAD_URL, type UploadSettings } from "@/lib/upload-settings";
-import { MAX_LOCAL_UPLOAD_BYTES } from "@/lib/uploads";
+import { MAX_LOCAL_UPLOAD_BYTES } from "genesis-editor";
 
 type UploadSettingsDialogProps = {
   open: boolean;

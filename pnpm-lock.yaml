@@ -10,21 +10,15 @@ importers:
 
   apps/demo:
     dependencies:
-      '@blocknote/core':
-        specifier: ^0.56.0
-        version: 0.56.0(@types/hast@3.0.5)
-      '@blocknote/react':
-        specifier: ^0.56.0
-        version: 0.56.0(@floating-ui/dom@1.8.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@blocknote/shadcn':
-        specifier: ^0.56.0
-        version: 0.56.0(@floating-ui/dom@1.8.0)(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwindcss@4.3.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
       cn:
         specifier: ^0.5.0
         version: 0.5.0
+      genesis-editor:
+        specifier: workspace:*
+        version: link:../../packages/editor
       lucide-react:
         specifier: ^1.59.0
         version: 1.59.0(@types/react@19.3.0)(react@19.3.0)
