@@ -1,24 +1,28 @@
+import { createContext, useContext } from "react";
 import {
-  BasicTextStyleButton,
   FormattingToolbar,
-  getFormattingToolbarItems,
   useBlockNoteEditor,
   useComponentsContext,
   useUIMode,
 } from "@blocknote/react";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
+import type { ToolbarItem } from "../plugins/types";
+
+export type ToolbarItems = { order: readonly string[]; items: ReadonlyMap<string, ToolbarItem> };
+
+export const ToolbarItemsContext = createContext<ToolbarItems>({ order: [], items: new Map() });
+
 export function GenesisFormattingToolbar() {
   const uiMode = useUIMode();
-  const items = getFormattingToolbarItems().flatMap((item) =>
-    item.key === "strikeStyleButton"
-      ? [item, <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />]
-      : [item],
-  );
+  const { order, items } = useContext(ToolbarItemsContext);
 
   return (
     <FormattingToolbar>
-      {items}
+      {order.map((key) => {
+        const Item = items.get(key);
+        return Item ? <Item key={key} /> : null;
+      })}
       {uiMode === "mobile" && <MoveBlockButtons />}
     </FormattingToolbar>
   );

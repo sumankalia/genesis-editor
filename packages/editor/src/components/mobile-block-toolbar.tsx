@@ -16,6 +16,7 @@ type MobileBlockToolbarProps = {
   editor: BlockNoteEditor;
   onAddBlock: () => void;
   onLink: () => void;
+  showLink: boolean;
 };
 
 // Touch devices have no hover (drag handle) or Tab key, so block actions live here.
@@ -24,6 +25,7 @@ export function MobileBlockToolbar({
   editor,
   onAddBlock,
   onLink,
+  showLink,
 }: MobileBlockToolbarProps) {
   const keyboardOpen = useVirtualKeyboard();
   if (keyboardOpen) return null;
@@ -63,9 +65,11 @@ export function MobileBlockToolbar({
         >
           <ArrowDownIcon />
         </ToolbarButton>
-        <ToolbarButton label="Link" onActivate={onLink}>
-          <LinkIcon />
-        </ToolbarButton>
+        {showLink && (
+          <ToolbarButton label="Link" onActivate={onLink}>
+            <LinkIcon />
+          </ToolbarButton>
+        )}
       </div>
     </nav>
   );

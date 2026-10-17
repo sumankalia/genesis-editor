@@ -7,7 +7,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   target: "es2020",
-  external: ["react", "react-dom", /^@blocknote\//, "lucide-react"],
+  external: ["react", "react-dom", /^@blocknote\//, "lucide-react", "prosemirror-state"],
   // The editor relies on hooks and browser APIs, so it must be a client component in React Server Components apps.
   banner: { js: '"use client";' },
 });

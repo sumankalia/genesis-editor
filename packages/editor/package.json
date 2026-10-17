@@ -66,7 +66,8 @@
     "@blocknote/core": "~0.56.0",
     "@blocknote/react": "~0.56.0",
     "@blocknote/shadcn": "~0.56.0",
-    "lucide-react": "^0.525.0"
+    "lucide-react": "^0.525.0",
+    "prosemirror-state": "^1.4.4"
   },
   "devDependencies": {
     "@eslint/js": "^9",

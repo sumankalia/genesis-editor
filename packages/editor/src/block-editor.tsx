@@ -8,18 +8,26 @@ import {
   useRef,
   useState,
 } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import type { Block, BlockNoteEditor, PartialBlock } from "@blocknote/core";
+import type {
+  ClipboardEvent as ReactClipboardEvent,
+  DragEvent as ReactDragEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MutableRefObject,
+} from "react";
+import { filterSuggestionItems, type Block, type BlockNoteEditor, type PartialBlock } from "@blocknote/core";
 import { FilePanelExtension, SuggestionMenu } from "@blocknote/core/extensions";
 import {
+  BlockNoteViewEditor,
   FilePanelController,
   FormattingToolbarController,
+  SuggestionMenuController,
+  getDefaultReactSlashMenuItems,
   useCreateBlockNote,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 
 import { GenesisFilePanel } from "./components/file-panel";
-import { GenesisFormattingToolbar } from "./components/formatting-toolbar";
+import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
 import { UploadContext, type UploadContextValue } from "./components/upload-context";
@@ -35,6 +43,17 @@ import {
 import { UploadStatusStore } from "./lib/upload-status";
 import { getUploadMode, uploadWithConfig, type UploadConfig } from "./lib/uploads";
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
+import { acceptsFile } from "./plugins/files";
+import {
+  mergeSlashItems,
+  resolveEditorSetup,
+  resolveToolbar,
+  setupSignature,
+  type ToolSelection,
+  type ToolbarConfig,
+} from "./plugins/resolve";
+import { sanitizeBlocks, schemaSupport } from "./plugins/sanitize";
+import type { AnyEditor, AnyPartialBlock, GenesisPlugin } from "./plugins/types";
 
 export type UploadErrorEvent = {
   error: Error;
@@ -68,6 +87,19 @@ export type BlockEditorProps = UploadConfig & {
   mobileToolbar?: boolean;
   /** When set, the upload panel shows a "Configure uploads" link while no upload destination is configured. */
   onConfigureUploads?: () => void;
+  /**
+   * Which tools to offer: `["heading", "image"]`, or `{ heading: { levels: [1, 2] }, bold: true }`.
+   * Disabled tools are left out of every menu, shortcut, and toolbar, and pasted content falls back
+   * to paragraphs. Paragraphs are always on. Defaults to every built-in tool and every plugin.
+   */
+  tools?: ToolSelection;
+  /**
+   * Formatting toolbar items in order, or `{ items, placement: "fixed" }` to pin the toolbar above
+   * the editor. `false` turns it off. Defaults to the built-in items followed by plugin items.
+   */
+  toolbar?: ToolbarConfig | false;
+  /** Plugins from `definePlugin`, adding blocks, menu items, toolbar items, and shortcuts. */
+  plugins?: readonly GenesisPlugin[];
 };
 
 export type BlockEditorHandle = {
@@ -107,7 +139,27 @@ function nonEmpty(blocks: PartialBlock[] | undefined) {
   return blocks && blocks.length > 0 ? blocks : undefined;
 }
 
-export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(function BlockEditor(
+/**
+ * The schema is fixed when a BlockNote editor is created, so a change to `tools` or to the plugin
+ * names mounts a new editor, which starts from the latest document.
+ */
+export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(function BlockEditor(props, ref) {
+  const latestDocument = useRef<AnyPartialBlock[] | null>(null);
+  return (
+    <EditorInstance
+      key={setupSignature(props.tools, props.plugins)}
+      {...props}
+      latestDocument={latestDocument}
+      ref={ref}
+    />
+  );
+});
+
+type EditorInstanceProps = BlockEditorProps & {
+  latestDocument: MutableRefObject<AnyPartialBlock[] | null>;
+};
+
+const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(function EditorInstance(
   {
     initialContent,
     value,
@@ -123,21 +175,34 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
     className,
     mobileToolbar = true,
     onConfigureUploads,
+    tools,
+    toolbar,
+    plugins,
+    latestDocument,
   },
   ref,
 ) {
   const persistOptions = resolvePersistOptions(persist);
   const persistKey = persistOptions?.key ?? null;
   const debounceMs = persistOptions?.debounceMs ?? 0;
-  // Content and persistence key are read once: changing them later would need a new editor.
+  // Tools, content, and persistence key are read once: changing them later needs a new editor.
+  const [setup] = useState(() => resolveEditorSetup(tools, plugins));
+  const [support] = useState(() => schemaSupport(setup.schema));
   const [initial] = useState(() => {
     const stored = persistKey ? loadStoredDocument(persistKey) : null;
+    const content =
+      nonEmpty(value) ?? nonEmpty((latestDocument.current ?? undefined) as PartialBlock[] | undefined) ?? stored?.blocks ?? nonEmpty(initialContent);
+    const sanitized = content ? sanitizeBlocks(content, support) : undefined;
     return {
       key: persistKey,
       stored,
-      content: nonEmpty(value) ?? stored?.blocks ?? nonEmpty(initialContent),
+      content: sanitized?.length ? (sanitized as PartialBlock[]) : undefined,
     };
   });
+  const sanitize = useCallback(
+    (blocks: PartialBlock[]) => sanitizeBlocks(blocks, support) as PartialBlock[],
+    [support],
+  );
 
   const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
@@ -152,7 +217,9 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
   const retryRef = useRef<(blockId: string) => Promise<void>>(async () => {});
 
   const editor = useCreateBlockNote({
-    initialContent: initial.content,
+    schema: setup.schema,
+    extensions: setup.extensions,
+    initialContent: initial.content as never,
     // Never rejects: paste/drop uploads would surface as unhandled rejections, so
     // failures are recorded per block and shown in that block's file panel instead.
     uploadFile: async (file, blockId) => {
@@ -179,7 +246,7 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
         return {};
       }
     },
-  });
+  }) as unknown as BlockNoteEditor;
   const colorScheme = useColorScheme(theme);
 
   const uploadToBlock = useCallback(
@@ -277,19 +344,20 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
     if (json === JSON.stringify(editor.document)) return;
     applyingValue.current = true;
     try {
-      editor.replaceBlocks(editor.document, value);
+      editor.replaceBlocks(editor.document, sanitize(value));
     } finally {
       applyingValue.current = false;
     }
-  }, [editor, value]);
+  }, [editor, value, sanitize]);
 
   const handleChange = useCallback(() => {
     scheduleSave();
     if (applyingValue.current) return;
     const blocks = editor.document;
+    latestDocument.current = blocks as AnyPartialBlock[];
     lastEmitted.current = blocks;
     callbacks.current.onChange?.(blocks, editor);
-  }, [editor, scheduleSave]);
+  }, [editor, scheduleSave, latestDocument]);
 
   useImperativeHandle(
     ref,
@@ -297,7 +365,7 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
       editor,
       focus: () => editor.focus(),
       getBlocks: () => editor.document,
-      setBlocks: (blocks) => editor.replaceBlocks(editor.document, blocks),
+      setBlocks: (blocks) => editor.replaceBlocks(editor.document, sanitize(blocks)),
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
       clearPersisted: () => {
         if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -305,7 +373,7 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
         if (initial.key) clearStoredDocument(initial.key);
       },
     }),
-    [editor, initial.key],
+    [editor, initial.key, sanitize],
   );
 
   // Links
@@ -334,18 +402,53 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
     [editor, closeLinkDialog],
   );
 
+  const linksEnabled = support.links;
+
   // BlockNote has no link shortcut; its toolbar link button needs a selection.
   const handleKeyDownCapture = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       const mod = event.metaKey || event.ctrlKey;
-      if (!editable || !mod || event.altKey || event.shiftKey) return;
+      if (!editable || !linksEnabled || !mod || event.altKey || event.shiftKey) return;
       if (event.key.toLowerCase() !== "k") return;
       if (!(event.target instanceof Element) || !event.target.closest(".bn-editor")) return;
       event.preventDefault();
       event.stopPropagation();
       openLinkDialog();
     },
-    [editable, openLinkDialog],
+    [editable, linksEnabled, openLinkDialog],
+  );
+
+  // Without a block type for a file, BlockNote would insert a "file" block the schema lacks.
+  const blockUnsupportedFiles = useCallback(
+    (event: ReactClipboardEvent<HTMLDivElement> | ReactDragEvent<HTMLDivElement>) => {
+      const data = "clipboardData" in event ? event.clipboardData : event.dataTransfer;
+      if (!data || !data.types.includes("Files") || data.types.some((type) => type !== "Files")) return;
+      const files = Array.from(data.files);
+      if (files.length && files.every((file) => acceptsFile(editor as AnyEditor, file))) return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [editor],
+  );
+
+  const getSlashItems = useCallback(
+    async (query: string) =>
+      filterSuggestionItems(
+        mergeSlashItems(editor as AnyEditor, getDefaultReactSlashMenuItems(editor), setup.plugins),
+        query,
+      ),
+    [editor, setup.plugins],
+  );
+
+  const toolbarKey = JSON.stringify(toolbar ?? null);
+  const resolvedToolbar = useMemo(
+    () => resolveToolbar(setup, toolbar),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- compared by value so inline arrays don't re-render the toolbar
+    [setup, toolbarKey],
+  );
+  const toolbarItems = useMemo(
+    () => ({ order: resolvedToolbar.items, items: setup.toolbarItems }),
+    [resolvedToolbar.items, setup.toolbarItems],
   );
 
   const openSlashMenu = useCallback(() => {
@@ -359,23 +462,45 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
         className={cn("genesis-editor", className)}
         data-color-scheme={colorScheme}
         data-mobile-toolbar={editable && mobileToolbar ? "" : undefined}
+        data-toolbar={resolvedToolbar.placement}
         onKeyDownCapture={handleKeyDownCapture}
+        onPasteCapture={blockUnsupportedFiles}
+        onDropCapture={blockUnsupportedFiles}
       >
-        <BlockNoteView
-          editor={editor}
-          // Also applied to BlockNote's portal roots (menus, toolbars), which the stylesheet is scoped to.
-          className="genesis-editor"
-          theme={colorScheme}
-          editable={editable}
-          onChange={handleChange}
-          formattingToolbar={false}
-          filePanel={false}
-        >
-          <FormattingToolbarController formattingToolbar={GenesisFormattingToolbar} />
-          <FilePanelController filePanel={GenesisFilePanel} />
-        </BlockNoteView>
+        <ToolbarItemsContext.Provider value={toolbarItems}>
+          <BlockNoteView
+            editor={editor}
+            // Also applied to BlockNote's portal roots (menus, toolbars), which the stylesheet is scoped to.
+            className="genesis-editor"
+            theme={colorScheme}
+            editable={editable}
+            onChange={handleChange}
+            formattingToolbar={false}
+            filePanel={false}
+            slashMenu={false}
+            renderEditor={false}
+          >
+            {resolvedToolbar.placement === "fixed" && editable && (
+              <div className="genesis-fixed-toolbar" data-testid="fixed-toolbar">
+                <GenesisFormattingToolbar />
+              </div>
+            )}
+            <BlockNoteViewEditor>
+              {resolvedToolbar.placement === "floating" && (
+                <FormattingToolbarController formattingToolbar={GenesisFormattingToolbar} />
+              )}
+              <SuggestionMenuController triggerCharacter="/" getItems={getSlashItems} />
+              <FilePanelController filePanel={GenesisFilePanel} />
+            </BlockNoteViewEditor>
+          </BlockNoteView>
+        </ToolbarItemsContext.Provider>
         {editable && mobileToolbar && (
-          <MobileBlockToolbar editor={editor} onAddBlock={openSlashMenu} onLink={openLinkDialog} />
+          <MobileBlockToolbar
+            editor={editor}
+            onAddBlock={openSlashMenu}
+            onLink={openLinkDialog}
+            showLink={linksEnabled}
+          />
         )}
         <LinkDialog
           open={linkDialogOpen}

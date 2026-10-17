@@ -55,6 +55,24 @@
   cursor: pointer;
 }
 
+.genesis-editor .genesis-fixed-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-bottom: 0.5rem;
+  padding: 0.375rem calc(var(--genesis-gutter) - 0.5rem);
+  border-bottom: 1px solid var(--border);
+  background: var(--bn-colors-editor-background, var(--background));
+}
+
+.genesis-editor .genesis-fixed-toolbar .bn-formatting-toolbar {
+  flex-wrap: wrap;
+  max-width: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 @keyframes genesis-editor-fade-in {
   from {
     opacity: 0;

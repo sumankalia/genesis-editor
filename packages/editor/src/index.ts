@@ -10,3 +10,24 @@ export { MAX_LOCAL_UPLOAD_BYTES, getUploadMode, mapResponsePath, uploadWithConfi
 export type { UploadConfig, UploadMode, UploadResponseMapper } from "./lib/uploads";
 export type { EditorTheme } from "./lib/use-color-scheme";
 export type { Block, BlockNoteEditor, PartialBlock } from "@blocknote/core";
+export { definePlugin } from "./plugins/types";
+export type {
+  AnyEditor,
+  GenesisPlugin,
+  MarkdownShortcut,
+  SlashMenuItem,
+  ToolbarItem,
+} from "./plugins/types";
+export { BLOCK_TOOLS, BUILT_IN_TOOLS, DEFAULT_TOOLBAR, INLINE_TOOLS } from "./plugins/built-in";
+export type {
+  BlockToolName,
+  BuiltInToolName,
+  BuiltInToolbarItem,
+  HeadingLevel,
+  InlineToolName,
+  ToolOptions,
+} from "./plugins/built-in";
+export type { ToolSelection, ToolbarConfig, ToolbarItemName } from "./plugins/resolve";
+export { ToolbarButton } from "./plugins/toolbar-button";
+export type { ToolbarButtonProps } from "./plugins/toolbar-button";
+export { createReactBlockSpec } from "@blocknote/react";
