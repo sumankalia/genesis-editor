@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -7,7 +8,8 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   partialPrefetching: true,
   turbopack: {
-    root: __dirname,
+    // pnpm hoists dependencies to the workspace root.
+    root: path.join(__dirname, "../.."),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
