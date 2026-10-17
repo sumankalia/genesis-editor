@@ -1,4 +1,4 @@
-import { editorColor, parseColor } from "./colors";
+import { editorColor, isPaletteName, parseColor } from "./colors";
 import { parseStyle, toPx, type Declarations } from "./css";
 import { defaultDom, ELEMENT_NODE, TEXT_NODE } from "./dom";
 import {
@@ -175,6 +175,11 @@ class Sink {
   protected accept(block: HtmlBlock) {
     this.blocks.push(block);
   }
+
+  /** The block a following `data-genesis-children` container belongs to. */
+  lastBlock(): HtmlBlock | undefined {
+    return this.blocks[this.blocks.length - 1];
+  }
 }
 
 /** First paragraph-like content becomes the head block; everything after it becomes its children. */
@@ -210,6 +215,11 @@ class HeadSink extends Sink {
 
   private child(block: HtmlBlock) {
     (this.head!.children ??= []).push(block);
+  }
+
+  lastBlock() {
+    this.flush();
+    return this.head?.children?.[this.head.children.length - 1] ?? this.head;
   }
 
   result() {
@@ -326,6 +336,7 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
   const headingLevel = headingLevelOf(el, tag);
   if (headingLevel) return heading(el, headingLevel, decl, next, sink, state);
 
+  if (el.hasAttribute("data-genesis-children")) return nestedChildren(el, next, sink, state);
   const cls = classes(el);
   if (cls.some((c) => FIGURE_CLASSES.has(c))) return figure(el, decl, next, sink, state);
 
@@ -353,6 +364,17 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
       if (state.mode === "strict") flow(el, { ...next, textOnly: true }, sink, state);
       else flow(el, next, sink, state);
   }
+}
+
+/** `toHTML` writes children of non-list blocks into `<div data-genesis-children>` right after the block. */
+function nestedChildren(el: Element, ctx: Ctx, sink: Sink, state: State) {
+  sink.flush();
+  const sub = new Sink(state, paragraphMaker(state, {}, false), { synthetic: true });
+  flow(el, { ...ctx, align: undefined }, sub, state);
+  sub.flush();
+  const parent = sink.lastBlock();
+  if (parent && parent.type !== "table") (parent.children ??= []).push(...sub.blocks);
+  else sink.push(...sub.blocks);
 }
 
 function isHidden(el: Element, decl: Declarations) {
@@ -449,14 +471,14 @@ function applyInlineCss(el: Element, decl: Declarations, ctx: Ctx, state: State,
   if (family && MONOSPACE_FONT.test(family)) ctx.code = true;
   const color = colorValue(decl.get("color") ?? (tag === "font" ? el.getAttribute("color") ?? undefined : undefined), "text", state);
   const dataText = el.getAttribute("data-text-color");
-  if (dataText && /^[a-z]+$/.test(dataText) && dataText !== "default") ctx.textColor = dataText;
+  if (isPaletteName(dataText)) ctx.textColor = dataText;
   else if (color !== undefined) {
     ctx.textColor = color ?? undefined;
     countColor(color, state);
   }
   const background = colorValue(decl.get("background-color") ?? decl.get("background"), "background", state);
   const dataBackground = el.getAttribute("data-background-color");
-  if (dataBackground && /^[a-z]+$/.test(dataBackground) && dataBackground !== "default") ctx.backgroundColor = dataBackground;
+  if (isPaletteName(dataBackground)) ctx.backgroundColor = dataBackground;
   else if (background !== undefined) {
     ctx.backgroundColor = background ?? undefined;
     countColor(background, state);
@@ -492,13 +514,13 @@ function blockProps(type: string, el: Element, decl: Declarations, ctx: Ctx, sta
   if (allowed.includes("textAlignment") && align && align !== "left") props.textAlignment = align;
   if (state.tools.has("color")) {
     const dataText = el.getAttribute("data-text-color");
-    const text = dataText && /^[a-z]+$/.test(dataText) ? dataText : colorValue(decl.get("color"), "text", state);
+    const text = isPaletteName(dataText) ? dataText : colorValue(decl.get("color"), "text", state);
     if (allowed.includes("textColor") && text && text !== "default") props.textColor = text;
     const dataBackground = el.getAttribute("data-background-color");
-    const background = dataBackground && /^[a-z]+$/.test(dataBackground) ? dataBackground : colorValue(decl.get("background-color") ?? decl.get("background"), "background", state);
+    const background = isPaletteName(dataBackground) ? dataBackground : colorValue(decl.get("background-color") ?? decl.get("background"), "background", state);
     if (allowed.includes("backgroundColor") && background && background !== "default") props.backgroundColor = background;
-    countColor(typeof text === "string" && !dataText ? text : undefined, state);
-    countColor(typeof background === "string" && !dataBackground ? background : undefined, state);
+    countColor(typeof text === "string" && !isPaletteName(dataText) ? text : undefined, state);
+    countColor(typeof background === "string" && !isPaletteName(dataBackground) ? background : undefined, state);
   }
   return props;
 }
@@ -898,9 +920,11 @@ function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
       const align = alignmentOf(cell, cellDecl);
       if (align && align !== "left") props.textAlignment = align;
       if (state.tools.has("color")) {
-        const bg = colorValue(cellDecl.get("background-color") ?? cellDecl.get("background") ?? cell.getAttribute("bgcolor") ?? undefined, "background", state);
+        const dataBg = cell.getAttribute("data-background-color");
+        const bg = isPaletteName(dataBg) ? dataBg : colorValue(cellDecl.get("background-color") ?? cellDecl.get("background") ?? cell.getAttribute("bgcolor") ?? undefined, "background", state);
         if (bg) props.backgroundColor = bg;
-        const fg = colorValue(cellDecl.get("color"), "text", state);
+        const dataFg = cell.getAttribute("data-text-color");
+        const fg = isPaletteName(dataFg) ? dataFg : colorValue(cellDecl.get("color"), "text", state);
         if (fg) props.textColor = fg;
       }
       cells.push({ type: "tableCell", props, content: sub.content() });
@@ -1042,6 +1066,7 @@ function media(el: Element, tag: "video" | "audio" | string, ctx: Ctx, sink: Sin
   if (tag === "video") {
     const width = toPx(el.getAttribute("width"));
     if (width && width > 2) props.previewWidth = Math.round(width);
+    if (ctx.align && ctx.align !== "left" && ctx.align !== "justify") props.textAlignment = ctx.align;
   }
   emitMedia({ type: tag, props }, tag as "video" | "audio", title || url, ctx, sink, state);
 }
@@ -1091,7 +1116,8 @@ function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: St
     const url = cleanHref(download.getAttribute("href")!, state.base);
     if (url) {
       const props: Record<string, string | number | boolean> = { url };
-      const name = (download.textContent ?? "").trim() || download.getAttribute("download");
+      const text = (download.textContent ?? "").trim();
+      const name = download.getAttribute("download") || (text !== download.getAttribute("href") ? text : "");
       if (name) props.name = name;
       if (caption) props.caption = caption;
       state.report.mapped++;

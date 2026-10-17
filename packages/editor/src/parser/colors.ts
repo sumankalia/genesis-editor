@@ -175,6 +175,10 @@ export function editorColor(value: string, kind: "text" | "background", allowHex
   return bestDistance <= PALETTE_DELTA_E || !allowHex ? best : hex;
 }
 
+export function isPaletteName(value: string | null | undefined): value is PaletteName {
+  return !!value && Object.prototype.hasOwnProperty.call(PALETTE, value);
+}
+
 /** The CSS value for a stored color: palette names map to their hex value. */
 export function cssColor(value: string, kind: "text" | "background") {
   return value in PALETTE ? PALETTE[value as PaletteName][kind] : /^#[0-9a-f]{6}$/i.test(value) ? value : undefined;

@@ -36,7 +36,7 @@ export const TAG_CLASSES: Record<string, TagClass> = {
   footer: "wrapper", center: "wrapper", address: "wrapper", hgroup: "wrapper", body: "wrapper",
   html: "wrapper", figcaption: "wrapper", summary: "wrapper", dt: "wrapper", dd: "wrapper",
   thead: "wrapper", tbody: "wrapper", tfoot: "wrapper", tr: "wrapper", td: "wrapper", th: "wrapper",
-  colgroup: "drop", col: "drop", source: "drop", track: "drop", area: "drop", wbr: "inline",
+  colgroup: "wrapper", col: "wrapper", source: "drop", track: "drop", area: "drop", wbr: "inline",
   span: "inline", small: "inline", big: "inline", abbr: "inline", acronym: "inline", time: "inline",
   data: "inline", bdi: "inline", bdo: "inline", label: "inline", q: "inline", ruby: "inline",
   rt: "drop", rp: "drop", nobr: "inline",
@@ -47,8 +47,8 @@ export const TAG_CLASSES: Record<string, TagClass> = {
 /** Why a `drop` element is dropped, for the report. */
 export const DROP_REASONS: Record<string, DropReason> = {
   script: "content", style: "content", noscript: "content", template: "content", link: "content",
-  meta: "content", base: "content", title: "content", head: "content", colgroup: "content",
-  col: "content", source: "content", track: "content", rt: "content", rp: "content", area: "content",
+  meta: "content", base: "content", title: "content", head: "content",
+  source: "content", track: "content", rt: "content", rp: "content", area: "content",
 };
 
 /** Styles implied by inline tags. Tools that are off are removed later. */
@@ -79,7 +79,8 @@ export const FIGCAPTION_CLASSES = new Set(["wp-caption-text", "wp-element-captio
 export const ALLOWED_ATTRIBUTES = new Set([
   "href", "src", "srcset", "sizes", "alt", "title", "width", "height", "colspan", "rowspan", "start",
   "value", "type", "checked", "class", "id", "style", "align", "bgcolor", "color", "dir", "lang",
-  "role", "aria-level", "aria-checked", "aria-hidden", "hidden", "poster", "download", "cite",
+  "role", "aria-level", "aria-checked", "aria-hidden", "hidden", "poster", "download", "cite", "span",
+  "face", "size",
 ]);
 
 /** URL attributes, checked against `SAFE_URL`. */
