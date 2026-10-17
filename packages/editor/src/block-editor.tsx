@@ -55,6 +55,9 @@ import {
 import { sanitizeBlocks, schemaSupport } from "./plugins/sanitize";
 import type { AnyEditor, AnyPartialBlock, GenesisPlugin } from "./plugins/types";
 
+/** Blocks to load. Plugin block types are accepted alongside the built-in ones. */
+export type EditorContent = (PartialBlock | AnyPartialBlock)[];
+
 export type UploadErrorEvent = {
   error: Error;
   file: File;
@@ -66,9 +69,9 @@ export type UploadErrorEvent = {
 
 export type BlockEditorProps = UploadConfig & {
   /** Content for the first render (uncontrolled). Ignored when `value` is set or a persisted document is found. */
-  initialContent?: PartialBlock[];
+  initialContent?: EditorContent;
   /** Controlled content. When it changes to something other than the current document, the editor content is replaced. */
-  value?: PartialBlock[];
+  value?: EditorContent;
   /** Called after every user edit with the full document. */
   onChange?: (blocks: Block[], editor: BlockNoteEditor) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
@@ -110,7 +113,7 @@ export type BlockEditorHandle = {
   /** The current document. */
   getBlocks: () => Block[];
   /** Replaces the whole document. Counts as an edit for `onChange` and persistence. */
-  setBlocks: (blocks: PartialBlock[]) => void;
+  setBlocks: (blocks: EditorContent) => void;
   /** Lossy Markdown export of the current document. */
   getMarkdown: () => string;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
@@ -135,7 +138,7 @@ function rerenderEmptyFileBlock(editor: BlockNoteEditor, blockId: string, name: 
   setName(name);
 }
 
-function nonEmpty(blocks: PartialBlock[] | undefined) {
+function nonEmpty(blocks: EditorContent | undefined) {
   return blocks && blocks.length > 0 ? blocks : undefined;
 }
 
@@ -191,7 +194,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const [initial] = useState(() => {
     const stored = persistKey ? loadStoredDocument(persistKey) : null;
     const content =
-      nonEmpty(value) ?? nonEmpty((latestDocument.current ?? undefined) as PartialBlock[] | undefined) ?? stored?.blocks ?? nonEmpty(initialContent);
+      nonEmpty(value) ?? nonEmpty(latestDocument.current ?? undefined) ?? stored?.blocks ?? nonEmpty(initialContent);
     const sanitized = content ? sanitizeBlocks(content, support) : undefined;
     return {
       key: persistKey,
@@ -200,7 +203,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     };
   });
   const sanitize = useCallback(
-    (blocks: PartialBlock[]) => sanitizeBlocks(blocks, support) as PartialBlock[],
+    (blocks: EditorContent) => sanitizeBlocks(blocks, support) as PartialBlock[],
     [support],
   );
 

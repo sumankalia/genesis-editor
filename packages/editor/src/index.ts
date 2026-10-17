@@ -1,5 +1,5 @@
 export { BlockEditor } from "./block-editor";
-export type { BlockEditorHandle, BlockEditorProps, UploadErrorEvent } from "./block-editor";
+export type { BlockEditorHandle, BlockEditorProps, EditorContent, UploadErrorEvent } from "./block-editor";
 export {
   DEFAULT_PERSIST_KEY,
   clearStoredDocument,
@@ -13,6 +13,7 @@ export type { Block, BlockNoteEditor, PartialBlock } from "@blocknote/core";
 export { definePlugin } from "./plugins/types";
 export type {
   AnyEditor,
+  AnyPartialBlock,
   GenesisPlugin,
   MarkdownShortcut,
   SlashMenuItem,
