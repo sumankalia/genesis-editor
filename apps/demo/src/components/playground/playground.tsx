@@ -107,8 +107,8 @@ export default function Playground() {
   const code = useMemo(() => generateCode(options), [options]);
 
   return (
-    <div className="grid gap-6">
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <div className="flex h-11 items-center justify-between gap-2 border-b px-3">
             <SaveIndicator state={saveState} />
