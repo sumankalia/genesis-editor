@@ -358,6 +358,7 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
       <div
         className={cn("genesis-editor", className)}
         data-color-scheme={colorScheme}
+        data-mobile-toolbar={editable && mobileToolbar ? "" : undefined}
         onKeyDownCapture={handleKeyDownCapture}
       >
         <BlockNoteView

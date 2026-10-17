@@ -6,9 +6,59 @@
   font-family: var(--genesis-editor-font-family, inherit);
 }
 
+/*
+ * The editor reserves its own gutter so the side menu (+ and drag handle) always
+ * sits inside the editor's box, whatever the host container's width or padding.
+ * It must stay wider than the side menu (2 × 22px buttons + 2px gap + 4px offset).
+ */
+:where(.genesis-editor) {
+  --genesis-gutter: 3.75rem;
+}
+
+.genesis-editor .bn-editor {
+  padding-inline: var(--genesis-gutter) var(--genesis-gutter-end, var(--genesis-gutter));
+}
+
+.genesis-editor .bn-side-menu {
+  gap: 2px;
+  padding-right: 4px;
+  animation: genesis-editor-fade-in 150ms ease-out;
+}
+
+.genesis-editor .bn-side-menu .bn-button {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: color-mix(in oklab, var(--muted-foreground) 75%, transparent);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.genesis-editor .bn-side-menu .bn-button:hover,
+.genesis-editor .bn-side-menu .bn-button[aria-expanded="true"] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.genesis-editor .bn-side-menu .bn-button svg {
+  width: 14px;
+  height: 14px;
+}
+
 .genesis-editor .bn-side-menu .bn-button,
 .genesis-editor .bn-suggestion-menu-item {
   cursor: pointer;
+}
+
+@keyframes genesis-editor-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* BlockNote renders a bare "Loading..." while an upload is in flight. */
@@ -49,8 +99,13 @@
 }
 
 @media (max-width: 639px) {
-  .genesis-editor .bn-editor {
-    padding-inline: 20px;
+  /* The mobile block toolbar replaces the hover side menu on small screens. */
+  :where(.genesis-editor[data-mobile-toolbar]) {
+    --genesis-gutter: 1.25rem;
+  }
+
+  .genesis-editor[data-mobile-toolbar] .bn-side-menu {
+    display: none;
   }
 
   .genesis-editor [data-content-type="heading"]:not([data-level]),
