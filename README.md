@@ -24,13 +24,18 @@ packages/editor/              genesis-editor, the published package
   src/lib/                    Upload logic, upload status store, persistence, theme hook
   src/styles/                 Stylesheet sources, compiled by scripts/build-css.mjs
   test/                       Unit tests (Vitest)
-apps/demo/                    Next.js demo app that consumes the package
-  src/components/demo/        Header, save indicator, upload settings dialog
+apps/demo/                    Docs and playground site (Next.js) that consumes the package
+  src/app/docs/               Docs pages: getting started, usage, uploads, theming, API, shortcuts
+  src/app/playground/         Playground route
+  src/components/examples/    Live examples; their source is what the docs show as code
+  src/components/playground/  Props panel, output views, save indicator
+  src/components/site/        Header, sidebar, code blocks, Preview/Code tabs
+  src/lib/api-docs.ts         API reference tables, generated from the package's exported types
   src/app/api/mock-upload/    Local mock upload server
   e2e/                        Browser checks (Playwright)
 ```
 
-## Running the demo
+## Running the docs site
 
 Requires Node.js 20.9+ and pnpm 10.
 
@@ -39,12 +44,20 @@ pnpm install
 pnpm dev
 ```
 
-Then open <http://localhost:4317>. The demo autosaves to `localStorage`, and its
-**⋯** menu has Copy as Markdown, Upload settings, Reset document, and the theme.
+Then open <http://localhost:4317>:
+
+| Route                   | Contents                                                    |
+| ----------------------- | ----------------------------------------------------------- |
+| `/`                     | Landing page with install command and a live editor         |
+| `/docs/getting-started` | Guides and API reference, each example with Preview/Code    |
+| `/playground`           | Editor with a props panel, JSON/Markdown output, and code   |
+
+The playground autosaves its document to `localStorage` and has Copy Markdown
+and Reset buttons.
 
 ### Trying uploads
 
-**⋯ → Upload settings…** switches between:
+The playground's **Image uploads** options switch between (changes apply live):
 
 - **This browser**: the `data:` URL fallback (default).
 - **Upload server**: an upload URL and, optionally, the JSON field holding the
@@ -66,18 +79,18 @@ It stores files in `apps/demo/.uploads/` (git-ignored), serves them from
 
 | Command                  | What it does                                        |
 | ------------------------ | --------------------------------------------------- |
-| `pnpm dev`               | Build the package, then run the demo on port 4317   |
-| `pnpm build`             | Build the package and the demo                      |
+| `pnpm dev`               | Build the package, then run the docs site on :4317 |
+| `pnpm build`             | Build the package and the docs site                 |
 | `pnpm lint`              | ESLint in every workspace                           |
 | `pnpm typecheck`         | TypeScript in every workspace                       |
 | `pnpm test`              | Package unit tests                                  |
-| `pnpm --filter demo e2e` | Browser checks against the running demo             |
+| `pnpm --filter demo e2e` | Browser checks against the running docs site        |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development details.
 
 ## Limitations
 
-- The demo holds one document per browser; there is no backend or sync.
+- The playground holds one document per browser; there is no backend or sync.
 - `localStorage` is per-origin and limited to a few MB.
 - Video, audio, and file blocks use the same upload destination, but the mock
   server only accepts images.

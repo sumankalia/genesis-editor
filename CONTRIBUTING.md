@@ -5,7 +5,7 @@ Thanks for helping with Genesis. This repository is a pnpm workspace:
 | Path              | What it is                                                       |
 | ----------------- | ---------------------------------------------------------------- |
 | `packages/editor` | `genesis-editor`, the published React component                  |
-| `apps/demo`       | A Next.js app that uses the package, with a mock upload server   |
+| `apps/demo`       | Docs and playground site (Next.js) with a mock upload server     |
 
 ## Setup
 
@@ -14,7 +14,7 @@ version pinned in `package.json`).
 
 ```bash
 pnpm install
-pnpm dev        # builds the package, then runs the demo on http://localhost:4317
+pnpm dev        # builds the package, then runs the docs site on http://localhost:4317
 ```
 
 The demo imports the package's built output, so rebuild it after changing
@@ -31,10 +31,12 @@ pnpm lint
 pnpm typecheck
 pnpm build
 pnpm test                      # unit tests (Vitest) for the package
-pnpm --filter demo e2e         # browser checks; needs the demo running on :4317
+pnpm --filter demo e2e         # browser checks; needs the docs site running on :4317
 ```
 
-The browser checks in `apps/demo/e2e` drive the demo with Playwright. They use
+The browser checks in `apps/demo/e2e` drive the site with Playwright: `editor.mjs` and
+`uploads.mjs` exercise `/playground`, and `docs.mjs` covers the landing page, docs,
+and playground options. They use
 Playwright's Chromium (`pnpm --filter demo exec playwright-core install chromium`),
 or an installed Chrome with `E2E_CHANNEL=chrome`. Point them at another server
 with `E2E_BASE_URL`. Screenshots go to `apps/demo/e2e/screenshots/`.
