@@ -8,6 +8,18 @@ All notable changes to `genesis-editor` are documented here. The format follows
 
 ### Added
 
+- `tools` prop: choose built-in block and inline tools by name, or with
+  per-tool options (`heading: { levels }`). Disabled tools are left out of the
+  slash menu, toolbars, Markdown shortcuts, and paste; existing content that
+  uses them falls back to paragraphs.
+- `toolbar` prop: choose and order formatting toolbar items, pin the toolbar
+  above the content with `placement: "fixed"`, or hide it with `false`.
+- `plugins` prop and `definePlugin` for custom blocks, slash menu items,
+  toolbar items, Markdown shortcuts, and keyboard shortcuts. Built-in tools are
+  plugins too.
+- `ToolbarButton`, `createReactBlockSpec` (re-exported), `BLOCK_TOOLS`,
+  `INLINE_TOOLS`, `BUILT_IN_TOOLS`, `DEFAULT_TOOLBAR`, and the related types,
+  including `EditorContent` for content with plugin blocks.
 - `--genesis-gutter` and `--genesis-gutter-end` CSS variables. The editor
   reserves its own gutter, so the side menu stays inside the editor in any
   container without host padding.

@@ -20,12 +20,13 @@ import "genesis-editor/style.css";
 ```
 packages/editor/              genesis-editor, the published package
   src/block-editor.tsx        <BlockEditor>: BlockNote setup, value/onChange, persistence, uploads
+  src/plugins/                Tool selection, built-in tools, definePlugin, content fallback
   src/components/             Upload panel, formatting toolbar, mobile toolbar, link dialog
   src/lib/                    Upload logic, upload status store, persistence, theme hook
   src/styles/                 Stylesheet sources, compiled by scripts/build-css.mjs
   test/                       Unit tests (Vitest)
 apps/demo/                    Docs and playground site (Next.js) that consumes the package
-  src/app/docs/               Docs pages: getting started, usage, uploads, theming, API, shortcuts
+  src/app/docs/               Docs pages: getting started, usage, uploads, tools & plugins, theming, API, shortcuts
   src/app/playground/         Playground route
   src/components/examples/    Live examples; their source is what the docs show as code
   src/components/playground/  Props panel, output views, save indicator
@@ -50,7 +51,7 @@ Then open <http://localhost:4317>:
 | ----------------------- | ----------------------------------------------------------- |
 | `/`                     | Landing page with install command and a live editor         |
 | `/docs/getting-started` | Guides and API reference, each example with Preview/Code    |
-| `/playground`           | Editor with a props panel, JSON/Markdown output, and code   |
+| `/playground`           | Editor with a props and tools panel, JSON/Markdown, and code |
 
 The playground autosaves its document to `localStorage` and has Copy Markdown
 and Reset buttons.
