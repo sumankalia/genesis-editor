@@ -8,26 +8,16 @@ import {
 import type { DefaultReactSuggestionItem } from "@blocknote/react";
 import { Plugin, PluginKey } from "prosemirror-state";
 
+import { builtInTools, corePlugin } from "./built-in";
 import {
   BUILT_IN_TOOLS,
   DEFAULT_TOOLBAR,
-  builtInTools,
-  corePlugin,
-  type BuiltInToolName,
   type BuiltInToolbarItem,
-  type ToolOptions,
-} from "./built-in";
+  type ToolSelection,
+} from "./tool-names";
 import type { AnyEditor, AnyBlockSpec, GenesisPlugin, SlashMenuItem, ToolbarItem } from "./types";
 
-type BuiltInToolEntry = { [K in BuiltInToolName]?: K extends keyof ToolOptions ? boolean | ToolOptions[K] : boolean };
-
-/**
- * Which tools the editor offers. An array lists the enabled tools; an object enables the keys set
- * to `true` or to an options object. Paragraphs are always on. Plugin names count as tools too.
- */
-export type ToolSelection =
-  | readonly (BuiltInToolName | (string & {}))[]
-  | (BuiltInToolEntry & { [name: string]: boolean | object | undefined });
+export type { ToolSelection } from "./tool-names";
 
 export type ToolbarItemName = BuiltInToolbarItem | (string & {});
 
