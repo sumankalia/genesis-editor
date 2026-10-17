@@ -107,6 +107,69 @@ await page.evaluate(() => window.scrollTo(0, 0));
 await settle(page);
 await page.screenshot({ path: `${SHOTS}/docs-playground.png` });
 
+// Side menu: compact, and inside the editor's own gutter in every container.
+const sideMenuIn = async (p, editorLocator) => {
+  await editorLocator.scrollIntoViewIfNeeded();
+  const block = editorLocator.locator(".bn-block-content").first();
+  const bb = await block.boundingBox();
+  await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2, { steps: 3 });
+  await p.mouse.move(bb.x + 20, bb.y + bb.height / 2, { steps: 3 });
+  await p.locator(".bn-side-menu").first().waitFor({ state: "visible", timeout: 3000 }).catch(() => {});
+  return editorLocator.evaluate((editorEl) => {
+    const menu = document.querySelector(".bn-side-menu");
+    if (!menu) return null;
+    const e = editorEl.getBoundingClientRect();
+    const m = menu.getBoundingClientRect();
+    const buttons = [...menu.querySelectorAll(".bn-button")].map((b) => {
+      const r = b.getBoundingClientRect();
+      const svg = b.querySelector("svg").getBoundingClientRect();
+      return { w: r.width, h: r.height, icon: svg.width, cursor: getComputedStyle(b).cursor };
+    });
+    return { inset: m.left - e.left, buttons };
+  });
+};
+const sideMenuOk = (info) =>
+  !!info &&
+  info.inset >= 4 &&
+  info.buttons.length === 2 &&
+  info.buttons.every((b) => b.w <= 22 && b.h <= 22 && b.icon === 14 && b.cursor === "pointer");
+const sideMenuDetail = (info) =>
+  info ? `inset=${Math.round(info.inset)} ${info.buttons.map((b) => `${b.w}x${b.h}/${b.icon}`).join(",")}` : "no menu";
+
+for (const path of ["/docs/usage", "/docs/image-uploads", "/docs/theming"]) {
+  await page.goto(`${BASE_URL}${path}`);
+  const editors = page.locator("[data-example] .example-preview .bn-editor");
+  await editors.first().waitFor({ timeout: 10000 });
+  await page.waitForTimeout(300);
+  const count = await editors.count();
+  const bad = [];
+  for (let i = 0; i < count; i++) {
+    if ((await editors.nth(i).getAttribute("contenteditable")) !== "true") continue;
+    const info = await sideMenuIn(page, editors.nth(i));
+    if (!sideMenuOk(info)) bad.push(`#${i} ${sideMenuDetail(info)}`);
+  }
+  check(`side menu fits every example on ${path}`, bad.length === 0, bad.join(" | ") || `${count} editors`);
+}
+await page.goto(`${BASE_URL}/docs/usage`);
+const narrowExample = page.locator("[data-example]").first();
+await narrowExample.locator(".bn-editor").waitFor();
+await narrowExample.evaluate((el) => { el.style.width = "300px"; });
+const narrowInfo = await sideMenuIn(page, narrowExample.locator(".bn-editor"));
+check("side menu fits a 300px container", sideMenuOk(narrowInfo), sideMenuDetail(narrowInfo));
+const customGutter = await narrowExample.evaluate((el) => {
+  el.querySelector(".genesis-editor").style.setProperty("--genesis-gutter", "5rem");
+  return getComputedStyle(el.querySelector(".bn-editor")).paddingLeft;
+});
+check("--genesis-gutter on the root sets the gutter", customGutter === "80px", customGutter);
+await page.goto(`${BASE_URL}/`);
+await page.locator("[data-testid='hero-editor'] .bn-editor").waitFor({ timeout: 10000 });
+const heroInfo = await sideMenuIn(page, page.locator("[data-testid='hero-editor'] .bn-editor"));
+check("side menu fits the hero editor", sideMenuOk(heroInfo), sideMenuDetail(heroInfo));
+await page.goto(`${BASE_URL}/playground`);
+await page.waitForSelector(".bn-editor");
+const playInfo = await sideMenuIn(page, page.locator(".playground-editor .bn-editor"));
+check("side menu fits the playground editor", sideMenuOk(playInfo), sideMenuDetail(playInfo));
+
 // Dark mode.
 await page.goto(`${BASE_URL}/docs/getting-started`);
 await page.getByRole("button", { name: "Theme" }).click();
@@ -130,6 +193,16 @@ for (const path of ["/", "/docs/api", "/playground"]) {
   const overflow = await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth || window.innerWidth > 390);
   check(`no horizontal overflow on mobile ${path}`, !overflow);
 }
+await m.goto(`${BASE_URL}/playground`);
+await m.waitForSelector(".bn-editor");
+await m.locator(".bn-block-content").first().tap();
+await m.waitForTimeout(300);
+const mobileGutter = await m.evaluate(() => ({
+  padding: getComputedStyle(document.querySelector(".playground-editor .bn-editor")).paddingLeft,
+  menuVisible: [...document.querySelectorAll(".bn-side-menu")].some((el) => el.getBoundingClientRect().width > 0),
+}));
+check("mobile uses the compact gutter without the hover menu", mobileGutter.padding === "20px" && !mobileGutter.menuVisible, JSON.stringify(mobileGutter));
+
 await m.goto(`${BASE_URL}/docs/usage`);
 await m.getByRole("button", { name: "Open menu" }).tap();
 const sheet = m.getByRole("dialog");
