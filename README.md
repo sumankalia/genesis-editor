@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Genesis
 
-## Getting Started
+Genesis is a structured, block-based rich text editor in the style of Notion. A
+document is not one flat WYSIWYG surface: every paragraph, heading, list item,
+quote, code block, to-do, and divider is its own block that can be inserted,
+converted, reordered, and nested independently.
 
-First, run the development server:
+It is built on [BlockNote](https://www.blocknotejs.org/) (which sits on
+TipTap/ProseMirror), rendered with BlockNote's shadcn/ui skin inside a Next.js
+App Router app.
+
+## Features
+
+- **Blocks**: paragraph, heading (H1–H6), bullet / numbered / to-do / toggle
+  lists, quote, code block, divider, table, and media blocks.
+- **Slash menu**: type `/` to insert a block or turn an empty block into another
+  type; keep typing to filter.
+- **Drag handles**: hover a block to reveal its handle, then drag to reorder.
+  The handle's menu also deletes blocks and changes colors.
+- **Nesting**: `Tab` indents a block under the one above it; `Shift+Tab` lifts it
+  back out.
+- **Inline formatting**: select text for the floating toolbar (block type, bold,
+  italic, underline, strikethrough, inline code, color, nesting, link).
+- **Markdown shortcuts** at the start of a line: `#`–`######` headings, `-`/`*`
+  bullets, `1.` numbered lists, `[]` / `[x]` to-dos, `>` quotes, ```` ``` ````
+  code blocks, `---` dividers, and `` `code` `` inline.
+- **Autosave** to `localStorage` (key `genesis:document:v1`) shortly after every
+  change, with a status indicator in the header. Pending changes are flushed when
+  the tab is hidden or closed.
+- **Mobile**: a bottom toolbar for adding, indenting, outdenting, and moving
+  blocks (touch has no hover handle or Tab key). While the on-screen keyboard is
+  open, BlockNote's formatting toolbar is pinned above it, with move up/down
+  buttons added.
+- Light, dark, and system themes; "Copy as Markdown" and "Reset document" in the
+  header menu.
+
+### Keyboard shortcuts
+
+| Action                    | Shortcut                         |
+| ------------------------- | -------------------------------- |
+| Bold / italic / underline | `Mod+B` / `Mod+I` / `Mod+U`      |
+| Strikethrough             | `Mod+Shift+S`                    |
+| Inline code               | `Mod+E`                          |
+| Link                      | `Mod+K`                          |
+| Indent / outdent block    | `Tab` / `Shift+Tab`              |
+| Heading 1–3               | `Mod+Alt+1` … `Mod+Alt+3`        |
+| Paragraph                 | `Mod+Alt+0`                      |
+| Bullet / numbered / to-do | `Mod+Shift+8` / `7` / `9`        |
+| Undo / redo               | `Mod+Z` / `Mod+Shift+Z`          |
+
+`Mod` is `⌘` on macOS and `Ctrl` elsewhere.
+
+## Running locally
+
+Requires Node.js 20.9+ and npm.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev -- --port 4317
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open <http://localhost:4317>. Any port works; 4317 just avoids clashing
+with other local servers.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other scripts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build   # production build
+npm run start   # serve the production build
+npm run lint    # ESLint
+```
 
-## Learn More
+## Project layout
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    layout.tsx                 Theme, tooltip, and toast providers
+    page.tsx                   Renders the editor
+    globals.css                Tailwind + shadcn theme, editor tweaks
+  components/
+    editor/
+      editor-loader.tsx        Client-only dynamic import (editor reads localStorage)
+      block-editor.tsx         BlockNote setup, autosave, Mod+K link shortcut
+      editor-header.tsx        Save status, document menu, theme switcher
+      formatting-toolbar.tsx   Selection toolbar (adds inline code + mobile move buttons)
+      mobile-block-toolbar.tsx Bottom block-actions bar on small screens
+      link-dialog.tsx          URL prompt used by Mod+K and the mobile toolbar
+    ui/                        shadcn/ui components
+  lib/
+    storage.ts                 localStorage load/save
+    starter-document.ts        Content shown on first visit and after reset
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS v4 ·
+shadcn/ui · BlockNote 0.56.
 
-## Deploy on Vercel
+## Limitations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- One document per browser. There is no document list, backend, or sync yet.
+- `localStorage` is per-origin and limited to a few MB; if a save fails the
+  header shows "Couldn't save".
+- No file upload handler is configured, so image, video, audio, and file blocks
+  only accept embedded URLs.
