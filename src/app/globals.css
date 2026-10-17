@@ -143,6 +143,11 @@
   min-height: 60dvh;
 }
 
+.bn-side-menu .bn-button,
+.bn-suggestion-menu-item {
+  cursor: pointer;
+}
+
 @media (max-width: 639px) {
   .genesis-editor .bn-editor {
     padding-inline: 20px;
