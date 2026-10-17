@@ -73,7 +73,9 @@ export type BlockEditorProps = UploadConfig & {
 export type BlockEditorHandle = {
   /** The underlying BlockNote editor, for anything the props don't cover. */
   editor: BlockNoteEditor;
+  /** Moves focus into the editor. */
   focus: () => void;
+  /** The current document. */
   getBlocks: () => Block[];
   /** Replaces the whole document. Counts as an edit for `onChange` and persistence. */
   setBlocks: (blocks: PartialBlock[]) => void;
