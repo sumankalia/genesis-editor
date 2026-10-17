@@ -4,6 +4,20 @@ All notable changes to `genesis-editor` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `--genesis-gutter` and `--genesis-gutter-end` CSS variables. The editor
+  reserves its own gutter, so the side menu stays inside the editor in any
+  container without host padding.
+
+### Changed
+
+- Smaller side menu: 14px icons in 22px buttons, muted until hovered, with a
+  short fade-in.
+- Below 640px, with the mobile toolbar on, the hover side menu is hidden.
+
 ## [0.1.0] - 2026-10-17
 
 First release.

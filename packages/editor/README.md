@@ -231,6 +231,13 @@ BlockNote's own `--bn-colors-*` variables also apply.
 <BlockEditor className="brand-editor" />
 ```
 
+The editor reserves its own left gutter for the hover side menu (the **+** and
+drag handle), so it never touches your container's edge and needs no padding
+from the host. Set `--genesis-gutter` (default `3.75rem`; keep it at least
+`3.25rem`) to change it, and `--genesis-gutter-end` for a different right
+padding. Below 640px, with the mobile toolbar on, the side menu is hidden and
+the gutter is `1.25rem`.
+
 ## License
 
 MIT. The stylesheet includes styles from BlockNote (MPL-2.0) and Tailwind CSS (MIT).

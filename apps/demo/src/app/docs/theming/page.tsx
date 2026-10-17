@@ -18,7 +18,15 @@ const variables: [string, string][] = [
   ["--destructive", "Error messages"],
   ["--radius", "Corner radius of menus and buttons"],
   ["--genesis-editor-font-family", "Font, if not the page's own"],
+  ["--genesis-gutter", "Left (and default right) padding that holds the side menu. 3.75rem"],
+  ["--genesis-gutter-end", "Right padding, if different. Defaults to --genesis-gutter"],
 ];
+
+const gutter = `.compact-editor {
+  /* Keep it at least 3.25rem so the + and drag handle fit inside. */
+  --genesis-gutter: 3.25rem;
+  --genesis-gutter-end: 1rem;
+}`;
 
 const dark = `<BlockEditor theme={isDark ? "dark" : "light"} />`;
 
@@ -47,6 +55,20 @@ export default function ThemingPage() {
         <code>[data-color-scheme=&quot;dark&quot;]</code> rule for dark-mode values.
       </p>
       <Example name="custom-theme" files={["custom-theme.css"]} minHeight={160} />
+
+      <H2>Layout and gutter</H2>
+      <p>
+        The editor pads its content with its own gutter, so the <code>+</code> and drag handle that
+        appear on hover always sit inside the editor, in any container, without padding from your
+        page. Change the width with <code>--genesis-gutter</code>, and the right side separately with{" "}
+        <code>--genesis-gutter-end</code>:
+      </p>
+      <CodeBlock code={gutter} lang="css" />
+      <p>
+        Below 640px wide, the editor shows a block toolbar at the bottom of the screen instead of
+        the hover menu, and the gutter shrinks to <code>1.25rem</code>. Set{" "}
+        <code>mobileToolbar={"{false}"}</code> to keep the hover menu and the full gutter.
+      </p>
 
       <H2>Variables</H2>
       <div className="not-prose my-6 overflow-x-auto rounded-xl border">
