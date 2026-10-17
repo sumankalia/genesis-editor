@@ -13,6 +13,10 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE_URL });
 const page = await context.newPage();
 const errors = [];
+const settle = async (p) => {
+  await p.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  await p.waitForTimeout(400);
+};
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
@@ -31,6 +35,7 @@ check("hero editor is live", (await page.locator("[data-testid='hero-editor'] .b
 check("landing has no save status", (await page.getByTestId("save-status").count()) === 0);
 check("version badge shown", await page.getByText(/^v\d+\.\d+\.\d+$/).first().isVisible());
 check("GitHub and npm links", (await page.getByRole("link", { name: "GitHub repository" }).count()) > 0 && (await page.getByRole("link", { name: "npm package" }).count()) > 0);
+await settle(page);
 await page.screenshot({ path: `${SHOTS}/docs-landing.png` });
 
 // Every docs page renders with the sidebar marking it active.
@@ -61,6 +66,7 @@ check("example code hides demo-only lines", !codeText.includes("useSiteTheme") &
 check("example code is highlighted", (await example.locator(".code-block .shiki span[style]").count()) > 0);
 await example.getByRole("tab", { name: "Preview" }).click();
 check("examples per upload mode", (await page.locator("[data-example]").count()) >= 3);
+await settle(page);
 await page.screenshot({ path: `${SHOTS}/docs-image-uploads.png` });
 
 // API reference is generated from the exported types.
@@ -71,6 +77,7 @@ for (const name of ["value", "onChange", "persist", "uploadUrl", "uploadFile", "
 }
 const methodNames = await page.getByTestId("api-methods").locator("tbody tr td:first-child").allInnerTexts();
 check("API table documents ref methods", ["focus", "getBlocks", "setBlocks", "getMarkdown", "clearPersisted"].every((m) => methodNames.some((n) => n.includes(m))), methodNames.join(","));
+await settle(page);
 await page.screenshot({ path: `${SHOTS}/docs-api-reference.png` });
 
 // Playground: props panel drives the editor and the generated code.
@@ -97,6 +104,7 @@ await page.getByRole("tab", { name: "Markdown" }).click();
 check("Markdown output updates live", (await page.getByTestId("output-markdown").innerText()).includes("Live output check"));
 await page.getByRole("tab", { name: "Code" }).click();
 await page.evaluate(() => window.scrollTo(0, 0));
+await settle(page);
 await page.screenshot({ path: `${SHOTS}/docs-playground.png` });
 
 // Dark mode.
@@ -108,6 +116,7 @@ check("dark mode applies to the site", await page.evaluate(() => document.docume
 await page.goto(`${BASE_URL}/`);
 await page.locator("[data-testid='hero-editor'] .bn-editor").waitFor({ timeout: 10000 });
 check("hero editor follows dark mode", (await page.locator("[data-testid='hero-editor'] .bn-container").getAttribute("data-color-scheme")) === "dark");
+await settle(page);
 await page.screenshot({ path: `${SHOTS}/docs-landing-dark.png` });
 await page.evaluate(() => localStorage.setItem("theme", "system"));
 
