@@ -79,7 +79,27 @@ const compiled = await postcss([
   scopeToEditor(),
 ]).process(await readFile(input, "utf8"), { from: input });
 
-const blocknote = await readFile(require.resolve("@blocknote/shadcn/style.css"), "utf8");
+// BlockNote's own selectors are namespaced with `.bn-*`, except for a few bare
+// attribute selectors (`[data-text-color=red]`, ...) that would reach the host page.
+const NAMESPACED = /\.bn-|ProseMirror|prosemirror|tableWrapper|column-resize|selectedCell|collaboration|katex|shiki/;
+/** @type {import("postcss").PluginCreator<void>} */
+const scopeBareSelectors = () => ({
+  postcssPlugin: "genesis-editor-scope-bare",
+  OnceExit(css) {
+    css.walkRules((rule) => {
+      if (rule.parent?.type === "atrule" && /keyframes$/.test(rule.parent.name)) return;
+      rule.selectors = rule.selectors.map((s) => (NAMESPACED.test(s) ? s : `${WHERE} ${s}`));
+    });
+  },
+});
+scopeBareSelectors.postcss = true;
+
+const blocknotePath = require.resolve("@blocknote/shadcn/style.css");
+const blocknote = (
+  await postcss([scopeBareSelectors()]).process(await readFile(blocknotePath, "utf8"), {
+    from: blocknotePath,
+  })
+).css;
 const overrides = await readFile(join(root, "src/styles/editor.css"), "utf8");
 
 const output = [
