@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "A Notion-style block editor for React: slash menu, drag handles, nesting, markdown shortcuts, and image uploads.",
   "license": "MIT",
-  "author": "Sandeep",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sandeep-code/genesis.git",
