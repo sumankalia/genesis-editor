@@ -12,8 +12,10 @@ import {
 import { ClipboardCopyIcon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { calloutPlugin } from "@/components/examples/callout-plugin";
 import { ClientCode } from "@/components/playground/client-code";
 import {
+  ALL_TOOLS,
   OptionsPanel,
   type PlaygroundOptions,
 } from "@/components/playground/options-panel";
@@ -37,6 +39,9 @@ export default function Playground() {
     theme: "site",
     editable: true,
     uploads: loadUploadSettings(),
+    tools: [...ALL_TOOLS],
+    callout: false,
+    toolbarPlacement: "floating",
   }));
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [markdown, setMarkdown] = useState("");
@@ -102,6 +107,13 @@ export default function Playground() {
     toast.success("Document reset");
   };
 
+  const tools = useMemo(() => toolsProp(options), [options]);
+  const plugins = useMemo(() => (options.callout ? [calloutPlugin] : undefined), [options.callout]);
+  const toolbar = useMemo(
+    () => (options.toolbarPlacement === "fixed" ? { placement: "fixed" as const } : undefined),
+    [options.toolbarPlacement],
+  );
+
   const editorTheme = options.theme === "site" ? siteTheme : options.theme;
   const json = useMemo(() => JSON.stringify(blocks, shortenDataUrls, 2), [blocks]);
   const code = useMemo(() => generateCode(options), [options]);
@@ -132,6 +144,9 @@ export default function Playground() {
               onChange={refreshOutput}
               theme={editorTheme}
               editable={options.editable}
+              tools={tools}
+              toolbar={toolbar}
+              plugins={plugins}
               uploadFile={uploads.mode === "custom" ? demoUploadFile : undefined}
               uploadUrl={serverMode ? uploadUrl : undefined}
               mapUploadResponse={serverMode ? mapUploadResponse : undefined}
@@ -176,11 +191,23 @@ function shortenDataUrls(_key: string, value: unknown) {
   return value;
 }
 
-function generateCode({ theme, editable, uploads }: PlaygroundOptions) {
+/** `undefined` (every tool) unless some built-in tool is switched off. */
+function toolsProp({ tools, callout }: PlaygroundOptions) {
+  if (tools.length === ALL_TOOLS.length) return undefined;
+  return callout ? [...tools, "callout"] : tools;
+}
+
+function generateCode(options: PlaygroundOptions) {
+  const { theme, editable, uploads, callout, toolbarPlacement } = options;
   const props = [`persist={{ key: "my-document" }}`];
   if (theme === "site") props.push(`theme={resolvedTheme} // "light" | "dark" from your app`);
   else if (theme !== "system") props.push(`theme="${theme}"`);
   if (!editable) props.push("editable={false}");
+
+  const tools = toolsProp(options);
+  if (tools) props.push(`tools={[${tools.map((tool) => `"${tool}"`).join(", ")}]}`);
+  if (toolbarPlacement === "fixed") props.push(`toolbar={{ placement: "fixed" }}`);
+  if (callout) props.push("plugins={[calloutPlugin]}");
 
   const url = uploads.uploadUrl.trim();
   const path = uploads.responsePath.trim();
@@ -196,8 +223,9 @@ function generateCode({ theme, editable, uploads }: PlaygroundOptions) {
   const lines = [
     `import { ${imports.join(", ")} } from "genesis-editor";`,
     `import "genesis-editor/style.css";`,
-    "",
   ];
+  if (callout) lines.push(`import { calloutPlugin } from "./callout-plugin";`);
+  lines.push("");
   if (uploads.mode === "custom") {
     lines.push(
       "async function uploadFile(file: File): Promise<string> {",

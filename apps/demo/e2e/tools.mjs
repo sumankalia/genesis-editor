@@ -144,6 +144,8 @@ const callout = page.locator("[data-example='plugin-callout']");
 await callout.scrollIntoViewIfNeeded();
 await editorIn(callout).waitFor({ timeout: 10000 });
 check("callout initial content renders", (await callout.locator(".callout").count()) > 0);
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${SHOTS}/tools-callout-plugin.png`, clip: await callout.boundingBox() });
 const calloutSlash = await slashTitles(callout, "callout");
 check("plugin slash item appears", calloutSlash.includes("Callout"), calloutSlash.join(","));
 await emptyEditor(callout);
@@ -161,13 +163,6 @@ const calloutLabels = await toolbarLabels(callout);
 check("plugin toolbar item appears after built-ins", calloutLabels.at(-1) === "Callout", calloutLabels.join(","));
 await page.locator(`${FLOATING_TOOLBAR} button[aria-label='Callout']`).first().click();
 check("plugin toolbar button converts the block", (await callout.locator(".callout").filter({ hasText: "Select me" }).count()) === 1);
-await page.keyboard.press("End");
-await page.keyboard.press("Enter");
-await page.keyboard.type("A tip lives here");
-await page.keyboard.press("Escape");
-await page.mouse.click(5, 5);
-await page.waitForTimeout(300);
-await page.screenshot({ path: `${SHOTS}/tools-callout-plugin.png`, clip: await callout.boundingBox() });
 
 // API reference documents the plugin shape.
 await page.goto(`${BASE_URL}/docs/api`);
@@ -175,6 +170,42 @@ const pluginFields = await page.getByTestId("api-plugins").locator("tbody tr td:
 check("API reference documents plugin fields", ["name", "blocks", "slashItems", "toolbarItems", "markdownShortcuts"].every((f) => pluginFields.some((n) => n.trim().startsWith(f))), pluginFields.join(","));
 const props = await page.getByTestId("api-props").locator("tbody tr td:first-child").allInnerTexts();
 check("API reference documents tools, toolbar, plugins props", ["tools", "toolbar", "plugins"].every((p) => props.some((n) => n.trim().startsWith(p))));
+
+// Playground tools panel drives the editor and the generated code.
+await page.goto(`${BASE_URL}/playground`);
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+const play = page.locator(".playground-editor");
+await editorIn(play).waitFor({ timeout: 10000 });
+const codeTab = page.getByTestId("output-code");
+const code = () => codeTab.innerText();
+check("playground panel lists tool checkboxes", (await page.getByTestId("tools-panel").getByRole("checkbox").count()) >= 21);
+check("all tools on: no tools prop in code", !(await code()).includes("tools="));
+check("paragraph checkbox is always on", (await page.locator("#tool-paragraph").isDisabled()) && (await page.locator("#tool-paragraph").getAttribute("data-state")) === "checked");
+check("starter document has headings", (await play.locator("[data-content-type='heading']").count()) > 0);
+await page.locator("#tool-heading").click();
+await page.waitForTimeout(500);
+check("unchecking heading updates code", (await code()).includes("tools={[") && !(await code()).includes(`"heading"`));
+check("unchecking heading removes headings from the document", (await play.locator("[data-content-type='heading']").count()) === 0);
+check("document text survives the rebuild", (await editorIn(play).innerText()).length > 100);
+const playSlash = await slashTitles(play, "head");
+check("unchecking heading removes it from the slash menu", !playSlash.some((t) => t.startsWith("Heading")), playSlash.join(","));
+await page.locator("#tool-callout").click();
+await page.waitForTimeout(500);
+check("callout plugin adds plugins prop and tool name", (await code()).includes("plugins={[calloutPlugin]}") && (await code()).includes(`"callout"`));
+check("callout plugin shows in the playground slash menu", (await slashTitles(play, "callout")).includes("Callout"));
+await page.locator("#option-toolbar").click();
+await page.getByRole("option", { name: /Fixed/ }).click();
+await page.waitForTimeout(500);
+check("fixed toolbar option shows the fixed toolbar", await play.getByTestId("fixed-toolbar").isVisible());
+check("fixed toolbar option updates code", (await code()).includes(`toolbar={{ placement: "fixed" }}`));
+await page.getByTestId("tools-panel").getByRole("button", { name: "All" }).click();
+await page.waitForTimeout(300);
+check("All restores every tool", !(await code()).includes("tools="));
+await page.mouse.click(5, 5);
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${SHOTS}/tools-playground.png` });
+await page.evaluate(() => localStorage.clear());
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 

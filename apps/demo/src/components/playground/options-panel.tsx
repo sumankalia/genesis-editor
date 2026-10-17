@@ -1,7 +1,14 @@
 "use client";
 
-import { MAX_LOCAL_UPLOAD_BYTES } from "genesis-editor";
+import {
+  BLOCK_TOOLS,
+  INLINE_TOOLS,
+  MAX_LOCAL_UPLOAD_BYTES,
+  type BuiltInToolName,
+} from "genesis-editor";
 
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -22,7 +29,14 @@ export type PlaygroundOptions = {
   theme: ThemeOption;
   editable: boolean;
   uploads: UploadSettings;
+  /** Enabled built-in tools. */
+  tools: BuiltInToolName[];
+  /** Adds the example callout plugin. */
+  callout: boolean;
+  toolbarPlacement: "floating" | "fixed";
 };
+
+export const ALL_TOOLS: BuiltInToolName[] = [...BLOCK_TOOLS, ...INLINE_TOOLS];
 
 const modes = [
   {
@@ -81,6 +95,10 @@ export function OptionsPanel({
           onCheckedChange={(editable) => onChange({ ...options, editable })}
         />
       </div>
+
+      <Separator />
+
+      <ToolsFieldset options={options} onChange={onChange} />
 
       <Separator />
 
@@ -153,5 +171,114 @@ export function OptionsPanel({
         )}
       </fieldset>
     </div>
+  );
+}
+
+function ToolsFieldset({
+  options,
+  onChange,
+}: {
+  options: PlaygroundOptions;
+  onChange: (options: PlaygroundOptions) => void;
+}) {
+  const enabled = new Set(options.tools);
+  const toggle = (tool: BuiltInToolName, on: boolean) =>
+    onChange({ ...options, tools: ALL_TOOLS.filter((t) => (t === tool ? on : enabled.has(t))) });
+
+  const group = (title: string, tools: readonly BuiltInToolName[]) => (
+    <div className="grid gap-2">
+      <span className="text-xs text-muted-foreground">{title}</span>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+        {title === "Blocks" && (
+          <ToolCheckbox id="tool-paragraph" label="paragraph" checked disabled />
+        )}
+        {tools.map((tool) => (
+          <ToolCheckbox
+            key={tool}
+            id={`tool-${tool}`}
+            label={tool}
+            checked={enabled.has(tool)}
+            onCheckedChange={(on) => toggle(tool, on)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <fieldset className="grid gap-4" data-testid="tools-panel">
+      <legend className="mb-3 flex w-full items-center justify-between font-medium">
+        tools
+        <span className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => onChange({ ...options, tools: [...ALL_TOOLS] })}
+          >
+            All
+          </Button>
+          <Button variant="ghost" size="xs" onClick={() => onChange({ ...options, tools: [] })}>
+            None
+          </Button>
+        </span>
+      </legend>
+      {group("Blocks", BLOCK_TOOLS)}
+      {group("Inline", INLINE_TOOLS)}
+      <div className="grid gap-2">
+        <span className="text-xs text-muted-foreground">plugins</span>
+        <ToolCheckbox
+          id="tool-callout"
+          label="callout (example plugin)"
+          checked={options.callout}
+          onCheckedChange={(callout) => onChange({ ...options, callout })}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="option-toolbar">toolbar</Label>
+        <Select
+          value={options.toolbarPlacement}
+          onValueChange={(placement) =>
+            onChange({ ...options, toolbarPlacement: placement as PlaygroundOptions["toolbarPlacement"] })
+          }
+        >
+          <SelectTrigger id="option-toolbar" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="floating">Floating (on selection)</SelectItem>
+            <SelectItem value="fixed">Fixed (top of editor)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </fieldset>
+  );
+}
+
+function ToolCheckbox({
+  id,
+  label,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+}) {
+  return (
+    <Label
+      htmlFor={id}
+      className="flex cursor-pointer items-center gap-2 font-mono text-xs font-normal has-disabled:cursor-default has-disabled:opacity-60"
+    >
+      <Checkbox
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onCheckedChange?.(value === true)}
+      />
+      {label}
+    </Label>
   );
 }
