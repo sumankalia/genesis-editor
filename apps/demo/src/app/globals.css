@@ -134,6 +134,94 @@
   --bn-colors-editor-background: transparent;
 }
 
-.genesis-editor .bn-editor {
+/* The theme example shows the editor's own background, independent of the page. */
+[data-example="theme-switch"] .genesis-editor .bn-container[data-color-scheme="light"] {
+  --bn-colors-editor-background: #ffffff;
+}
+
+[data-example="theme-switch"] .genesis-editor .bn-container[data-color-scheme="dark"] {
+  --bn-colors-editor-background: #1f1f1f;
+}
+
+[data-example="theme-switch"] .genesis-editor .bn-editor {
+  padding-block: 1rem;
+  border-radius: 0.75rem;
+}
+
+.playground-editor .bn-editor {
   min-height: 60dvh;
+}
+
+/* Docs typography */
+.docs-prose {
+  line-height: 1.7;
+}
+
+.docs-prose > h2 {
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.docs-prose > h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.docs-prose > p,
+.docs-prose > ul,
+.docs-prose > ol {
+  margin-block: 1rem;
+  color: color-mix(in oklch, var(--foreground) 82%, transparent);
+}
+
+.docs-prose > ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.docs-prose > ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+.docs-prose li + li {
+  margin-top: 0.375rem;
+}
+
+.docs-prose a:not(.no-underline) {
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.docs-prose :not(pre) > code {
+  border-radius: 0.375rem;
+  background: var(--muted);
+  padding: 0.125rem 0.375rem;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.docs-prose > .code-block {
+  margin-block: 1.25rem;
+}
+
+/* Shiki dual themes */
+.code-block .shiki,
+.code-block .shiki span {
+  color: var(--shiki-light);
+}
+
+.dark .code-block .shiki,
+.dark .code-block .shiki span {
+  color: var(--shiki-dark);
+}
+
+.code-block pre {
+  font-family: var(--font-mono);
 }
