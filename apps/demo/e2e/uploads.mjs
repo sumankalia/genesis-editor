@@ -4,6 +4,7 @@ import { chromium } from "playwright-core";
 import { BASE_URL, SHOTS, fixture, launchOptions } from "./config.mjs";
 
 const BASE = BASE_URL;
+const PLAYGROUND = `${BASE_URL}/playground`;
 const RED = fixture("red.png");
 const BLUE = fixture("blue.png");
 const results = [];
@@ -19,7 +20,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 
 const fresh = async (settings) => {
-  await page.goto(BASE);
+  await page.goto(PLAYGROUND);
   await page.evaluate((s) => {
     localStorage.clear();
     if (s) localStorage.setItem("genesis:upload-settings:v1", JSON.stringify(s));
@@ -40,17 +41,13 @@ const insertImageBlock = async () => {
   await panel.waitFor({ state: "visible", timeout: 3000 });
 };
 
+const options = page.getByTestId("options-panel");
 const setSettings = async ({ mode, url, path }) => {
-  await page.getByRole("button", { name: "Document actions" }).click();
-  await page.getByRole("menuitem", { name: "Upload settings…" }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.waitFor();
-  await dialog.getByLabel({ local: "This browser", server: "Upload server", custom: "Custom function" }[mode], { exact: false }).first().click();
+  await options.getByLabel({ local: "This browser", server: "Upload server", custom: "Custom function" }[mode], { exact: false }).first().click();
   if (mode === "server") {
-    await dialog.getByLabel("Upload URL").fill(url);
-    await dialog.getByLabel(/Response field/).fill(path ?? "");
+    await options.getByLabel("Upload URL").fill(url);
+    await options.getByLabel(/Response field/).fill(path ?? "");
   }
-  return dialog;
 };
 
 // 1. Local fallback via file picker.
@@ -84,7 +81,6 @@ check("image by URL still works", (await images().count()) === 2 && (await image
 
 // 3. Server mode with uploading state.
 await setSettings({ mode: "server", url: "/api/mock-upload?delay=1500" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 await insertImageBlock();
 check("server mode hides local notice", !(await page.getByText("No upload server configured").isVisible()));
 await page.getByTestId("upload-input").setInputFiles(BLUE);
@@ -103,7 +99,6 @@ check("panel closes after successful upload", !(await panel.isVisible()));
 
 // 4. Failure, then retry.
 await setSettings({ mode: "server", url: "/api/mock-upload?fail=1" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 await insertImageBlock();
 await page.getByTestId("upload-input").setInputFiles(RED);
 const alert = page.getByTestId("upload-tab").getByRole("alert");
@@ -112,7 +107,6 @@ check("error state shown in panel", await alert.isVisible(), await alert.innerTe
 check("error toast with Retry shown", await page.locator("[data-sonner-toast]").getByRole("button", { name: "Retry" }).isVisible());
 await page.screenshot({ path: `${SHOTS}/upload-error-retry.png` });
 await setSettings({ mode: "server", url: "/api/mock-upload" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 const failedBlock = page.locator(".bn-editor [data-content-type='image'] .bn-add-file-button").last();
 await failedBlock.click();
 await alert.waitFor({ timeout: 3000 });
@@ -123,7 +117,6 @@ check("retry uploads the same file", (await images().count()) === 4);
 
 // 5. Response mapper.
 await setSettings({ mode: "server", url: "/api/mock-upload?shape=nested", path: "data.link" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 await insertImageBlock();
 await page.getByTestId("upload-input").setInputFiles(BLUE);
 await page.waitForFunction(() => document.querySelectorAll(".bn-editor [data-content-type='image'] img").length === 5, null, { timeout: 8000 }).catch(() => {});
@@ -131,7 +124,6 @@ check("response mapper reads data.link", (await images().count()) === 5 && /\/ap
 
 // 6. Custom uploadFile.
 await setSettings({ mode: "custom" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 await insertImageBlock();
 await page.getByTestId("upload-input").setInputFiles(RED);
 await page.waitForFunction(() => document.querySelectorAll(".bn-editor [data-content-type='image'] img").length === 6, null, { timeout: 8000 }).catch(() => {});
@@ -139,7 +131,6 @@ check("custom uploadFile result is used", (await images().count()) === 6 && /\/a
 
 // 7. Paste and drop (server mode).
 await setSettings({ mode: "server", url: "/api/mock-upload" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 const pngBase64 = readFileSync(BLUE).toString("base64");
 await page.locator(".bn-editor .bn-block-content").last().click();
 await page.waitForTimeout(100);
@@ -176,7 +167,6 @@ check("all 8 image blocks saved with URLs", imageBlocks.length === 8 && imageBlo
 
 // 9. Failed paste recovers to an empty block with error + retry.
 await setSettings({ mode: "server", url: "/api/mock-upload?fail=1" });
-await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
 await page.locator(".bn-editor .bn-block-content").last().click();
 await page.waitForTimeout(100);
 await page.evaluate((b64) => {
@@ -191,10 +181,9 @@ const stuck = await page.locator(".bn-editor .bn-file-loading-preview").count();
 check("failed paste block is not stuck uploading", stuck === 0 && (await page.locator(".bn-editor .bn-add-file-button").count()) === 1, `loading=${stuck}`);
 await page.keyboard.press("Escape");
 
-// Settings dialog screenshot.
+// Upload options screenshot.
 await setSettings({ mode: "server", url: "/api/mock-upload", path: "" });
-await page.screenshot({ path: `${SHOTS}/upload-settings.png` });
-await page.keyboard.press("Escape");
+await options.screenshot({ path: `${SHOTS}/upload-settings.png` });
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

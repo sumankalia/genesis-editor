@@ -2,7 +2,7 @@ import { chromium } from "playwright-core";
 
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
-const URL = `${BASE_URL}/`;
+const URL = `${BASE_URL}/playground`;
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });
@@ -220,7 +220,7 @@ check(
 await page.screenshot({ path: `${SHOTS}/desktop-after-reload.png`, fullPage: true });
 
 // Dark mode.
-await page.getByRole("button", { name: "Document actions" }).click();
+await page.getByRole("button", { name: "Theme" }).click();
 await page.getByRole("menuitemradio", { name: "Dark" }).click();
 await page.waitForTimeout(300);
 const scheme = await page.locator(".bn-container").getAttribute("data-color-scheme");
@@ -241,7 +241,7 @@ await m.goto(URL);
 await m.waitForSelector(".bn-editor");
 const nav = m.getByRole("navigation", { name: "Block actions" });
 check("mobile block toolbar visible", await nav.isVisible());
-const overflow = await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+const overflow = await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth || window.innerWidth > 390);
 check("no horizontal overflow on mobile", !overflow);
 await m.screenshot({ path: `${SHOTS}/mobile-initial.png` });
 const mTask = m.locator(".bn-block-content", { hasText: "Press Tab to nest" });
