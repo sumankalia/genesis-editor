@@ -29,6 +29,10 @@ const examples = {
   "upload-custom": load(() => import("./upload-custom")),
   "theme-switch": load(() => import("./theme-switch")),
   "custom-theme": load(() => import("./custom-theme")),
+  "tools-basic": load(() => import("./tools-basic")),
+  "tools-minimal-toolbar": load(() => import("./tools-minimal-toolbar")),
+  "tools-fixed-toolbar": load(() => import("./tools-fixed-toolbar")),
+  "plugin-callout": load(() => import("./plugin-callout")),
 };
 
 export type ExampleName = keyof typeof examples;

@@ -19,6 +19,7 @@ export const docsNav: { title: string; items: NavItem[] }[] = [
       { title: "Usage", href: "/docs/usage" },
       { title: "Image uploads", href: "/docs/image-uploads" },
       { title: "Theming", href: "/docs/theming" },
+      { title: "Tools & plugins", href: "/docs/tools" },
     ],
   },
   {

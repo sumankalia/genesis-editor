@@ -1,0 +1,40 @@
+.callout {
+  --callout-background: oklch(0.96 0.03 250);
+  display: flex;
+  flex-grow: 1;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.5rem;
+  background: var(--callout-background);
+}
+
+.callout[data-tone="warning"] {
+  --callout-background: oklch(0.96 0.05 85);
+}
+
+.callout[data-tone="success"] {
+  --callout-background: oklch(0.96 0.04 150);
+}
+
+[data-color-scheme="dark"] .callout {
+  --callout-background: oklch(0.3 0.04 250);
+}
+
+[data-color-scheme="dark"] .callout[data-tone="warning"] {
+  --callout-background: oklch(0.32 0.05 85);
+}
+
+[data-color-scheme="dark"] .callout[data-tone="success"] {
+  --callout-background: oklch(0.3 0.04 150);
+}
+
+.callout-icon {
+  flex-shrink: 0;
+  height: 1.5em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.callout-content {
+  flex-grow: 1;
+}

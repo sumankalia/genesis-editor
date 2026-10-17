@@ -7,6 +7,11 @@ import { getApiDocs, type ApiMember } from "@/lib/api-docs";
 export const metadata: Metadata = { title: "API reference" };
 
 const otherExports: [string, string][] = [
+  ["definePlugin(plugin)", "Declares a plugin for the plugins prop. See Tools & plugins."],
+  ["ToolbarButton", "A formatting toolbar button for plugin toolbar items."],
+  ["createReactBlockSpec(config, implementation)", "BlockNote's custom block helper, re-exported for plugins."],
+  ["BUILT_IN_TOOLS / BLOCK_TOOLS / INLINE_TOOLS", "Tool names, the default for tools."],
+  ["DEFAULT_TOOLBAR", "Toolbar item names in their default order."],
   ["mapResponsePath(path)", "Builds a mapUploadResponse that reads a dot path such as data.link."],
   ["uploadWithConfig(config, file)", "The upload logic the editor uses, for reuse elsewhere."],
   ["getUploadMode(config)", 'Returns "custom", "server", or "local" for a config.'],
@@ -27,13 +32,13 @@ function Description({ text }: { text: string }) {
   );
 }
 
-function MembersTable({ members, kind }: { members: ApiMember[]; kind: "prop" | "method" }) {
+function MembersTable({ members, kind }: { members: ApiMember[]; kind: "prop" | "method" | "plugin" }) {
   return (
     <div className="not-prose my-6 overflow-x-auto rounded-xl border">
       <table className="w-full min-w-[640px] text-left text-sm" data-testid={`api-${kind}s`}>
         <thead className="border-b bg-muted/40 text-muted-foreground">
           <tr>
-            <th className="px-4 py-2 font-medium">{kind === "prop" ? "Prop" : "Member"}</th>
+            <th className="px-4 py-2 font-medium">{kind === "prop" ? "Prop" : kind === "plugin" ? "Field" : "Member"}</th>
             <th className="px-4 py-2 font-medium">Type</th>
             {kind === "prop" && <th className="px-4 py-2 font-medium">Default</th>}
             <th className="px-4 py-2 font-medium">Description</th>
@@ -89,6 +94,12 @@ export default async function ApiPage() {
         Pass a <code>ref</code> to <code>&lt;BlockEditor&gt;</code> to get these members.
       </p>
       <MembersTable members={api.handle} kind="method" />
+
+      <H2 id="plugin">Plugin (definePlugin)</H2>
+      <p>
+        Fields of the object passed to <code>definePlugin</code>. Only <code>name</code> is required.
+      </p>
+      <MembersTable members={api.plugin} kind="plugin" />
 
       <H2>Types</H2>
       <p>

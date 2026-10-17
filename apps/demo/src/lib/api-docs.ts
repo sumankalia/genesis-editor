@@ -16,8 +16,12 @@ export type ApiType = { name: string; code: string };
 export type ApiDocs = {
   props: ApiMember[];
   handle: ApiMember[];
+  /** Fields of `definePlugin({ ... })`. */
+  plugin: ApiMember[];
   /** Source of the types the props refer to. */
   types: ApiType[];
+  /** Built-in tool and toolbar item names, read from the exported constants' types. */
+  names: { blockTools: string[]; inlineTools: string[]; toolbar: string[] };
 };
 
 const REFERENCED_TYPES = [
@@ -26,6 +30,12 @@ const REFERENCED_TYPES = [
   "PersistStatus",
   "UploadErrorEvent",
   "UploadResponseMapper",
+  "ToolSelection",
+  "ToolOptions",
+  "ToolbarConfig",
+  "SlashMenuItem",
+  "MarkdownShortcut",
+  "ToolbarButtonProps",
 ];
 
 const ENTRY = join(process.cwd(), "../../packages/editor/src/index.ts");
@@ -94,9 +104,18 @@ export async function getApiDocs(): Promise<ApiDocs> {
     return { name, code: `export ${declaration.getText().replace(/^export\s+/, "")}` };
   };
 
+  const literalsOf = (name: string) =>
+    [...checker.typeToString(checker.getTypeOfSymbol(resolve(name))).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
   return {
     props: membersOf("BlockEditorProps"),
     handle: membersOf("BlockEditorHandle"),
+    plugin: membersOf("GenesisPlugin"),
     types: REFERENCED_TYPES.map(sourceOf),
+    names: {
+      blockTools: literalsOf("BLOCK_TOOLS"),
+      inlineTools: literalsOf("INLINE_TOOLS"),
+      toolbar: literalsOf("DEFAULT_TOOLBAR"),
+    },
   };
 }
