@@ -1,7 +1,7 @@
 import { isSafeUrl } from "./sanitize";
 import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, withSwatches, type Props } from "./serialize-inline";
-import { embedRegistry, type EmbedRegistry } from "./embeds";
-import { serializeEmbed } from "./serialize-embed";
+import { embedRegistry } from "./embeds";
+import { serializeEmbed, type EmbedEnv } from "./serialize-embed";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
 import type { HtmlBlock, HtmlTableContent, ToHTMLOptions } from "./types";
 
@@ -19,7 +19,11 @@ const LIST_TAGS: Record<string, "ul" | "ol"> = {
 export function toHTML(blocks: readonly HtmlBlock[], options: ToHTMLOptions = {}): string {
   const previous = env;
   // No origin: the exporting app's origin isn't known, and generic frames are sandboxed without `allow-same-origin`.
-  env = { embeds: options.embeds ?? "iframe", registry: embedRegistry({}, options.embedProviders, { origin: "" }) };
+  env = {
+    embeds: options.embeds ?? "auto",
+    registry: embedRegistry({}, options.embedProviders, { origin: "" }),
+    scripts: options.embedScripts ? new Set() : undefined,
+  };
   try {
     return withSwatches(options.swatches, () => serializeBlocks(blocks, options.separator ?? "\n"));
   } finally {
@@ -27,7 +31,7 @@ export function toHTML(blocks: readonly HtmlBlock[], options: ToHTMLOptions = {}
   }
 }
 
-let env: { embeds: "iframe" | "link"; registry: EmbedRegistry } = { embeds: "iframe", registry: embedRegistry({}, [], { origin: "" }) };
+let env: EmbedEnv = { embeds: "auto", registry: embedRegistry({}, [], { origin: "" }) };
 
 function serializeBlocks(blocks: readonly HtmlBlock[], separator = ""): string {
   const out: string[] = [];
@@ -98,7 +102,7 @@ function serializeBlock(block: HtmlBlock): string {
     case "file":
       return serializeFile(props, attrs) + nested;
     case "embed":
-      return serializeEmbed(props, attrs, env.embeds, env.registry) + nested;
+      return serializeEmbed(props, attrs, env) + nested;
     default:
       return `<p${attrs}>${inline(block.content)}</p>${nested}`;
   }

@@ -4,11 +4,16 @@ import { defaultDom, ELEMENT_NODE, TEXT_NODE } from "./dom";
 import { isFontSize, snapFontSize } from "./font-size";
 import {
   cleanAspectRatio,
-  embedForElement,
+  cleanFallback,
   embedForIframe,
+  embedForMarkup,
+  embedForSnippet,
   embedForUrl,
   embedBlockProps,
   embedRegistry,
+  isSnippet,
+  snippetFallback,
+  snippetSelectors,
   type EmbedExtras,
   type EmbedRegistry,
   type ResolvedEmbed,
@@ -145,6 +150,7 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   if (!body) return { blocks: [], report: report.build(mode, 0) };
   // Before sanitizing, so elements inside removed furniture aren't reported as unsupported.
   report.cleanup = removeNoise(body, html, report, options.clean);
+  if (state.tools.has("embed")) markScriptSnippets(body, state);
   sanitizeTree(body, report);
 
   const root = new Sink(state, paragraphMaker(state, {}, true), { synthetic: true });
@@ -371,6 +377,7 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
   if (headingLevel) return withElementMeta(el, sink, () => heading(el, headingLevel, decl, next, sink, state));
 
   if (el.hasAttribute("data-genesis-children")) return nestedChildren(el, next, sink, state);
+  if (tag !== "blockquote" && isSnippet(el, tag, state.embeds) && siteEmbed(el, sink, state)) return;
   const cls = classes(el);
   if (cls.some((c) => FIGURE_CLASSES.has(c))) return withElementMeta(el, sink, () => figure(el, decl, next, sink, state));
   if (cls.includes("wp-block-file") && fileBlock(el, sink, state)) return;
@@ -1250,6 +1257,9 @@ function pushEmbed(tag: string, resolved: ResolvedEmbed | null, fallbackUrl: str
   if (!resolved) state.report.embeds.blocked++;
   state.report.downgrade(tag, "link paragraph");
   const url = resolved?.url ?? fallbackUrl;
+  for (const line of extras.fallback?.split("\n") ?? []) {
+    if (line.trim()) sink.push({ type: "paragraph", content: [{ type: "text", text: line.trim(), styles: {} }] });
+  }
   sink.push(linkParagraph(url, extras.title || url, state));
   if (extras.caption) sink.push({ type: "paragraph", content: [{ type: "text", text: extras.caption, styles: {} }] });
 }
@@ -1265,31 +1275,72 @@ function iframe(el: Element, ctx: Ctx, sink: Sink, state: State) {
   const width = positiveInt(el.getAttribute("width"));
   const height = positiveInt(el.getAttribute("height"));
   const extras: EmbedExtras = { title: el.getAttribute("title")?.trim() || undefined };
-  // Pasted sizes only shape generic embeds; providers know their own.
-  if (resolved && !resolved.provider) extras.aspectRatio = width && height ? `${width}/${height}` : "16/9";
+  // Pasted sizes only shape generic embeds and providers whose frames take any ratio (`pastedSize`); others know their own.
+  const sized = resolved && (!resolved.provider || state.embeds.providers.find((p) => p.name === resolved.provider)?.pastedSize);
+  if (sized) extras.aspectRatio = width && height ? `${width}/${height}` : resolved.provider ? undefined : "16/9";
   pushEmbed("iframe", resolved, url, extras, sink, state);
 }
 
-/** `<blockquote class="twitter-tweet">` and friends; their `<script>` is already gone. Off with the `embed` tool, they stay quotes. */
+/**
+ * A site's embed code (`<blockquote class="twitter-tweet">`, `div.fb-post`, …), its `<script>` already gone; the
+ * readable text is kept as the block's fallback. Off with the `embed` tool, they stay what they are (quotes, links).
+ */
 function siteEmbed(el: Element, sink: Sink, state: State) {
   if (!state.tools.has("embed")) return false;
-  const resolved = embedForElement(el, state.embeds);
-  if (!resolved) return false;
-  pushEmbed("blockquote", resolved, resolved.url, {}, sink, state);
+  const found = embedForSnippet(el, state.embeds);
+  if (!found) return false;
+  const extras: EmbedExtras = { fallback: found.fallback || undefined, snippet: true, ...found.size };
+  pushEmbed(lower(el), found.resolved, found.resolved.url, extras, sink, state);
   return true;
 }
 
-/** Our own export (`toHTML`), in either form. The provider is matched again from `data-url`, never trusted. */
+/**
+ * Script-only embed code (Gist, Telegram) is read before the sanitizer drops every `<script>`: each one becomes
+ * an empty snippet figure carrying just the provider and page URL. The script itself is never kept or run.
+ */
+function markScriptSnippets(body: Element, state: State) {
+  const { scripts } = snippetSelectors(state.embeds);
+  if (!scripts) return;
+  // A paste that starts with a script puts it in <head>; those go to the start of the body, in order.
+  const root = body.ownerDocument.documentElement ?? body;
+  const headInsert = body.firstChild;
+  for (const script of Array.from(root.querySelectorAll(scripts))) {
+    const found = embedForSnippet(script, state.embeds);
+    if (!found) continue;
+    const figure = body.ownerDocument.createElement("figure");
+    figure.setAttribute("data-genesis-embed", "snippet");
+    figure.setAttribute("data-provider", found.resolved.provider);
+    figure.setAttribute("data-url", found.resolved.url);
+    if (body.contains(script)) script.parentNode?.replaceChild(figure, script);
+    else {
+      body.insertBefore(figure, headInsert);
+      script.remove();
+    }
+  }
+}
+
+/**
+ * Our own export (`toHTML`) in any form: iframe, link, or the site's snippet. The provider is matched
+ * again from `data-url`, never trusted; a snippet figure's fallback is read back from its snippet text.
+ */
 function embedFigure(el: Element, sink: Sink, state: State) {
   const url = el.getAttribute("data-url")?.trim() ?? "";
   const provider = el.getAttribute("data-provider") ?? "";
+  const form = el.getAttribute("data-genesis-embed");
   const frame = el.querySelector("iframe");
   const src = frame?.getAttribute("src") ?? "";
+  const caption = elementChildren(el).find((c) => lower(c) === "figcaption");
+  caption?.remove();
+  const markup = form === "snippet" ? embedForMarkup(el, state.embeds) : null;
   const resolved =
     (provider && url ? embedForUrl(url, state.embeds, provider) : null) ??
     (url ? embedForUrl(url, state.embeds) : null) ??
-    (url || src ? embedForIframe(url || src, state.embeds) : null);
-  const caption = elementChildren(el).find((c) => lower(c) === "figcaption");
+    (url || src ? embedForIframe(url || src, state.embeds) : null) ??
+    markup?.resolved ??
+    null;
+  const fallback =
+    cleanFallback(el.getAttribute("data-fallback")) ||
+    (markup ? markup.fallback : form === "snippet" && resolved ? snippetFallback(el, resolved.url) : "");
   pushEmbed(
     "figure",
     resolved,
@@ -1300,6 +1351,8 @@ function embedFigure(el: Element, sink: Sink, state: State) {
       aspectRatio: cleanAspectRatio(el.getAttribute("data-aspect-ratio")),
       height: positiveInt(el.getAttribute("data-height")),
       previewWidth: positiveInt(el.getAttribute("data-preview-width")),
+      fallback: fallback || undefined,
+      snippet: form === "snippet" || el.hasAttribute("data-snippet") || undefined,
     },
     sink,
     state,

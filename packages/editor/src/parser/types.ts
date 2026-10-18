@@ -156,8 +156,19 @@ export type ParseResult = { blocks: HtmlBlock[]; report: FidelityReport };
 export type ToHTMLOptions = {
   /** Separator between top-level blocks. Defaults to `"\n"`. */
   separator?: string;
-  /** `"link"` writes embeds as link cards (for email and RSS) instead of iframes. Both read back to the same block. */
-  embeds?: "iframe" | "link";
+  /**
+   * How embeds are written; every form reads back to the same block.
+   * - `"auto"` (default): embeds that came from a site's embed code (tweets, posts, …) are written back as that
+   *   code, its `<blockquote>` text readable without the script; widget embeds (Gist) always are; others as iframes.
+   * - `"iframe"`: our own sandboxed iframes (widget embeds still as their snippet).
+   * - `"link"`: link cards with the fallback text, for email and RSS.
+   */
+  embeds?: "auto" | "iframe" | "link";
+  /**
+   * Append each provider's official `<script>` once after its first snippet-form embed, so the code renders
+   * as on the site when the HTML is published elsewhere. Off by default: the export runs no third-party code.
+   */
+  embedScripts?: boolean;
   /** Custom providers, so their embeds are rebuilt on export. Without them, those embeds are written as sandboxed generic iframes. */
   embedProviders?: readonly EmbedProvider[];
   /** Brand swatches (`tools.colors.swatches`), so colours stored by swatch name export as their hex. */

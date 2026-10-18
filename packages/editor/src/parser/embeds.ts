@@ -205,17 +205,32 @@ export type SnippetEmbed = {
   size?: { height?: number; aspectRatio?: string };
 };
 
-const selectors = new WeakMap<EmbedRegistry, { all: string; scripts: string }>();
+type SnippetSelectors = { all: string; scripts: string; tags: Set<string> | null };
+const selectors = new WeakMap<EmbedRegistry, SnippetSelectors>();
 
-/** The enabled providers' snippet selectors, combined: `all` for the walk, `scripts` for script-only snippets. */
-export function snippetSelectors(registry: EmbedRegistry) {
+/**
+ * The enabled providers' snippet selectors, combined: `all` for the walk, `scripts` for script-only snippets,
+ * and `tags`, the elements they can match (`null` when a selector doesn't start with a tag name).
+ */
+export function snippetSelectors(registry: EmbedRegistry): SnippetSelectors {
   let cached = selectors.get(registry);
   if (!cached) {
     const list = registry.providers.flatMap((p) => (p.snippet ? p.snippet.selector.split(",").map((s) => s.trim()) : []));
-    cached = { all: list.join(", "), scripts: list.filter((s) => /^script\b/i.test(s)).join(", ") };
+    const heads = list.map((s) => /^([a-z][a-z\d-]*)(?![a-z\d-])/i.exec(s)?.[1]?.toLowerCase());
+    cached = {
+      all: list.join(", "),
+      scripts: list.filter((s) => /^script\b/i.test(s)).join(", "),
+      tags: heads.every(Boolean) ? new Set(heads as string[]) : null,
+    };
     selectors.set(registry, cached);
   }
   return cached;
+}
+
+/** Whether `el` is a snippet of an enabled provider (by selector only; the URL is checked separately). */
+export function isSnippet(el: Element, tag: string, registry: EmbedRegistry) {
+  const { all, tags } = snippetSelectors(registry);
+  return !!all && (!tags || tags.has(tag)) && !!el.matches?.(all);
 }
 
 const SKIP_TEXT = new Set(["script", "style", "svg", "noscript", "template", "iframe", "button"]);
@@ -251,6 +266,21 @@ export function snippetLines(el: Element): string[] {
   walk(el);
   end();
   return lines;
+}
+
+/** Stored or pasted fallback text, with the same limits as text read from a snippet. */
+export function cleanFallback(value: string | null | undefined) {
+  if (!value) return "";
+  const lines = value
+    .split(/\r\n?|\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim().slice(0, MAX_LINE))
+    .filter(Boolean);
+  return lines.slice(0, MAX_LINES).join("\n");
+}
+
+/** An element's readable text as fallback lines for an embed of `url`. */
+export function snippetFallback(el: Element, url: string) {
+  return fallbackText(snippetLines(el), url);
 }
 
 /** Stored fallback text: `""` when it only repeats the page URL. */

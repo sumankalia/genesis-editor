@@ -57,7 +57,17 @@ describe("site embed markup", () => {
   it("tweets become embeds and their script is dropped; with the tool off they stay quotes", () => {
     const html = '<blockquote class="twitter-tweet"><p lang="en">just setting up my twttr</p>&mdash; jack (@jack) <a href="https://twitter.com/jack/status/20">March 21, 2006</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>';
     expect(parse(html).blocks).toEqual([
-      { type: "embed", props: { provider: "twitter", url: "https://twitter.com/jack/status/20", embedUrl: "https://platform.twitter.com/embed/Tweet.html?id=20", height: 500 } },
+      {
+        type: "embed",
+        props: {
+          provider: "twitter",
+          url: "https://twitter.com/jack/status/20",
+          embedUrl: "https://platform.twitter.com/embed/Tweet.html?id=20",
+          height: 500,
+          fallback: "just setting up my twttr\n— jack (@jack) March 21, 2006",
+          snippet: true,
+        },
+      },
     ]);
     expect(first(html, { tools: ["quote", "link"] })?.type).toBe("quote");
   });
