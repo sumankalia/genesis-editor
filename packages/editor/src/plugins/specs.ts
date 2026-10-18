@@ -1,6 +1,7 @@
 import { createExtension, defaultBlockSpecs } from "@blocknote/core";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 
+import type { RehostQueue, RehostStatus } from "../lib/rehost";
 import type { AnyBlockSpec } from "./types";
 
 type PropSpec = { default: string | number | boolean } | { default: undefined; type: "string" | "number" | "boolean" };
@@ -20,9 +21,10 @@ export const quoteSpec = extendProps(defaultBlockSpecs.quote, {
   cite: { default: "" },
 });
 
-type ImageProps = { alt?: string; srcset?: string; sizes?: string; originalUrl?: string };
-type Rendered = { dom: HTMLElement };
-type RenderFn = (this: unknown, block: { props: ImageProps }, ...rest: unknown[]) => Rendered;
+type ImageProps = { alt?: string; srcset?: string; sizes?: string; originalUrl?: string; url?: string };
+type ImageBlock = { id: string; props: ImageProps };
+type Rendered = { dom: HTMLElement; destroy?: () => void };
+type RenderFn = (this: unknown, block: ImageBlock, ...rest: unknown[]) => Rendered;
 
 /** Applies the props BlockNote's image doesn't know to its `<img>`. */
 function decorateImage(rendered: Rendered, props: ImageProps) {
@@ -35,6 +37,71 @@ function decorateImage(rendered: Rendered, props: ImageProps) {
     if (props.sizes) img.sizes = props.sizes;
   }
   return rendered;
+}
+
+const rehostQueues = new WeakMap<object, RehostQueue>();
+
+/** Lets image blocks of this editor show its re-upload progress. */
+export function registerRehostQueue(editor: object, queue: RehostQueue) {
+  rehostQueues.set(editor, queue);
+}
+
+function renderBadge(badge: HTMLElement, status: RehostStatus | undefined, retry: () => void) {
+  badge.hidden = !status;
+  badge.replaceChildren();
+  if (!status) return badge.removeAttribute("data-state");
+  badge.dataset.state = status.state;
+  if (status.state === "failed") {
+    const label = document.createElement("span");
+    label.textContent = "Not re-uploaded";
+    label.title = status.message;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Retry";
+    button.dataset.testid = "rehost-retry";
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      retry();
+    });
+    badge.append(label, document.createTextNode(" · "), button);
+    return;
+  }
+  const spinner = document.createElement("span");
+  spinner.className = "genesis-rehost-spinner";
+  const progress = status.state === "uploading" && status.progress !== undefined ? ` ${Math.round(status.progress * 100)}%` : "";
+  badge.append(spinner, status.state === "queued" ? "Waiting to re-upload" : `Re-uploading${progress}`);
+}
+
+/** A badge over the image while it's queued, uploading, or failed to re-upload. Not part of the document or its HTML. */
+function withRehostBadge(rendered: Rendered, block: ImageBlock, editor: unknown) {
+  const queue = editor && typeof editor === "object" ? rehostQueues.get(editor) : undefined;
+  if (!queue || !block.props.url) return rendered;
+  const host = rendered.dom.querySelector<HTMLElement>(".bn-visual-media-wrapper") ?? rendered.dom;
+  const badge = document.createElement("div");
+  badge.className = "genesis-rehost-badge";
+  badge.contentEditable = "false";
+  badge.dataset.testid = "rehost-badge";
+  badge.setAttribute("role", "status");
+  host.appendChild(badge);
+  let shown: RehostStatus | undefined;
+  const update = () => {
+    const status = queue.statuses.get(block.id);
+    if (status === shown) return;
+    shown = status;
+    renderBadge(badge, status, () => queue.retry(block.id));
+  };
+  update();
+  if (!shown) badge.hidden = true;
+  const unsubscribe = queue.statuses.subscribe(update);
+  const destroy = rendered.destroy;
+  return {
+    ...rendered,
+    destroy: () => {
+      unsubscribe();
+      destroy?.();
+    },
+  };
 }
 
 const baseImage = defaultBlockSpecs.image;
@@ -51,10 +118,10 @@ export const imageSpec = extendProps(
     ...baseImage,
     implementation: {
       ...baseImage.implementation,
-      render(this: unknown, block: { props: ImageProps }, ...rest: unknown[]) {
-        return decorateImage(imageImplementation.render.call(this, block, ...rest), block.props);
+      render(this: unknown, block: ImageBlock, ...rest: unknown[]) {
+        return withRehostBadge(decorateImage(imageImplementation.render.call(this, block, ...rest), block.props), block, rest[0]);
       },
-      toExternalHTML(this: unknown, block: { props: ImageProps }, ...rest: unknown[]) {
+      toExternalHTML(this: unknown, block: ImageBlock, ...rest: unknown[]) {
         return decorateImage(imageImplementation.toExternalHTML!.call(this, block, ...rest), block.props);
       },
     },
@@ -84,6 +151,9 @@ function imagesById(doc: PMNode) {
   return images;
 }
 
+/** Set on the transaction that swaps in a re-hosted URL, so the source's `srcset` and size are kept. */
+export const REHOST_META = "genesis-rehost";
+
 // Attribute changes come from `setNodeMarkup` (a ReplaceAroundStep) or an AttrStep; typing never does.
 const changesAttributes = (tr: Transaction) => tr.steps.some((step) => "gapFrom" in step || "attr" in step);
 
@@ -97,7 +167,7 @@ export const imageSourceExtension = createExtension({
     new Plugin({
       key: new PluginKey("genesis-image-source"),
       appendTransaction(transactions, oldState, state) {
-        if (!transactions.some((tr) => tr.docChanged && changesAttributes(tr))) return null;
+        if (!transactions.some((tr) => tr.docChanged && changesAttributes(tr) && !tr.getMeta(REHOST_META))) return null;
         const before = imagesById(oldState.doc);
         const tr = state.tr;
         for (const [id, { node, pos }] of imagesById(state.doc)) {

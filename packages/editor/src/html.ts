@@ -1,4 +1,4 @@
-import type { BlockNoteEditor, BlockNoteEditorOptions, PartialBlock } from "@blocknote/core";
+import type { Block, BlockNoteEditor, BlockNoteEditorOptions, PartialBlock } from "@blocknote/core";
 import { TextSelection } from "prosemirror-state";
 
 import { metaFromProps } from "./parser/meta";
@@ -13,6 +13,7 @@ export type HtmlImportOptions = {
   baseUrl?: string;
   clean?: CleanOptions;
   trackProvenance?: boolean;
+  maxDataImageBytes?: number;
 };
 
 export type HtmlImport = { blocks: PartialBlock[]; report: FidelityReport };
@@ -75,26 +76,27 @@ function splitAtCursor(editor: BlockNoteEditor) {
  * Otherwise the block at the cursor is split: a leading paragraph joins the text before the
  * cursor, and the text after it joins the last pasted block when that's a paragraph, or else
  * stays a block of the cursor block's type and props. The cursor ends after the pasted content.
- * An empty paragraph at the cursor is replaced outright.
+ * An empty paragraph at the cursor is replaced outright. Returns the blocks inserted as blocks (an
+ * inline paste returns none).
  */
-export function insertBlocks(editor: BlockNoteEditor, blocks: PartialBlock[]) {
-  if (!blocks.length) return;
-  editor.transact(() => {
+export function insertBlocks(editor: BlockNoteEditor, blocks: PartialBlock[]): Block[] {
+  if (!blocks.length) return [];
+  return editor.transact(() => {
     const cursor = editor.getTextCursorPosition().block;
     if (isEmptyParagraph(cursor) && editor.transact((tr) => tr.selection.empty)) {
       const { insertedBlocks } = editor.replaceBlocks([cursor], blocks);
       editor.setTextCursorPosition(insertedBlocks[insertedBlocks.length - 1], "end");
-      return;
+      return insertedBlocks as Block[];
     }
     const inline = Array.isArray(cursor.content);
     if (inline && blocks.length === 1 && isInlineParagraph(blocks[0])) {
       editor.insertInlineContent(blocks[0].content as never);
-      return;
+      return [];
     }
     if (!inline) {
       const inserted = editor.insertBlocks(blocks, cursor, "after");
       editor.setTextCursorPosition(inserted[inserted.length - 1], "end");
-      return;
+      return inserted as Block[];
     }
 
     const { head, tail } = splitAtCursor(editor);
@@ -122,6 +124,7 @@ export function insertBlocks(editor: BlockNoteEditor, blocks: PartialBlock[]) {
       editor.removeBlocks([after]);
       editor.transact((tr) => tr.setSelection(TextSelection.create(tr.doc, caret)));
     }
+    return inserted as Block[];
   });
 }
 
@@ -135,7 +138,7 @@ type PasteHandler = NonNullable<BlockNoteEditorOptions<any, any, any>["pasteHand
 export function createPasteHandler(
   getOptions: () => HtmlImportOptions,
   sanitize: (blocks: PartialBlock[]) => PartialBlock[],
-  onImport: (result: HtmlImport, html: string) => void,
+  onImport: (result: HtmlImport, html: string, inserted: Block[]) => void,
 ): PasteHandler {
   return ({ event, editor, defaultPasteHandler }) => {
     const data = event.clipboardData;
@@ -148,8 +151,8 @@ export function createPasteHandler(
     const html = data.getData("text/html");
     const result = importHTML(html, getOptions(), sanitize);
     if (!result.blocks.length) return defaultPasteHandler({ prioritizeMarkdownOverHTML: false });
-    insertBlocks(editor as unknown as BlockNoteEditor, result.blocks);
-    onImport(result, html);
+    const inserted = insertBlocks(editor as unknown as BlockNoteEditor, result.blocks);
+    onImport(result, html, inserted);
     return true;
   };
 }
@@ -163,9 +166,8 @@ export function pasteWithoutCleanup(
   html: string,
   options: HtmlImportOptions,
   sanitize: (blocks: PartialBlock[]) => PartialBlock[],
-): HtmlImport {
+): HtmlImport & { inserted: Block[] } {
   const result = importHTML(html, { ...options, clean: { ...options.clean, noise: false } }, sanitize);
   editor.undo();
-  insertBlocks(editor, result.blocks);
-  return result;
+  return { ...result, inserted: insertBlocks(editor, result.blocks) };
 }

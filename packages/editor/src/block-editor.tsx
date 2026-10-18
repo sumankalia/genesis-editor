@@ -51,10 +51,12 @@ import {
   type PersistOptions,
   type PersistStatus,
 } from "./lib/persistence";
+import { MAX_INLINE_DATA_IMAGE_BYTES, RehostQueue, fileNameFromUrl } from "./lib/rehost";
 import { UploadStatusStore } from "./lib/upload-status";
-import { getUploadMode, uploadWithConfig, type UploadConfig } from "./lib/uploads";
+import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig } from "./lib/uploads";
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
 import { acceptsFile } from "./plugins/files";
+import { REHOST_META, registerRehostQueue } from "./plugins/specs";
 import {
   mergeSlashItems,
   resolveEditorSetup,
@@ -72,14 +74,27 @@ export type GenesisBlock = Block & { meta?: GenesisMeta };
 /** Blocks to load. Plugin block types are accepted alongside the built-in ones. */
 export type EditorContent = ((PartialBlock | AnyPartialBlock) & { meta?: GenesisMeta })[];
 
-export type UploadErrorEvent = {
-  error: Error;
-  file: File;
-  /** The image block the file was meant for. */
-  blockId: string;
-  /** Uploads the same file to the same block again. */
-  retry: () => Promise<void>;
-};
+export type UploadErrorEvent =
+  | {
+      /** A file the user picked, pasted or dropped. */
+      kind: "file";
+      error: Error;
+      file: File;
+      /** The image block the file was meant for. */
+      blockId: string;
+      /** Uploads the same file to the same block again. */
+      retry: () => Promise<void>;
+    }
+  | {
+      /** A pasted or loaded image that couldn't be copied to your storage. It keeps its original URL. */
+      kind: "rehost";
+      error: Error;
+      /** The image's original URL. */
+      url: string;
+      blockId: string;
+      /** Tries the re-upload again. */
+      retry: () => Promise<void>;
+    };
 
 export type HtmlChangeInfo = {
   /** The document the HTML was serialized from. */
@@ -180,6 +195,10 @@ export type BlockEditorHandle = {
   readonly lastReport: FidelityReport | null;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
   clearPersisted: () => void;
+  /** File uploads and image re-uploads still running. */
+  readonly pendingUploads: number;
+  /** Resolves once nothing is uploading, so a save can wait for final image URLs. Failed re-uploads count as settled. */
+  uploadsSettled: () => Promise<void>;
 };
 
 /**
@@ -200,10 +219,15 @@ function rerenderEmptyFileBlock(editor: BlockNoteEditor, blockId: string, name: 
   setName(name);
 }
 
-/** A whole document (`value`, `defaultValue`, `setHTML`) keeps its blank lines; pastes collapse them. */
+/**
+ * A whole document (`value`, `defaultValue`, `setHTML`) keeps its blank lines and its inline images;
+ * pastes collapse blank lines and drop large inline images when there's nowhere to upload them.
+ */
 function documentOptions(options: HtmlImportOptions): HtmlImportOptions {
-  return { ...options, clean: { ...options.clean, emptyParagraphs: "keep" } };
+  return { ...options, maxDataImageBytes: undefined, clean: { ...options.clean, emptyParagraphs: "keep" } };
 }
+
+const describeUrl = (url: string) => (/^(data|blob):/i.test(url) ? "an inline image" : url);
 
 function nonEmpty(blocks: EditorContent | undefined) {
   return blocks && blocks.length > 0 ? blocks : undefined;
@@ -246,6 +270,11 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     uploadFile,
     uploadUrl,
     mapUploadResponse,
+    uploadFromUrl,
+    uploadRemote,
+    uploadHeaders,
+    rehostImages,
+    uploadConcurrency,
     onUploadError,
     theme = "system",
     editable = true,
@@ -300,11 +329,15 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
   const uploadConfig = useRef<UploadConfig>({});
-  const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance });
+  const uploadMode = getUploadMode({ uploadFile, uploadUrl });
+  const pasteImageLimit = uploadMode === "local" ? MAX_INLINE_DATA_IMAGE_BYTES : undefined;
+  const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit });
+  const editableRef = useRef(editable);
   useLayoutEffect(() => {
     callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
-    uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse };
-    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance };
+    uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse, uploadFromUrl, uploadRemote, uploadHeaders, rehostImages, uploadConcurrency };
+    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit };
+    editableRef.current = editable;
   });
 
   const lastReport = useRef<FidelityReport | null>(initial.report);
@@ -323,39 +356,109 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const editorRef = useRef<BlockNoteEditor | null>(null);
   const retryRef = useRef<(blockId: string) => Promise<void>>(async () => {});
 
+  // Re-hosting swaps the URL outside the undo history, so undo never brings back the remote image.
+  const [rehost] = useState(
+    () =>
+      new RehostQueue(
+        () => uploadConfig.current,
+        {
+          onDone: (job, url) => {
+            const current = editorRef.current;
+            const block = current?.getBlock(job.blockId);
+            if (!current || (block?.props as { url?: string } | undefined)?.url !== job.url) return;
+            const props = /^https?:/i.test(job.url) ? { url, originalUrl: job.url } : { url };
+            current.transact((tr) => {
+              tr.setMeta("addToHistory", false);
+              tr.setMeta(REHOST_META, true);
+              current.updateBlock(job.blockId, { props } as never);
+            });
+            if (job.report) job.report.images.rehosted++;
+          },
+          onFail: (job, error) => {
+            if (job.report) {
+              job.report.images.rehostFailed++;
+              job.report.warnings.push(`Couldn't re-upload ${describeUrl(job.url)}: ${error.message}`);
+            }
+            callbacks.current.onUploadError?.({
+              kind: "rehost",
+              error,
+              url: job.url,
+              blockId: job.blockId,
+              retry: () => {
+                rehost.retry(job.blockId);
+                return rehost.settled();
+              },
+            });
+          },
+        },
+        { origin: typeof window !== "undefined" ? window.location.origin : undefined },
+      ),
+  );
+  /** Queues the images in `blocks` (and their children) that `rehostImages` calls for. Read-only views leave them be. */
+  const [scheduleRehost] = useState(() => (blocks: Block[], source: RehostSource, report: FidelityReport | null) => {
+    if (!editableRef.current) return;
+    const visit = (list: Block[]) => {
+      for (const block of list) {
+        const props = block.props as { url?: string; originalUrl?: string; alt?: string; name?: string };
+        if (block.type === "image" && props.url && !props.originalUrl && rehost.shouldRehost(props.url)) {
+          rehost.enqueue({ blockId: block.id, url: props.url, alt: props.alt || props.name || undefined, filename: fileNameFromUrl(props.url), source, report });
+        }
+        visit(block.children as Block[]);
+      }
+    };
+    visit(blocks);
+  });
+
   const editor = useCreateBlockNote({
     schema: setup.schema,
     extensions: setup.extensions,
     initialContent: initial.content as never,
-    pasteHandler: createPasteHandler(() => htmlOptions.current, sanitize, (result, html) => recordImport.current(result, html)),
+    pasteHandler: createPasteHandler(
+      () => htmlOptions.current,
+      sanitize,
+      (result, html, inserted) => {
+        recordImport.current(result, html);
+        scheduleRehost(inserted, "paste", result.report);
+      },
+    ),
     // Never rejects: paste/drop uploads would surface as unhandled rejections, so
     // failures are recorded per block and shown in that block's file panel instead.
-    uploadFile: async (file, blockId) => {
-      if (blockId) uploadStatuses.set(blockId, { state: "uploading", file });
-      try {
-        const url = await uploadWithConfig(uploadConfig.current, file);
-        if (blockId) uploadStatuses.delete(blockId);
-        return url;
-      } catch (caught) {
-        const error = caught instanceof Error ? caught : new Error("Upload failed.");
-        if (!blockId) throw error;
-        uploadStatuses.set(blockId, { state: "error", file, message: error.message });
-        const current = editorRef.current;
-        if (current?.getBlock(blockId)) {
-          rerenderEmptyFileBlock(current, blockId, file.name);
-          current.getExtension(FilePanelExtension)?.showMenu(blockId);
-        }
-        callbacks.current.onUploadError?.({
-          error,
-          file,
-          blockId,
-          retry: () => retryRef.current(blockId),
-        });
-        return {};
-      }
-    },
+    uploadFile: (file, blockId) => rehost.track(upload(file, blockId)),
   }) as unknown as BlockNoteEditor;
+  registerRehostQueue(editor, rehost);
   const colorScheme = useColorScheme(theme);
+
+  async function upload(file: File, blockId: string | undefined) {
+    if (blockId) uploadStatuses.set(blockId, { state: "uploading", file });
+    try {
+      const url = await uploadWithConfig(uploadConfig.current, file, {
+        signal: new AbortController().signal,
+        onProgress: () => {},
+        blockId,
+        source: "upload",
+      });
+      rehost.rememberHost(url);
+      if (blockId) uploadStatuses.delete(blockId);
+      return url;
+    } catch (caught) {
+      const error = caught instanceof Error ? caught : new Error("Upload failed.");
+      if (!blockId) throw error;
+      uploadStatuses.set(blockId, { state: "error", file, message: error.message });
+      const current = editorRef.current;
+      if (current?.getBlock(blockId)) {
+        rerenderEmptyFileBlock(current, blockId, file.name);
+        current.getExtension(FilePanelExtension)?.showMenu(blockId);
+      }
+      callbacks.current.onUploadError?.({
+        kind: "file",
+        error,
+        file,
+        blockId,
+        retry: () => retryRef.current(blockId),
+      });
+      return {};
+    }
+  }
 
   /** The document in public JSON, with `meta` as kept in the document. */
   const documentBlocks = useCallback(() => metaFromProps(editor.document) as GenesisBlock[], [editor]);
@@ -388,6 +491,12 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     editorRef.current = editor;
     retryRef.current = retryUpload;
   }, [editor, retryUpload]);
+
+  useEffect(() => {
+    rehost.start();
+    scheduleRehost(editor.document, "value", initial.report);
+    return () => rehost.destroy();
+  }, [editor, rehost, scheduleRehost, initial.report]);
 
   const uploadContext = useMemo<UploadContextValue>(
     () => ({
@@ -465,7 +574,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     } finally {
       applyingValue.current = false;
     }
-  }, [editor, blocksValue, sanitize, exportedBlocks]);
+    scheduleRehost(editor.document, "value", null);
+  }, [editor, blocksValue, sanitize, exportedBlocks, scheduleRehost]);
 
   // HTML value: the last HTML received or emitted. Anything else is parsed and replaces the document.
   const lastHtml = useRef<string | null>(htmlValue ?? null);
@@ -491,9 +601,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         applyingValue.current = false;
       }
       recordImport.current(result);
+      scheduleRehost(editor.document, "value", result.report);
       return result.report;
     },
-    [editor, sanitize],
+    [editor, sanitize, scheduleRehost],
   );
 
   useEffect(() => {
@@ -512,6 +623,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   );
 
   const handleChange = useCallback(() => {
+    rehost.prune((job) => (editor.getBlock(job.blockId)?.props as { url?: string } | undefined)?.url === job.url);
     setCleanup(null);
     scheduleSave();
     if (applyingValue.current) return;
@@ -525,7 +637,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     lastEmitted.current = blocks;
     const emit = callbacks.current.onChange as BlocksFormatProps["onChange"];
     emit?.(blocks, editor);
-  }, [editor, scheduleSave, latestDocument, isHtml, emitHtml, documentBlocks, exportedBlocks]);
+  }, [editor, rehost, scheduleSave, latestDocument, isHtml, emitHtml, documentBlocks, exportedBlocks]);
 
   useImperativeHandle(
     ref,
@@ -533,7 +645,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       editor,
       focus: () => editor.focus(),
       getBlocks: (options) => (options?.meta === "strip" ? stripMeta(exportedBlocks()) : exportedBlocks()),
-      setBlocks: (blocks) => editor.replaceBlocks(editor.document, sanitize(blocks)),
+      setBlocks: (blocks) => {
+        editor.replaceBlocks(editor.document, sanitize(blocks));
+        scheduleRehost(editor.document, "value", null);
+      },
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
       getHTML: exportedHtml,
       setHTML: (html) => applyHtml(html, true),
@@ -545,8 +660,12 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         saveTimer.current = null;
         if (initial.key) clearStoredDocument(initial.key);
       },
+      get pendingUploads() {
+        return rehost.pending;
+      },
+      uploadsSettled: () => rehost.settled(),
     }),
-    [editor, initial.key, sanitize, applyHtml, exportedBlocks, exportedHtml],
+    [editor, initial.key, sanitize, applyHtml, exportedBlocks, exportedHtml, rehost, scheduleRehost],
   );
 
   // Links
@@ -644,8 +763,9 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     if (!cleanup) return;
     const result = pasteWithoutCleanup(editor, cleanup.html, htmlOptions.current, sanitize);
     recordImport.current(result);
+    scheduleRehost(result.inserted, "paste", result.report);
     editor.focus();
-  }, [cleanup, editor, sanitize]);
+  }, [cleanup, editor, sanitize, scheduleRehost]);
 
   const openSlashMenu = useCallback(() => {
     editor.focus();

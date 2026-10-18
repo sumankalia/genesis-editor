@@ -237,3 +237,47 @@ describe("Undo cleanup", () => {
     expect(exportHTML(editor)).toBe("<p>abcd</p>");
   });
 });
+
+describe("re-hosting support", () => {
+  it("insertBlocks returns the inserted blocks with their document ids", () => {
+    const empty = mounted();
+    const replaced = insertBlocks(empty.editor, importHTML(`<p>a</p><img src="https://img.test/a.png">`, {}, empty.sanitize).blocks);
+    expect(replaced.map((b) => b.type)).toEqual(["paragraph", "image"]);
+    expect(empty.editor.getBlock(replaced[1].id)?.type).toBe("image");
+
+    const split = mounted(undefined, [{ type: "paragraph", content: "abcd" }]);
+    split.editor.transact((tr) => tr.setSelection(TextSelection.create(tr.doc, 3)));
+    const inserted = insertBlocks(split.editor, importHTML(`<p>x</p><img src="https://img.test/b.png"><h3>y</h3>`, {}, split.sanitize).blocks);
+    expect(inserted.map((b) => b.type)).toEqual(["image", "heading"]);
+    expect(split.editor.getBlock(inserted[0].id)?.props).toMatchObject({ url: "https://img.test/b.png" });
+
+    const inline = mounted(undefined, [{ type: "paragraph", content: "abcd" }]);
+    inline.editor.setTextCursorPosition(inline.editor.document[0], "end");
+    expect(insertBlocks(inline.editor, importHTML(`<p>x</p>`, {}, inline.sanitize).blocks)).toEqual([]);
+  });
+
+  it("a re-host swap keeps srcset and intrinsic size, and stays out of the undo history", async () => {
+    const { REHOST_META } = await import("../src/plugins/specs");
+    const { editor } = mounted(undefined, [
+      { type: "paragraph", content: "x" },
+      { type: "image", props: { url: "https://img.test/a.png", srcset: "a.png 1x, b.png 2x", width: 800 } } as PartialBlock,
+    ]);
+    const id = editor.document[1].id;
+    editor.transact((tr) => {
+      tr.setMeta("addToHistory", false);
+      tr.setMeta(REHOST_META, true);
+      editor.updateBlock(id, { props: { url: "https://cdn.test/a.png" } } as never);
+    });
+    expect(editor.getBlock(id)?.props).toMatchObject({ url: "https://cdn.test/a.png", srcset: "a.png 1x, b.png 2x", width: 800 });
+    editor.undo();
+    expect(editor.getBlock(id)?.props).toMatchObject({ url: "https://cdn.test/a.png" });
+    editor.updateBlock(id, { props: { url: "https://other.test/c.png" } } as never);
+    expect(editor.getBlock(id)?.props).toMatchObject({ srcset: "" });
+  });
+
+  it("drops large inline images from pastes when asked", () => {
+    const { sanitize } = mounted();
+    const big = `data:image/png;base64,${"A".repeat(4000)}`;
+    expect(importHTML(`<img src="${big}">`, { maxDataImageBytes: 1000 }, sanitize).blocks).toEqual([]);
+  });
+});

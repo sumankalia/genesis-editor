@@ -112,6 +112,61 @@
   }
 }
 
+/* Re-upload state of a pasted or loaded image, drawn over its top-left corner. */
+.genesis-editor .bn-visual-media-wrapper:has(> .genesis-rehost-badge) {
+  position: relative;
+}
+
+.genesis-editor .genesis-rehost-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: calc(100% - 1rem);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  user-select: none;
+}
+
+.genesis-editor .genesis-rehost-badge[hidden] {
+  display: none;
+}
+
+.genesis-editor .genesis-rehost-badge[data-state="failed"] {
+  border-color: color-mix(in oklab, var(--destructive) 45%, var(--border));
+}
+
+.genesis-editor .genesis-rehost-badge button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.genesis-editor .genesis-rehost-spinner {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--muted-foreground);
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: genesis-editor-spin 0.8s linear infinite;
+}
+
 /* A quote's children (further paragraphs, its attribution) sit inside one border with the quote. */
 .genesis-editor .bn-block:has(> [data-content-type="quote"] + .bn-block-group) {
   border-left: 2px solid rgb(125 121 122);
