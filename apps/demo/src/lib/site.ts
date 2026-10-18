@@ -18,6 +18,7 @@ export const docsNav: { title: string; items: NavItem[] }[] = [
       { title: "Getting started", href: "/docs/getting-started" },
       { title: "Usage", href: "/docs/usage" },
       { title: "Image uploads", href: "/docs/image-uploads" },
+      { title: "Embeds", href: "/docs/embeds" },
       { title: "Theming", href: "/docs/theming" },
       { title: "Tools & plugins", href: "/docs/tools" },
       { title: "HTML & paste", href: "/docs/html" },

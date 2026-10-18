@@ -37,6 +37,7 @@ const examples = {
   "html-paste": load(() => import("./html-paste")),
   "block-meta": load(() => import("./block-meta")),
   "image-rehost": load(() => import("./image-rehost")),
+  embeds: load(() => import("./embeds")),
 };
 
 export type ExampleName = keyof typeof examples;

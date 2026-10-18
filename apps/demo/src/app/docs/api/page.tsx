@@ -17,11 +17,19 @@ const parserExports: [string, string][] = [
   ["isSafeUrl(url, allowDataImage?)", "Whether a URL is safe to keep. Relative URLs pass; data: only for raster images when allowed."],
   ["browserDom", "The default DOM adapter, using the browser's DOMParser."],
   ["PALETTE", "The editor's named colors with their text and background hex values."],
+  ["embedRegistry(options?, providers?, context?)", "The enabled providers and whether generic iframes are allowed, from an EmbedOptions policy."],
+  ["embedForUrl(url, registry) / embedForIframe(src, registry) / embedForElement(el, registry)", "Resolve a page URL, a pasted iframe src, or a site's embed markup to a provider (or sandboxed generic) embed, or null."],
+  ["resolveEmbedBlock(props, registry)", "How a stored embed block may be drawn: provider frames rebuilt from url, generic ones validated again."],
+  ["BUILT_IN_EMBED_PROVIDERS / defineEmbedProvider / getEmbedFrameSrc", "Also exported from genesis-editor, see below."],
   ["linkedomDom (genesis-editor/parser/linkedom)", "A DOM adapter for Node and workers, using the optional linkedom peer."],
 ];
 
 const otherExports: [string, string][] = [
   ["definePlugin(plugin)", "Declares a plugin for the plugins prop. See Tools & plugins."],
+  ["defineEmbedProvider(provider)", "Declares an embed provider for embedProviders or a plugin's embeds. Validates the name and https frameOrigins."],
+  ["BUILT_IN_EMBED_PROVIDERS", "The 20 built-in providers, in match order."],
+  ["getEmbedFrameSrc(options?, providers?)", "The CSP frame-src origins for the enabled providers, plus https: when generic embeds are on."],
+  ["GENERIC_SANDBOX / PROVIDER_SANDBOX / PROVIDER_ALLOW", "The sandbox and allow values embeds are drawn with."],
   ["ToolbarButton", "A formatting toolbar button for plugin toolbar items."],
   ["createReactBlockSpec(config, implementation)", "BlockNote's custom block helper, re-exported for plugins."],
   ["BUILT_IN_TOOLS / BLOCK_TOOLS / INLINE_TOOLS", "Tool names, the default for tools."],

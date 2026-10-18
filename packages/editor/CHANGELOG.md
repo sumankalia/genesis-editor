@@ -31,6 +31,17 @@ All notable changes to `genesis-editor`. The package is not published yet; every
 - New image prop `hosted`: set after a direct upload and on re-hosted copies, exported as `data-genesis-hosted` and read back, so a later load never copies the app's own images. A new URL clears it unless the same update sets it.
 - `trustedHosts` (`"cdn.example.com"`, `"*.example.com"`, an origin, or a predicate): images on these hosts are never re-hosted, whatever `rehostImages` says. Also accepted by `parseHTMLAsync`.
 
+### Embeds
+
+- New `embed` block and tool (on by default): `provider`, `url`, `embedUrl`, `aspectRatio`, `height`, `title`, `caption`, `previewWidth`. Provider frames are rebuilt from `url` on every render and export; a stored `embedUrl` or `data-provider` is never trusted.
+- 20 built-in providers (YouTube via `youtube-nocookie.com`, Vimeo, TikTok, Instagram, X, Spotify, Loom, CodePen, Figma, Google Maps, Dailymotion, SoundCloud, CodeSandbox, Google Docs/Slides/Sheets, Airtable, Typeform, Miro, Canva, Apple Music, Apple Podcasts). `defineEmbedProvider`, the `embedProviders` prop and plugin `embeds` add more; `BUILT_IN_EMBED_PROVIDERS` lists them.
+- Pasted or loaded `<iframe>` code maps to its provider, else a generic embed: `https:` only, never the app's origin, `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"`, no `allow`, `referrerpolicy="no-referrer"`, `credentialless`. Pasted `sandbox`/`allow`/`style`/`on*` are ignored. Tweet, Instagram and TikTok blockquotes become embeds.
+- A provider URL alone on a pasted line (plain text or HTML) becomes an embed in its own undo step: one undo gives the link back. A URL inside a sentence stays a link. Each embed has a bar with the site, "Open ↗" and "Convert to link"; `/embed` takes a link or iframe code.
+- `embeds={{ policy: "open" | "allowlist", providers, generic }}` (also a `ParseOptions` field). `allowlist` and `htmlMode="strict"` turn unknown iframes into links. `getEmbedFrameSrc()` returns the CSP `frame-src` list.
+- Export writes `<figure data-genesis-embed …><iframe …></figure>`; `toHTML(blocks, { embeds: "link" })` writes link cards for email and RSS. Both read back to the same blocks. With the tool off, embeds become link paragraphs. `report.embeds` counts `provider`, `generic` and `blocked`.
+- Slash menu: title-prefix matches come first within a group, so `/embed` picks Embed before File.
+- New dependency: `prosemirror-history` (the same copy BlockNote uses), for the separate undo step.
+
 ### HTML
 
 - `format="html"` with `defaultValue`/`value`/`onChange(html, info)`, `htmlMode`, `baseUrl`, `onImportReport`, and `getHTML`/`setHTML`/`lastReport` on the ref.

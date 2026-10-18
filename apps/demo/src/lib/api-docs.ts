@@ -52,6 +52,9 @@ const REFERENCED_TYPES = [
   "SlashMenuItem",
   "MarkdownShortcut",
   "ToolbarButtonProps",
+  "EmbedOptions",
+  "EmbedProvider",
+  "EmbedFrame",
 ];
 
 const ENTRY = join(process.cwd(), "../../packages/editor/src/index.ts");
