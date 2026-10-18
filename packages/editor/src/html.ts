@@ -3,13 +3,14 @@ import { TextSelection } from "prosemirror-state";
 
 import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
-import type { FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
+import type { CleanOptions, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
 import type { ToolSelection } from "./plugins/resolve";
 
 export type HtmlImportOptions = {
   mode?: ParseMode;
   tools?: ToolSelection;
   baseUrl?: string;
+  clean?: CleanOptions;
 };
 
 export type HtmlImport = { blocks: PartialBlock[]; report: FidelityReport };
@@ -132,7 +133,7 @@ type PasteHandler = NonNullable<BlockNoteEditorOptions<any, any, any>["pasteHand
 export function createPasteHandler(
   getOptions: () => HtmlImportOptions,
   sanitize: (blocks: PartialBlock[]) => PartialBlock[],
-  onImport: (result: HtmlImport) => void,
+  onImport: (result: HtmlImport, html: string) => void,
 ): PasteHandler {
   return ({ event, editor, defaultPasteHandler }) => {
     const data = event.clipboardData;
@@ -142,10 +143,27 @@ export function createPasteHandler(
     }
     const inCode = editor.transact((tr) => Boolean(tr.selection.$from.parent.type.spec.code));
     if (inCode) return defaultPasteHandler();
-    const result = importHTML(data.getData("text/html"), getOptions(), sanitize);
+    const html = data.getData("text/html");
+    const result = importHTML(html, getOptions(), sanitize);
     if (!result.blocks.length) return defaultPasteHandler({ prioritizeMarkdownOverHTML: false });
     insertBlocks(editor as unknown as BlockNoteEditor, result.blocks);
-    onImport(result);
+    onImport(result, html);
     return true;
   };
+}
+
+/**
+ * "Undo cleanup": reverts a paste and pastes the same HTML again without noise removal.
+ * Only valid right after the paste, while it is still the last undo step.
+ */
+export function pasteWithoutCleanup(
+  editor: BlockNoteEditor,
+  html: string,
+  options: HtmlImportOptions,
+  sanitize: (blocks: PartialBlock[]) => PartialBlock[],
+): HtmlImport {
+  const result = importHTML(html, { ...options, clean: { ...options.clean, noise: false } }, sanitize);
+  editor.undo();
+  insertBlocks(editor, result.blocks);
+  return result;
 }

@@ -2,7 +2,7 @@ import { BlockNoteEditor, type PartialBlock } from "@blocknote/core";
 import { TextSelection } from "prosemirror-state";
 import { describe, expect, it, vi } from "vitest";
 
-import { createPasteHandler, exportHTML, importHTML, insertBlocks } from "../src/html";
+import { createPasteHandler, exportHTML, importHTML, insertBlocks, pasteWithoutCleanup } from "../src/html";
 import { resolveEditorSetup } from "../src/plugins/resolve";
 import { sanitizeBlocks, schemaSupport } from "../src/plugins/sanitize";
 import type { ToolSelection } from "../src/plugins/resolve";
@@ -209,5 +209,31 @@ describe("paste handler", () => {
     const { defaultPasteHandler, paste } = setup();
     paste({ "text/html": "<meta charset='utf-8'><span></span>", "text/plain": "" });
     expect(defaultPasteHandler).toHaveBeenCalledWith({ prioritizeMarkdownOverHTML: false });
+  });
+});
+
+describe("Undo cleanup", () => {
+  const filler = Array.from({ length: 6 }, (_, i) => `<p>Paragraph ${i + 1} has enough ordinary prose to count as real article content for the paste.</p>`).join("");
+  const page = `<html><body><nav><a href="/">Home</a></nav><article>${filler}<div class="share social"><a href="/s">Share on X</a></div></article></body></html>`;
+
+  it("re-pastes the same HTML without noise removal, replacing the cleaned paste", () => {
+    const { editor, sanitize } = mounted(undefined, [{ type: "paragraph", content: "abcd" }]);
+    editor.setTextCursorPosition(editor.document[0], "end");
+    const onImport = vi.fn();
+    const handler = createPasteHandler(() => ({}), sanitize, onImport);
+    handler({ event: clipboard({ "text/html": page }), editor, defaultPasteHandler: () => true });
+    const [cleaned, html] = onImport.mock.calls[0];
+    expect(cleaned.report.cleanup.sections).toBe(2);
+    expect(exportHTML(editor)).not.toMatch(/Home|Share on X/);
+
+    const result = pasteWithoutCleanup(editor, html, {}, sanitize);
+    expect(result.report.cleanup.skipped).toBe("off");
+    const after = exportHTML(editor);
+    expect(after).toMatch(/Home[\s\S]*Paragraph 6[\s\S]*Share on X/);
+    expect(after.match(/Paragraph 1 /g)).toHaveLength(1);
+    expect(after.startsWith("<p>abcd")).toBe(true);
+    editor.undo();
+    editor.undo();
+    expect(exportHTML(editor)).toBe("<p>abcd</p>");
   });
 });

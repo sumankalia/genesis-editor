@@ -26,9 +26,10 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 
+import { CleanupToast } from "./components/cleanup-toast";
 import { GenesisFilePanel } from "./components/file-panel";
-import { createPasteHandler, exportHTML, importHTML, type HtmlImport } from "./html";
-import type { FidelityReport, ParseMode } from "./parser/types";
+import { createPasteHandler, exportHTML, importHTML, pasteWithoutCleanup, type HtmlImport } from "./html";
+import type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
@@ -107,6 +108,10 @@ export type BlockEditorProps = UploadConfig &
   htmlMode?: ParseMode;
   /** Resolves relative links and image sources in pasted and loaded HTML. */
   baseUrl?: string;
+  /** Page-furniture removal for pasted and loaded HTML: `{ noise: false }` turns it off; `keepSelectors`/`dropSelectors` tune it. */
+  clean?: CleanOptions;
+  /** After a paste that removed page furniture, show "Removed N sections · Undo cleanup". Defaults to `true`. */
+  cleanupToast?: boolean;
   /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
@@ -212,6 +217,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     onChange,
     htmlMode = "clean",
     baseUrl,
+    clean,
+    cleanupToast = true,
     onImportReport,
     persist,
     onPersistStatusChange,
@@ -249,7 +256,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     let imported: HtmlImport | null = null;
     const parse = (html: string | undefined) => {
       if (!html?.trim()) return undefined;
-      imported = importHTML(html, { mode: htmlMode, tools, baseUrl }, sanitize);
+      imported = importHTML(html, { mode: htmlMode, tools, baseUrl, clean }, sanitize);
       return nonEmpty(imported.blocks);
     };
     const content =
@@ -266,20 +273,23 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     };
   });
 
-  const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport });
+  const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
   const uploadConfig = useRef<UploadConfig>({});
-  const htmlOptions = useRef({ mode: htmlMode, tools, baseUrl });
+  const htmlOptions = useRef({ mode: htmlMode, tools, baseUrl, clean });
   useLayoutEffect(() => {
-    callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport };
+    callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
     uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse };
-    htmlOptions.current = { mode: htmlMode, tools, baseUrl };
+    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean };
   });
 
   const lastReport = useRef<FidelityReport | null>(initial.report);
-  const recordImport = useRef((result: HtmlImport) => {
+  const [cleanup, setCleanup] = useState<{ summary: CleanupSummary; html: string } | null>(null);
+  const recordImport = useRef((result: HtmlImport, pastedHtml?: string) => {
     lastReport.current = result.report;
     callbacks.current.onImportReport?.(result.report);
+    const { cleanup: summary } = result.report;
+    setCleanup(pastedHtml && summary.sections > 0 && callbacks.current.cleanupToast ? { summary, html: pastedHtml } : null);
   });
   useEffect(() => {
     if (initial.report) callbacks.current.onImportReport?.(initial.report);
@@ -293,7 +303,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     schema: setup.schema,
     extensions: setup.extensions,
     initialContent: initial.content as never,
-    pasteHandler: createPasteHandler(() => htmlOptions.current, sanitize, (result) => recordImport.current(result)),
+    pasteHandler: createPasteHandler(() => htmlOptions.current, sanitize, (result, html) => recordImport.current(result, html)),
     // Never rejects: paste/drop uploads would surface as unhandled rejections, so
     // failures are recorded per block and shown in that block's file panel instead.
     uploadFile: async (file, blockId) => {
@@ -468,6 +478,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   );
 
   const handleChange = useCallback(() => {
+    setCleanup(null);
     scheduleSave();
     if (applyingValue.current) return;
     const blocks = editor.document;
@@ -579,6 +590,14 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [resolvedToolbar.items, setup.toolbarItems],
   );
 
+  const dismissCleanup = useCallback(() => setCleanup(null), []);
+  const undoCleanup = useCallback(() => {
+    if (!cleanup) return;
+    const result = pasteWithoutCleanup(editor, cleanup.html, htmlOptions.current, sanitize);
+    recordImport.current(result);
+    editor.focus();
+  }, [cleanup, editor, sanitize]);
+
   const openSlashMenu = useCallback(() => {
     editor.focus();
     editor.getExtension(SuggestionMenu)?.openSuggestionMenu("/");
@@ -629,6 +648,9 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
             onLink={openLinkDialog}
             showLink={linksEnabled}
           />
+        )}
+        {cleanup && (
+          <CleanupToast summary={cleanup.summary} onUndo={undoCleanup} onDismiss={dismissCleanup} />
         )}
         <LinkDialog
           open={linkDialogOpen}

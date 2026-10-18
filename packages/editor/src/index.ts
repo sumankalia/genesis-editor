@@ -8,7 +8,7 @@ export type {
   HtmlFormatProps,
   UploadErrorEvent,
 } from "./block-editor";
-export type { FidelityReport, ParseMode } from "./parser/types";
+export type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
 export {
   DEFAULT_PERSIST_KEY,
   clearStoredDocument,
