@@ -11,10 +11,10 @@ export type {
 } from "./block-editor";
 export type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
 export { META_VERSION, migrateMeta, stripMeta } from "./parser/meta";
-export { defineEmbedProvider, getEmbedFrameSrc, GENERIC_SANDBOX, PROVIDER_ALLOW, PROVIDER_SANDBOX } from "./parser/embeds";
-export type { EmbedFrame, EmbedOptions, EmbedProvider } from "./parser/embeds";
+export { defineEmbedProvider, getEmbedFrameSrc, getEmbedScriptSrc, GENERIC_SANDBOX, PROVIDER_ALLOW, PROVIDER_SANDBOX, WIDGET_SANDBOX } from "./parser/embeds";
+export type { EmbedFrame, EmbedOptions, EmbedProvider, EmbedScript, EmbedSnippet } from "./parser/embeds";
 export type { ColorSwatch, ColorToolOptions } from "./parser/colors";
-export { BUILT_IN_EMBED_PROVIDERS } from "./parser/embed-providers";
+export { BUILT_IN_EMBED_PROVIDERS, MASTODON_SERVERS } from "./parser/embed-providers";
 export type { GenesisMeta, MetaOptions, MetaPolicy } from "./parser/meta";
 export {
   DEFAULT_PERSIST_KEY,

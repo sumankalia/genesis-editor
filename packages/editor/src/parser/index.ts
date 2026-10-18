@@ -19,16 +19,34 @@ export {
   defineEmbedProvider,
   embedForElement,
   embedForIframe,
+  embedForMarkup,
+  embedForSnippet,
   embedForUrl,
   embedRegistry,
+  embedSnippetHTML,
   GENERIC_SANDBOX,
   getEmbedFrameSrc,
+  getEmbedScriptSrc,
   PROVIDER_ALLOW,
   PROVIDER_SANDBOX,
   resolveEmbedBlock,
+  snippetLines,
+  WIDGET_SANDBOX,
+  widgetDocument,
 } from "./embeds";
-export type { EmbedFrame, EmbedOptions, EmbedProps, EmbedProvider, EmbedRegistry, ResolvedEmbed } from "./embeds";
-export { BUILT_IN_EMBED_PROVIDERS } from "./embed-providers";
+export type {
+  EmbedFrame,
+  EmbedOptions,
+  EmbedProps,
+  EmbedProvider,
+  EmbedRegistry,
+  EmbedScript,
+  EmbedSnippet,
+  MarkupEmbed,
+  ResolvedEmbed,
+  SnippetEmbed,
+} from "./embeds";
+export { BUILT_IN_EMBED_PROVIDERS, MASTODON_SERVERS } from "./embed-providers";
 export type { GenesisMeta, MetaOptions, MetaPolicy, WrapperFrame } from "./meta";
 export type {
   CleanOptions,
