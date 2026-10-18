@@ -31,6 +31,27 @@ All notable changes to `genesis-editor`. The package is not published yet; every
 - New image prop `hosted`: set after a direct upload and on re-hosted copies, exported as `data-genesis-hosted` and read back, so a later load never copies the app's own images. A new URL clears it unless the same update sets it.
 - `trustedHosts` (`"cdn.example.com"`, `"*.example.com"`, an origin, or a predicate): images on these hosts are never re-hosted, whatever `rehostImages` says. Also accepted by `parseHTMLAsync`.
 
+### Colors
+
+- **Breaking:** the colour tool and toolbar item are now `colors` (was `color`), with options: `tools={{ colors: { palette, custom, swatches } }}`.
+- `textColor`/`backgroundColor` hold `"default"`, a palette name, a brand swatch name, or lowercase `#rrggbb` (backgrounds also `#rrggbbaa`). Palette colours follow the theme; hex and swatches are drawn inline and look the same in both. Anything else is drawn as the default.
+- Hex colours now render in the editor: on text, on blocks and in table cells.
+- New colour menu: Text and Background sections with Default, the palette, brand swatches, up to 8 **Document colors**, the last 8 custom colours (`localStorage`), and **Custom…** with a hex/CSS field, the native colour picker and an eyedropper where `EyeDropper` exists. Hex swatches show their value on hover.
+- `colorContrast="auto"` adjusts hex text that has less than 3:1 contrast with the theme's background, at render time only.
+- Paste: colours within ΔE2000 3 of a brand swatch snap to it, like palette colours. Translucent backgrounds keep their alpha as `#rrggbbaa`. `custom: false` sends other pasted hex to the palette colour for its hue (as strict mode does); `palette: false` stops snapping to the palette.
+- Export writes swatch names as their hex plus `data-text-color`/`data-background-color`; pass `toHTML(blocks, { swatches })` and `parseHTML(html, { tools: { colors: { swatches } } })` on the server. `getHTML()` uses the editor's own.
+- New exports: `editorColor`, `isStoredColor`, `contrastRatio`, `withContrast` (`genesis-editor/parser`), and the `ColorSwatch`/`ColorToolOptions` types.
+- New dependencies: `prosemirror-view` and `prosemirror-model` (the copies BlockNote uses), for the block colour decorations.
+
+### Font size
+
+- New inline tool and toolbar item `fontSize`: a dropdown with Default, 6, 8, 10, 12, 14, 18 and 20 px, showing "—" for mixed sizes. `Mod+Shift+.` / `Mod+Shift+,` step up and down. Hidden in headings and code blocks, where sizes don't apply.
+- Stored as the style `fontSize: "14px"`; 16 is the default and stores nothing.
+- Paste: sizes in any unit are converted to px, then scaled so the source's body size (the most common size by text length) becomes 16, then clamped to 6–20 and snapped to a step (ties up). A Google Doc at 11 pt pastes as Default. `report.fontSizes` counts `sized` and `clamped` text.
+- Export writes `<span style="font-size:14px" data-font-size="14px">`; `data-font-size` is read back exactly, without scaling, and lines with it are never promoted to headings.
+- With `fontSize` off, pasted sizes are dropped and reported under `unsupportedStyles` as before.
+- New exports from `genesis-editor/parser`: `FONT_SIZES`, `isFontSize`, `snapFontSize`.
+
 ### Embeds
 
 - New `embed` block and tool (on by default): `provider`, `url`, `embedUrl`, `aspectRatio`, `height`, `title`, `caption`, `previewWidth`. Provider frames are rebuilt from `url` on every render and export; a stored `embedUrl` or `data-provider` is never trusted.

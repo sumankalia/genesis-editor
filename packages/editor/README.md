@@ -177,10 +177,20 @@ menu, Markdown shortcuts, the formatting toolbar, the mobile toolbar, and paste
 
 Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
 `toggleList`, `quote`, `codeBlock`, `divider`, `table`, `image`, `video`,
-`audio`, `file`. Inline tools: `bold`, `italic`, `underline`, `strike`, `code`,
-`link`, `colors`. They're exported as `BLOCK_TOOLS`, `INLINE_TOOLS`, and
-`BUILT_IN_TOOLS`, so "everything except tables" is
+`audio`, `file`, `embed`. Inline tools: `bold`, `italic`, `underline`, `strike`,
+`code`, `link`, `colors`, `fontSize`. They're exported as `BLOCK_TOOLS`,
+`INLINE_TOOLS`, and `BUILT_IN_TOOLS`, so "everything except tables" is
 `BUILT_IN_TOOLS.filter((tool) => tool !== "table")`.
+
+`colors` stores theme-aware palette names, your brand swatches, or exact hex;
+`fontSize` adds a 6–20 px dropdown to the selection toolbar:
+
+```tsx
+<BlockEditor
+  tools={{ colors: { swatches: [{ name: "brand", hex: "#ff5a1f" }] }, fontSize: true, bold: true }}
+  colorContrast="auto"
+/>
+```
 
 Existing content that uses a disabled tool is converted when it loads: unknown
 blocks become paragraphs that keep their text, tables become one paragraph per
@@ -199,7 +209,7 @@ of showing it on selection, and `toolbar={false}` removes it.
 
 The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `file`,
 `bold`, `italic`, `underline`, `strike`, `code`, `alignLeft`, `alignCenter`,
-`alignRight`, `colors`, `nest`, `unnest`, `link`, followed by plugin items.
+`alignRight`, `fontSize`, `colors`, `nest`, `unnest`, `link`, followed by plugin items.
 
 ### Plugins
 
