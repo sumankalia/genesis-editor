@@ -1,4 +1,4 @@
-import { editorColor, isPaletteName, parseColor } from "./colors";
+import { deltaE2000, editorColor, isPaletteName, parseColor } from "./colors";
 import { parseStyle, toPx, type Declarations } from "./css";
 import { defaultDom, ELEMENT_NODE, TEXT_NODE } from "./dom";
 import {
@@ -77,6 +77,8 @@ const CLASS_HEADINGS: Record<string, number> = {
   MsoTitle: 1, MsoSubtitle: 2, MsoHeading1: 1, MsoHeading2: 2, MsoHeading3: 3, MsoHeading4: 4,
   MsoHeading5: 5, MsoHeading6: 6, Heading1: 1, Heading2: 2, Heading3: 3, Heading4: 4, Heading5: 5, Heading6: 6,
 };
+/** Default link colours of Docs, browsers, Word, Google, Wikipedia and WordPress. */
+const LINK_COLORS = ["#1155cc", "#0000ee", "#0563c1", "#0b57d0", "#1a0dab", "#0645ad", "#2271b1"];
 const PERMALINK_TEXT = /^\s*(#|¶|§|🔗|link)?\s*$/i;
 const PERMALINK_CLASS = /(^|[\s_-])(anchor|anchorjs-link|heading-link|header-anchor|permalink|hash-link|headerlink)($|[\s_-])/i;
 const HEADING_TAG = /^h([1-6])$/;
@@ -339,6 +341,7 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
   if (el.hasAttribute("data-genesis-children")) return nestedChildren(el, next, sink, state);
   const cls = classes(el);
   if (cls.some((c) => FIGURE_CLASSES.has(c))) return figure(el, decl, next, sink, state);
+  if (cls.includes("wp-block-file") && fileBlock(el, sink, state)) return;
 
   const kind = TAG_CLASSES[tag] ?? (tag.includes(":") ? "inline" : undefined);
   switch (kind) {
@@ -395,10 +398,16 @@ function makeRun(text: string, ctx: Ctx, state: State, br = false): Run {
     if (ctx.textColor) styles.textColor = ctx.textColor;
     if (ctx.backgroundColor) styles.backgroundColor = ctx.backgroundColor;
   }
+  const link = tools.has("link") ? ctx.link : undefined;
+  if (link) {
+    // Docs, Word and most sites style links as blue + underline; the editor already draws links that way.
+    delete styles.underline;
+    if (styles.textColor?.startsWith("#") && LINK_COLORS.some((c) => deltaE2000(styles.textColor!, c) <= 10)) delete styles.textColor;
+  }
   return {
     text,
     styles,
-    link: tools.has("link") ? ctx.link : undefined,
+    link,
     pre: ctx.pre,
     br,
     size: ctx.size,
@@ -990,27 +999,21 @@ function columnWidths(table: Element, firstRow: Element | undefined, columns: nu
 
 // Media --------------------------------------------------------------------------------------
 
+/** The best URL for an image: the largest srcset candidate, then lazy-load attributes, then `src`. */
 function imageSource(img: Element) {
+  const srcsets = [...LAZY_SRCSET_ATTRIBUTES.map((a) => img.getAttribute(a)), img.getAttribute("srcset")];
+  const picture = img.parentNode && lower(img.parentNode) === "picture" ? (img.parentNode as Element) : undefined;
+  if (picture) srcsets.push(...elementChildren(picture).map((source) => source.getAttribute("srcset")));
+  for (const srcset of srcsets) {
+    const candidate = largestSrcsetCandidate(srcset);
+    if (candidate && !PLACEHOLDER_SRC.test(candidate)) return candidate;
+  }
   for (const attr of LAZY_SRC_ATTRIBUTES) {
     const value = img.getAttribute(attr);
     if (value && !PLACEHOLDER_SRC.test(value)) return value;
   }
   const src = img.getAttribute("src");
-  if (src && !PLACEHOLDER_SRC.test(src)) return src;
-  for (const attr of LAZY_SRCSET_ATTRIBUTES) {
-    const candidate = largestSrcsetCandidate(img.getAttribute(attr));
-    if (candidate) return candidate;
-  }
-  const fromSrcset = largestSrcsetCandidate(img.getAttribute("srcset"));
-  if (fromSrcset) return fromSrcset;
-  const picture = img.parentNode && lower(img.parentNode) === "picture" ? (img.parentNode as Element) : undefined;
-  if (picture) {
-    for (const source of elementChildren(picture)) {
-      const candidate = largestSrcsetCandidate(source.getAttribute("srcset"));
-      if (candidate) return candidate;
-    }
-  }
-  return src ?? undefined;
+  return src && !PLACEHOLDER_SRC.test(src) ? src : undefined;
 }
 
 function mediaUrl(raw: string | undefined, state: State) {
@@ -1141,6 +1144,23 @@ function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: St
       sink.push(...capSink.blocks);
     }
   }
+}
+
+/** WordPress's file block: a link to the file plus a separate "Download" button linking to the same URL. */
+function fileBlock(el: Element, sink: Sink, state: State) {
+  const link = Array.from(el.querySelectorAll("a[href]")).find((a) => !classes(a).includes("wp-block-file__button"));
+  const url = link && cleanHref(link.getAttribute("href")!, state.base);
+  if (!url) return false;
+  sink.flush();
+  const name = (link.textContent ?? "").trim();
+  if (state.tools.has("file")) {
+    state.report.mapped++;
+    sink.push({ type: "file", props: name ? { url, name } : { url } });
+  } else {
+    state.report.downgrade("file", "link paragraph");
+    sink.push(linkParagraph(url, name || url, state));
+  }
+  return true;
 }
 
 function details(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: State) {
