@@ -77,10 +77,10 @@ export default function Playground() {
     return () => clearTimeout(outputTimer.current);
   }, [refreshOutput]);
 
-  const showUploadError = useCallback(({ error, file, retry }: UploadErrorEvent) => {
-    toast.error(`Couldn't upload ${file.name}`, {
-      description: error.message,
-      action: { label: "Retry", onClick: () => void retry() },
+  const showUploadError = useCallback((event: UploadErrorEvent) => {
+    toast.error(event.kind === "file" ? `Couldn't upload ${event.file.name}` : "Couldn't re-upload a pasted image", {
+      description: event.error.message,
+      action: { label: "Retry", onClick: () => void event.retry() },
     });
   }, []);
 

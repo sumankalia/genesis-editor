@@ -36,6 +36,7 @@ const examples = {
   "html-value": load(() => import("./html-value")),
   "html-paste": load(() => import("./html-paste")),
   "block-meta": load(() => import("./block-meta")),
+  "image-rehost": load(() => import("./image-rehost")),
 };
 
 export type ExampleName = keyof typeof examples;

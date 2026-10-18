@@ -34,6 +34,9 @@ const REFERENCED_TYPES = [
   "PersistStatus",
   "UploadErrorEvent",
   "UploadResponseMapper",
+  "UploadCallContext",
+  "UploadHeaders",
+  "RehostSource",
   "HtmlChangeInfo",
   "FidelityReport",
   "ParseMode",
@@ -53,7 +56,7 @@ const REFERENCED_TYPES = [
 
 const ENTRY = join(process.cwd(), "../../packages/editor/src/index.ts");
 const PARSER_ENTRY = join(process.cwd(), "../../packages/editor/src/parser/index.ts");
-const PARSER_TYPES = ["ToHTMLOptions", "HtmlBlock", "DropReason", "WrapperFrame"];
+const PARSER_TYPES = ["ToHTMLOptions", "HtmlBlock", "DropReason", "WrapperFrame", "ParseAsyncOptions"];
 
 function describe(symbol: ts.Symbol, checker: ts.TypeChecker): ApiMember {
   const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0];

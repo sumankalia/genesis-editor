@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: "API reference" };
 
 const parserExports: [string, string][] = [
   ["parseHTML(html, options?)", "Parses HTML into blocks. Returns { blocks, report }."],
+  ["parseHTMLAsync(html, options?)", "parseHTML, then copies remote images with uploadRemote or an absolute uploadFromUrl before returning. For bulk imports on a server."],
   ["toHTML(blocks, options?)", "Serializes blocks to HTML that parseHTML reads back to the same blocks."],
   ["stripMeta(blocks)", "Removes meta from blocks and their children, for exports that shouldn't carry it."],
   ["migrateMeta(meta)", "Reads meta in any stored form (object or the editor's JSON string) and brings it to META_VERSION. Newer versions are returned untouched."],
@@ -26,7 +27,8 @@ const otherExports: [string, string][] = [
   ["BUILT_IN_TOOLS / BLOCK_TOOLS / INLINE_TOOLS", "Tool names, the default for tools."],
   ["DEFAULT_TOOLBAR", "Toolbar item names in their default order."],
   ["mapResponsePath(path)", "Builds a mapUploadResponse that reads a dot path such as data.link."],
-  ["uploadWithConfig(config, file)", "The upload logic the editor uses, for reuse elsewhere."],
+  ["uploadWithConfig(config, file, ctx?)", "The upload logic the editor uses, for reuse elsewhere."],
+  ["UploadError", "The error uploads throw; status is the HTTP status when there was a response. Network errors and 5xx are retried once when re-hosting."],
   ["getUploadMode(config)", 'Returns "custom", "server", or "local" for a config.'],
   ["stripMeta(blocks) / migrateMeta(meta) / META_VERSION", "Also exported from genesis-editor/parser, see above."],
   ["loadStoredDocument(key)", "Reads a document saved by persist, migrated to the current StoredDocument format."],
