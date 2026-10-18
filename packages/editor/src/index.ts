@@ -1,5 +1,14 @@
 export { BlockEditor } from "./block-editor";
-export type { BlockEditorHandle, BlockEditorProps, EditorContent, UploadErrorEvent } from "./block-editor";
+export type {
+  BlockEditorHandle,
+  BlockEditorProps,
+  BlocksFormatProps,
+  EditorContent,
+  HtmlChangeInfo,
+  HtmlFormatProps,
+  UploadErrorEvent,
+} from "./block-editor";
+export type { FidelityReport, ParseMode } from "./parser/types";
 export {
   DEFAULT_PERSIST_KEY,
   clearStoredDocument,

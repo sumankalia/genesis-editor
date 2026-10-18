@@ -27,6 +27,8 @@ import {
 import { BlockNoteView } from "@blocknote/shadcn";
 
 import { GenesisFilePanel } from "./components/file-panel";
+import { createPasteHandler, exportHTML, importHTML, type HtmlImport } from "./html";
+import type { FidelityReport, ParseMode } from "./parser/types";
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
@@ -67,13 +69,46 @@ export type UploadErrorEvent = {
   retry: () => Promise<void>;
 };
 
-export type BlockEditorProps = UploadConfig & {
+export type HtmlChangeInfo = {
+  /** The document the HTML was serialized from. */
+  blocks: Block[];
+  /** The report from the most recent HTML import (initial value, `setHTML`, or paste), if any. */
+  report: FidelityReport | null;
+  editor: BlockNoteEditor;
+};
+
+export type BlocksFormatProps = {
+  /** Shape of `value`, `initialContent`, and `onChange`. Defaults to `"blocks"`. */
+  format?: "blocks";
   /** Content for the first render (uncontrolled). Ignored when `value` is set or a persisted document is found. */
   initialContent?: EditorContent;
   /** Controlled content. When it changes to something other than the current document, the editor content is replaced. */
   value?: EditorContent;
   /** Called after every user edit with the full document. */
   onChange?: (blocks: Block[], editor: BlockNoteEditor) => void;
+  defaultValue?: never;
+};
+
+export type HtmlFormatProps = {
+  /** `value`, `defaultValue`, and `onChange` carry HTML strings, parsed and serialized by `genesis-editor/parser`. */
+  format: "html";
+  /** HTML for the first render (uncontrolled). Ignored when `value` is set or a persisted document is found. */
+  defaultValue?: string;
+  /** Controlled HTML. Parsed only when it differs from the HTML the editor last emitted, so echoing it back is free. */
+  value?: string;
+  /** Called with the serialized document, at most every 150 ms while typing. */
+  onChange?: (html: string, info: HtmlChangeInfo) => void;
+  initialContent?: never;
+};
+
+export type BlockEditorProps = UploadConfig &
+  (BlocksFormatProps | HtmlFormatProps) & {
+  /** How pasted and loaded HTML is cleaned: `"clean"` keeps custom colors, `"strict"` snaps them to the palette. Defaults to `"clean"`. */
+  htmlMode?: ParseMode;
+  /** Resolves relative links and image sources in pasted and loaded HTML. */
+  baseUrl?: string;
+  /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
+  onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
   persist?: boolean | PersistOptions;
   /** Reports autosave progress, for a "Saving…/Saved" indicator. Only called when `persist` is on. */
@@ -116,6 +151,12 @@ export type BlockEditorHandle = {
   setBlocks: (blocks: EditorContent) => void;
   /** Lossy Markdown export of the current document. */
   getMarkdown: () => string;
+  /** The current document as HTML, in the format `genesis-editor/parser` reads back losslessly. */
+  getHTML: () => string;
+  /** Replaces the whole document with parsed HTML and returns the import report. Counts as an edit. */
+  setHTML: (html: string) => FidelityReport;
+  /** The report from the most recent HTML import, or `null` if nothing was imported yet. */
+  readonly lastReport: FidelityReport | null;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
   clearPersisted: () => void;
 };
@@ -164,9 +205,14 @@ type EditorInstanceProps = BlockEditorProps & {
 
 const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(function EditorInstance(
   {
+    format,
     initialContent,
+    defaultValue,
     value,
     onChange,
+    htmlMode = "clean",
+    baseUrl,
+    onImportReport,
     persist,
     onPersistStatusChange,
     uploadFile,
@@ -191,29 +237,53 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   // Tools, content, and persistence key are read once: changing them later needs a new editor.
   const [setup] = useState(() => resolveEditorSetup(tools, plugins));
   const [support] = useState(() => schemaSupport(setup.schema));
-  const [initial] = useState(() => {
-    const stored = persistKey ? loadStoredDocument(persistKey) : null;
-    const content =
-      nonEmpty(value) ?? nonEmpty(latestDocument.current ?? undefined) ?? stored?.blocks ?? nonEmpty(initialContent);
-    const sanitized = content ? sanitizeBlocks(content, support) : undefined;
-    return {
-      key: persistKey,
-      stored,
-      content: sanitized?.length ? (sanitized as PartialBlock[]) : undefined,
-    };
-  });
+  const isHtml = format === "html";
+  const htmlValue = isHtml && typeof value === "string" ? value : undefined;
+  const blocksValue = isHtml ? undefined : (value as EditorContent | undefined);
   const sanitize = useCallback(
     (blocks: EditorContent) => sanitizeBlocks(blocks, support) as PartialBlock[],
     [support],
   );
+  const [initial] = useState(() => {
+    const stored = persistKey ? loadStoredDocument(persistKey) : null;
+    let imported: HtmlImport | null = null;
+    const parse = (html: string | undefined) => {
+      if (!html?.trim()) return undefined;
+      imported = importHTML(html, { mode: htmlMode, tools, baseUrl }, sanitize);
+      return nonEmpty(imported.blocks);
+    };
+    const content =
+      (isHtml ? parse(htmlValue) : nonEmpty(blocksValue)) ??
+      nonEmpty(latestDocument.current ?? undefined) ??
+      stored?.blocks ??
+      (isHtml ? parse(defaultValue) : nonEmpty(initialContent));
+    const sanitized = content ? sanitize(content) : undefined;
+    return {
+      key: persistKey,
+      stored,
+      content: sanitized?.length ? sanitized : undefined,
+      report: (imported as HtmlImport | null)?.report ?? null,
+    };
+  });
 
-  const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError });
+  const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
   const uploadConfig = useRef<UploadConfig>({});
+  const htmlOptions = useRef({ mode: htmlMode, tools, baseUrl });
   useLayoutEffect(() => {
-    callbacks.current = { onChange, onPersistStatusChange, onUploadError };
+    callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport };
     uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse };
+    htmlOptions.current = { mode: htmlMode, tools, baseUrl };
   });
+
+  const lastReport = useRef<FidelityReport | null>(initial.report);
+  const recordImport = useRef((result: HtmlImport) => {
+    lastReport.current = result.report;
+    callbacks.current.onImportReport?.(result.report);
+  });
+  useEffect(() => {
+    if (initial.report) callbacks.current.onImportReport?.(initial.report);
+  }, [initial.report]);
 
   const [uploadStatuses] = useState(() => new UploadStatusStore());
   const editorRef = useRef<BlockNoteEditor | null>(null);
@@ -223,6 +293,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     schema: setup.schema,
     extensions: setup.extensions,
     initialContent: initial.content as never,
+    pasteHandler: createPasteHandler(() => htmlOptions.current, sanitize, (result) => recordImport.current(result)),
     // Never rejects: paste/drop uploads would surface as unhandled rejections, so
     // failures are recorded per block and shown in that block's file panel instead.
     uploadFile: async (file, blockId) => {
@@ -332,35 +403,84 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
 
   // Controlled value
   const lastEmitted = useRef<Block[] | null>(null);
-  const lastValueJson = useRef<string | null>(value ? JSON.stringify(value) : null);
+  const lastValueJson = useRef<string | null>(blocksValue ? JSON.stringify(blocksValue) : null);
   const applyingValue = useRef(false);
 
   useEffect(() => {
-    if (!value) return;
-    if (value === lastEmitted.current) {
+    if (!blocksValue) return;
+    if (blocksValue === lastEmitted.current) {
       lastValueJson.current = null;
       return;
     }
-    const json = JSON.stringify(value);
+    const json = JSON.stringify(blocksValue);
     if (json === lastValueJson.current) return;
     lastValueJson.current = json;
     if (json === JSON.stringify(editor.document)) return;
     applyingValue.current = true;
     try {
-      editor.replaceBlocks(editor.document, sanitize(value));
+      editor.replaceBlocks(editor.document, sanitize(blocksValue));
     } finally {
       applyingValue.current = false;
     }
-  }, [editor, value, sanitize]);
+  }, [editor, blocksValue, sanitize]);
+
+  // HTML value: the last HTML received or emitted. Anything else is parsed and replaces the document.
+  const lastHtml = useRef<string | null>(htmlValue ?? null);
+  const htmlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const emitHtml = useCallback(() => {
+    if (htmlTimer.current) clearTimeout(htmlTimer.current);
+    htmlTimer.current = null;
+    const html = exportHTML(editor);
+    lastHtml.current = html;
+    const emit = callbacks.current.onChange as HtmlFormatProps["onChange"];
+    emit?.(html, { blocks: editor.document, report: lastReport.current, editor });
+  }, [editor]);
+
+  const applyHtml = useCallback(
+    (html: string, asEdit: boolean) => {
+      const result = importHTML(html, htmlOptions.current, sanitize);
+      applyingValue.current = !asEdit;
+      try {
+        editor.replaceBlocks(editor.document, result.blocks.length ? result.blocks : [{ type: "paragraph" }]);
+      } finally {
+        applyingValue.current = false;
+      }
+      recordImport.current(result);
+      return result.report;
+    },
+    [editor, sanitize],
+  );
+
+  useEffect(() => {
+    if (htmlValue === undefined || htmlValue === lastHtml.current) return;
+    lastHtml.current = htmlValue;
+    if (htmlTimer.current) clearTimeout(htmlTimer.current);
+    htmlTimer.current = null;
+    applyHtml(htmlValue, false);
+  }, [htmlValue, applyHtml]);
+
+  useEffect(
+    () => () => {
+      if (htmlTimer.current) emitHtml();
+    },
+    [emitHtml],
+  );
 
   const handleChange = useCallback(() => {
     scheduleSave();
     if (applyingValue.current) return;
     const blocks = editor.document;
     latestDocument.current = blocks as AnyPartialBlock[];
+    if (isHtml) {
+      if (htmlTimer.current) clearTimeout(htmlTimer.current);
+      htmlTimer.current = setTimeout(emitHtml, 150);
+      return;
+    }
     lastEmitted.current = blocks;
-    callbacks.current.onChange?.(blocks, editor);
-  }, [editor, scheduleSave, latestDocument]);
+    const emit = callbacks.current.onChange as BlocksFormatProps["onChange"];
+    emit?.(blocks, editor);
+  }, [editor, scheduleSave, latestDocument, isHtml, emitHtml]);
 
   useImperativeHandle(
     ref,
@@ -370,13 +490,18 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       getBlocks: () => editor.document,
       setBlocks: (blocks) => editor.replaceBlocks(editor.document, sanitize(blocks)),
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
+      getHTML: () => exportHTML(editor),
+      setHTML: (html) => applyHtml(html, true),
+      get lastReport() {
+        return lastReport.current;
+      },
       clearPersisted: () => {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = null;
         if (initial.key) clearStoredDocument(initial.key);
       },
     }),
-    [editor, initial.key, sanitize],
+    [editor, initial.key, sanitize, applyHtml],
   );
 
   // Links
