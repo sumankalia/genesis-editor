@@ -13,7 +13,8 @@ const swatches = [
 const article = `<h3>Release notes</h3>
 <p><span data-text-color="red">Palette red</span> and <span data-background-color="yellow">a yellow highlight</span> follow the theme.</p>
 <p><span style="color:#1f6feb">Exact #1f6feb</span>, <span style="background-color:#d1fae5">#d1fae5 behind it</span>, and <span style="color:#3b0764">a dark purple</span> stay exact.</p>
-<p><span data-text-color="brand" style="color:#ff5a1f">Brand orange</span> comes from the integrator's swatches.</p>`;
+<p><span data-text-color="brand" style="color:#ff5a1f">Brand orange</span> comes from the integrator's swatches.</p>
+<p style="background-color:#fef3c7">A whole paragraph can have a colour too, here #fef3c7.</p>`;
 
 const pasted = `<p>From a web page: <span style="color: rgb(225, 62, 62)">almost palette red</span>, <span style="color: hsl(330, 100%, 45%)">hot pink</span>, <span style="background: rgba(16, 185, 129, 0.25)">a translucent green</span> and <span style="color:#222">near-black</span>.</p>`;
 
