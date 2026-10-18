@@ -37,8 +37,9 @@ export type HtmlTableContent = {
 };
 
 /**
- * A block in BlockNote's JSON shape, without ids. Props that equal BlockNote's defaults are left out,
- * so the output is canonical and loads as `initialContent`, `value`, or `editor.insertBlocks`.
+ * A block in BlockNote's JSON shape, without ids. Props that equal BlockNote's defaults are left out
+ * (except a heading's `level`, which is always set), so the output is canonical and loads as
+ * `initialContent`, `value`, or `editor.insertBlocks`.
  */
 export type HtmlBlock = {
   type: string;
