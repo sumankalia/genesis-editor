@@ -84,6 +84,7 @@ function renderEmpty(block: LooseBlock, editor: AnyEditor, dom: HTMLElement) {
   const error = el("p", "genesis-embed-error");
   error.setAttribute("role", "alert");
   form.append(input, button, error);
+  input.addEventListener("input", () => (error.textContent = ""));
   isolate(form);
   form.addEventListener("submit", (event) => {
     event.preventDefault();

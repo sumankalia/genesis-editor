@@ -82,7 +82,13 @@ describe("pasted iframes", () => {
     });
     expect(embedForIframe("https://player.vimeo.com/video/76979871?h=abcdef1234&badge=0", registry)?.url).toBe("https://vimeo.com/76979871/abcdef1234");
     expect(embedForIframe("https://platform.twitter.com/embed/Tweet.html?id=20", registry)?.url).toBe("https://x.com/i/status/20");
-    expect(embedForIframe("https://open.spotify.com/embed/album/1DFixLWuPkv3KT3TnV35m3?utm_source=generator", registry)?.provider).toBe("spotify");
+    expect(embedForIframe("https://open.spotify.com/embed/album/1DFixLWuPkv3KT3TnV35m3?utm_source=generator", registry)?.url).toBe("https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3");
+    expect(embedForIframe("https://codepen.io/team/embed/preview/abcDEF?default-tab=result", registry)?.url).toBe("https://codepen.io/team/pen/abcDEF");
+    expect(embedForIframe("https://www.dailymotion.com/embed/video/x8abc12", registry)?.url).toBe("https://www.dailymotion.com/video/x8abc12");
+    expect(embedForIframe("https://codesandbox.io/embed/new-abc12?fontsize=14", registry)?.url).toBe("https://codesandbox.io/s/new-abc12");
+    expect(embedForIframe("https://docs.google.com/presentation/d/1AbCdEfGhIjKlMnOpQrStUv/embed?start=false", registry)?.url).toBe("https://docs.google.com/presentation/d/1AbCdEfGhIjKlMnOpQrStUv/edit");
+    expect(embedForIframe("https://airtable.com/embed/shrAbCdEfGhIjKlMn", registry)?.url).toBe("https://airtable.com/shrAbCdEfGhIjKlMn");
+    expect(embedForIframe("https://miro.com/app/live-embed/uXjVAbCd=/", registry)?.url).toBe("https://miro.com/app/board/uXjVAbCd=/");
     expect(embedForIframe("https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2624.99", registry)).toMatchObject({ provider: "googleMaps" });
     expect(embedForIframe("https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/293", registry)?.provider).toBe("soundcloud");
     expect(embedForIframe("https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Ffile%2FAbCdEfGhIjKlMn%2FX", registry)?.provider).toBe("figma");

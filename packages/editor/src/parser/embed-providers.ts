@@ -82,6 +82,7 @@ const spotify: EmbedProvider = {
   label: "Spotify",
   match: [/^https?:\/\/open\.spotify\.com\/(?:intl-[\w-]+\/)?(?:embed\/)?(track|album|playlist|episode|show|artist)\/(\w{10,40})/],
   frameOrigins: ["https://open.spotify.com"],
+  fromIframe: (src) => (src.host === "open.spotify.com" ? `https://open.spotify.com${src.pathname.replace(/^\/embed\//, "/")}` : null),
   toEmbed: (_url, m) => ({ src: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, height: m[1] === "track" || m[1] === "episode" ? 152 : 352 }),
 };
 
@@ -99,6 +100,7 @@ const codepen: EmbedProvider = {
   label: "CodePen",
   match: [/^https?:\/\/codepen\.io\/([\w-]{1,40})\/(?:pen|embed|embed\/preview|full|details)\/(\w{3,20})/],
   frameOrigins: ["https://codepen.io"],
+  fromIframe: (src) => (src.host === "codepen.io" ? `https://codepen.io${src.pathname.replace(/\/embed\/(?:preview\/)?/, "/pen/")}` : null),
   toEmbed: (_url, m) => ({ src: `https://codepen.io/${m[1]}/embed/${m[2]}?default-tab=result`, height: 400 }),
 };
 
@@ -138,6 +140,7 @@ const dailymotion: EmbedProvider = {
   label: "Dailymotion",
   match: [/^https?:\/\/(?:www\.)?dailymotion\.com\/(?:embed\/)?video\/([a-z\d]{5,12})/i, /^https?:\/\/dai\.ly\/([a-z\d]{5,12})/i],
   frameOrigins: ["https://www.dailymotion.com"],
+  fromIframe: (src) => (/^(?:www\.)?dailymotion\.com$/.test(src.host) ? `https://www.dailymotion.com${src.pathname.replace(/^\/embed\/video\//, "/video/")}` : null),
   toEmbed: (_url, m) => ({ src: `https://www.dailymotion.com/embed/video/${m[1]}`, aspectRatio: "16/9" }),
 };
 
@@ -158,6 +161,7 @@ const codesandbox: EmbedProvider = {
   label: "CodeSandbox",
   match: [/^https?:\/\/codesandbox\.io\/(?:s|embed|p\/sandbox|p\/devbox)\/([\w-]{3,80})/],
   frameOrigins: ["https://codesandbox.io"],
+  fromIframe: (src) => (src.host === "codesandbox.io" ? `https://codesandbox.io${src.pathname.replace(/^\/embed\//, "/s/")}` : null),
   toEmbed: (_url, m) => ({ src: `https://codesandbox.io/embed/${m[1]}`, height: 500 }),
 };
 
@@ -166,6 +170,7 @@ const googleDocs: EmbedProvider = {
   label: "Google Docs",
   match: [/^https?:\/\/docs\.google\.com\/(document|presentation|spreadsheets)\/d\/([\w-]{20,80})/],
   frameOrigins: ["https://docs.google.com"],
+  fromIframe: (src) => (src.host === "docs.google.com" ? `https://docs.google.com${src.pathname.replace(/\/(?:embed|preview|pub|pubhtml)$/, "/edit")}` : null),
   toEmbed: (_url, m) =>
     m[1] === "presentation"
       ? { src: `https://docs.google.com/presentation/d/${m[2]}/embed`, aspectRatio: "16/9" }
@@ -177,6 +182,7 @@ const airtable: EmbedProvider = {
   label: "Airtable",
   match: [/^https?:\/\/airtable\.com\/(?:embed\/)?((?:app\w{10,20}\/)?shr\w{10,20})/],
   frameOrigins: ["https://airtable.com"],
+  fromIframe: (src) => (src.host === "airtable.com" ? `https://airtable.com${src.pathname.replace(/^\/embed\//, "/")}` : null),
   toEmbed: (_url, m) => ({ src: `https://airtable.com/embed/${m[1]}`, height: 533 }),
 };
 
@@ -193,6 +199,7 @@ const miro: EmbedProvider = {
   label: "Miro",
   match: [/^https?:\/\/miro\.com\/app\/(?:board|live-embed)\/([\w=-]{6,40})/],
   frameOrigins: ["https://miro.com"],
+  fromIframe: (src) => (src.host === "miro.com" ? `https://miro.com${src.pathname.replace(/\/live-embed\//, "/board/")}` : null),
   toEmbed: (_url, m) => ({ src: `https://miro.com/app/live-embed/${m[1]}/`, aspectRatio: "4/3" }),
 };
 

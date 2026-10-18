@@ -192,6 +192,19 @@ function toSuggestionItem(editor: AnyEditor, item: SlashMenuItem): DefaultReactS
   };
 }
 
+/**
+ * Filtered slash items with title-prefix matches first inside each group, so "/embed" picks Embed
+ * before File ("Embedded file"). Groups keep their order and stay contiguous.
+ */
+export function rankSlashItems<T extends { title: string; group?: string }>(items: T[], query: string): T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  const groups = new Map<string | undefined, T[]>();
+  for (const item of items) groups.set(item.group, [...(groups.get(item.group) ?? []), item]);
+  const prefix = (item: T) => item.title.toLowerCase().startsWith(q);
+  return [...groups.values()].flatMap((group) => [...group.filter(prefix), ...group.filter((item) => !prefix(item))]);
+}
+
 /** Built-in slash items (already limited to the schema) with plugin items merged into their groups. */
 export function mergeSlashItems(
   editor: AnyEditor,

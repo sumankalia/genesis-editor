@@ -61,6 +61,7 @@ import { acceptsFile } from "./plugins/files";
 import { REHOST_META, registerRehostQueue } from "./plugins/specs";
 import {
   mergeSlashItems,
+  rankSlashItems,
   resolveEditorSetup,
   resolveToolbar,
   setupSignature,
@@ -777,8 +778,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
 
   const getSlashItems = useCallback(
     async (query: string) =>
-      filterSuggestionItems(
-        mergeSlashItems(editor as AnyEditor, getDefaultReactSlashMenuItems(editor), setup.plugins),
+      rankSlashItems(
+        filterSuggestionItems(mergeSlashItems(editor as AnyEditor, getDefaultReactSlashMenuItems(editor), setup.plugins), query),
         query,
       ),
     [editor, setup.plugins],

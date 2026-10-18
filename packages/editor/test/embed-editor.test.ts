@@ -130,3 +130,17 @@ describe("bare URL paste", () => {
     expect(editor.document[0]).toMatchObject({ type: "embed", props: { provider: "youtube", url: YT } });
   });
 });
+
+describe("slash menu ranking", () => {
+  it("title-prefix matches come first inside their group; groups stay in order", async () => {
+    const { rankSlashItems } = await import("../src/plugins/resolve");
+    const items = [
+      { title: "Heading 1", group: "Headings" },
+      { title: "File", group: "Media" },
+      { title: "Embed", group: "Media" },
+      { title: "Emoji", group: "Others" },
+    ];
+    expect(rankSlashItems(items, "em").map((i) => i.title)).toEqual(["Heading 1", "Embed", "File", "Emoji"]);
+    expect(rankSlashItems(items, "")).toBe(items);
+  });
+});

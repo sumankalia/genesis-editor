@@ -250,8 +250,11 @@
 }
 
 .genesis-editor .genesis-embed-host {
+  min-width: 0;
+  overflow: hidden;
   font-weight: 600;
   color: var(--foreground);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
