@@ -10,7 +10,7 @@ export class ReportBuilder {
   private styles = new Map<string, number>();
   private styledElements = new Set<object>();
   private downgrades = new Map<string, { from: string; to: string; count: number }>();
-  readonly images = { total: 0, resolved: 0, unresolved: 0, failed: 0 };
+  readonly images = { total: 0, resolved: 0, unresolved: 0, failed: 0, rehosted: 0, rehostFailed: 0 };
   private warnings: string[] = [];
   /** Source elements mapped to an editor block or mark. */
   mapped = 0;

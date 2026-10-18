@@ -1,4 +1,5 @@
 export { parseHTML } from "./parse";
+export { parseHTMLAsync, type ParseAsyncOptions } from "./async";
 export { toHTML } from "./serialize";
 export { browserDom, type DomAdapter } from "./dom";
 export { isSafeUrl } from "./sanitize";

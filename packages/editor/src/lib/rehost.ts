@@ -1,4 +1,5 @@
 import type { FidelityReport } from "../parser/types";
+import { dataUrlBytes } from "../parser/urls";
 import {
   UploadError,
   getUploadMode,
@@ -9,6 +10,8 @@ import {
   type UploadCallContext,
   type UploadConfig,
 } from "./uploads";
+
+export { dataUrlBytes };
 
 export const REHOST_TIMEOUT_MS = 30_000;
 /** Pasted `data:` images above this size are removed when there's no upload destination to move them to. */
@@ -87,13 +90,6 @@ function hostOf(url: string | undefined, base?: string) {
   } catch {
     return undefined;
   }
-}
-
-/** Approximate decoded size of a `data:` URL. */
-export function dataUrlBytes(url: string) {
-  const comma = url.indexOf(",");
-  const payload = url.length - comma - 1;
-  return /;base64,/i.test(url.slice(0, comma + 1)) ? Math.floor((payload * 3) / 4) : payload;
 }
 
 function dataUrlParts(url: string) {

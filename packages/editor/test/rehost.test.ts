@@ -316,9 +316,9 @@ describe("upload helpers", () => {
 
   it("reports the status of failed URL uploads", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: "Blocked host" }, { status: 422 })));
-    const error = await uploadUrlToServer({ uploadFromUrl: "https://api.test/copy" }, "https://img.test/a.png", {}, new AbortController().signal).catch(
-      (e: unknown) => e as UploadError,
-    );
+    const error = (await uploadUrlToServer({ uploadFromUrl: "https://api.test/copy" }, "https://img.test/a.png", {}, new AbortController().signal).catch(
+      (e: unknown) => e,
+    )) as UploadError;
     expect(error).toBeInstanceOf(UploadError);
     expect(error.status).toBe(422);
     expect(error.message).toBe("Upload failed (422): Blocked host");

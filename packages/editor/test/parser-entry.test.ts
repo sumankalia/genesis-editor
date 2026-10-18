@@ -30,7 +30,8 @@ describe("parser entry", () => {
     const all = [...importsOf(join(parserDir, "index.ts"))];
     expect(all.filter((p) => p.startsWith("pkg:"))).toEqual([]);
     const outside = all.filter((p) => !p.startsWith("pkg:") && !p.startsWith(parserDir));
-    expect(outside.map((p) => p.slice(p.indexOf("src/")))).toEqual(["src/plugins/tool-names.ts"]);
+    // The re-host queue behind `parseHTMLAsync` is shared with the editor and is plain TypeScript too.
+    expect(outside.map((p) => p.slice(p.indexOf("src/"))).sort()).toEqual(["src/lib/rehost.ts", "src/lib/uploads.ts", "src/plugins/tool-names.ts"]);
   });
 
   it("keeps linkedom out of the main parser entry", () => {

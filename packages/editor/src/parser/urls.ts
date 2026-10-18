@@ -81,3 +81,10 @@ export function cleanSrcset(srcset: string | null | undefined, base: string | un
   }
   return out.length > 1 ? out.join(", ") : undefined;
 }
+
+/** Approximate decoded size of a `data:` URL. */
+export function dataUrlBytes(url: string) {
+  const comma = url.indexOf(",");
+  const payload = url.length - comma - 1;
+  return /;base64,/i.test(url.slice(0, comma + 1)) ? Math.floor((payload * 3) / 4) : payload;
+}

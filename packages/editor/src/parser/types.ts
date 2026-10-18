@@ -95,6 +95,8 @@ export type ParseOptions = {
   clean?: CleanOptions;
   /** Stamp top-level blocks with `meta.import` (`at`, `engine`, and `baseUrl` as `origin`). Defaults to `false`. */
   trackProvenance?: boolean;
+  /** `data:` images larger than this many bytes are removed and counted in `images.failed`. Defaults to no limit. */
+  maxDataImageBytes?: number;
   /** Longer input is truncated, with a warning. Defaults to 10 MB. */
   maxLength?: number;
   /** Deeper elements are ignored, with a warning. Defaults to 512. */
@@ -125,8 +127,12 @@ export type FidelityReport = {
     resolved: number;
     /** Relative URLs left as they are because there was no base URL. */
     unresolved: number;
-    /** Images dropped because no usable URL was found. */
+    /** Images dropped because no usable URL was found, or inline images over `maxDataImageBytes`. */
     failed: number;
+    /** Images copied to the app's storage afterwards (editor re-hosting, `parseHTMLAsync`). */
+    rehosted: number;
+    /** Images whose re-upload failed; they keep their original URL. */
+    rehostFailed: number;
   };
   /** What noise removal took out. Undo it by parsing again with `clean: { noise: false }`. */
   cleanup: CleanupSummary;

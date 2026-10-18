@@ -20,8 +20,16 @@ export {
   migrateStoredDocument,
 } from "./lib/persistence";
 export type { PersistOptions, PersistStatus, StoredDocument } from "./lib/persistence";
-export { MAX_LOCAL_UPLOAD_BYTES, getUploadMode, mapResponsePath, uploadWithConfig } from "./lib/uploads";
-export type { UploadConfig, UploadMode, UploadResponseMapper } from "./lib/uploads";
+export { MAX_LOCAL_UPLOAD_BYTES, UploadError, getUploadMode, mapResponsePath, uploadWithConfig } from "./lib/uploads";
+export type {
+  RehostSource,
+  UploadCallContext,
+  UploadConfig,
+  UploadHeaders,
+  UploadMode,
+  UploadResponseMapper,
+} from "./lib/uploads";
+export type { RehostStatus } from "./lib/rehost";
 export type { EditorTheme } from "./lib/use-color-scheme";
 export type { Block, BlockNoteEditor, PartialBlock } from "@blocknote/core";
 export { definePlugin } from "./plugins/types";

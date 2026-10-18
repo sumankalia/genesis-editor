@@ -35,7 +35,7 @@ import type {
   ParseOptions,
   ParseResult,
 } from "./types";
-import { cleanHref, cleanSrcset, isTrackerUrl, largestSrcsetCandidate, resolveUrl } from "./urls";
+import { cleanHref, cleanSrcset, dataUrlBytes, isTrackerUrl, largestSrcsetCandidate, resolveUrl } from "./urls";
 
 type Alignment = "left" | "center" | "right" | "justify";
 type Container = "root" | "list" | "quote" | "cell" | "heading";
@@ -65,6 +65,7 @@ type State = {
   base?: string;
   report: ReportBuilder;
   maxDepth: number;
+  maxDataImageBytes?: number;
   /** Characters of body text per font size, to find the source's body size. */
   sizes: Map<number, number>;
   /** Paragraphs that may be styled headings, checked once the body size is known. */
@@ -120,6 +121,7 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
     base: options.baseUrl ?? (baseHref && /^https?:/i.test(baseHref) ? baseHref : undefined),
     report,
     maxDepth: options.maxDepth ?? 512,
+    maxDataImageBytes: options.maxDataImageBytes,
     sizes: new Map(),
     candidates: new WeakMap(),
   };
@@ -1098,6 +1100,8 @@ function mediaUrl(raw: string | undefined, state: State) {
   return url;
 }
 
+const formatBytes = (bytes: number) => (bytes >= 1024 * 1024 ? `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB` : `${Math.round(bytes / 1024)} KB`);
+
 function isPixel(img: Element, decl: Declarations) {
   const w = toPx(decl.get("width") ?? img.getAttribute("width") ?? undefined);
   const h = toPx(decl.get("height") ?? img.getAttribute("height") ?? undefined);
@@ -1114,6 +1118,11 @@ function image(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   const url = mediaUrl(raw, state);
   if (!url) {
     state.report.images.failed++;
+    return;
+  }
+  if (state.maxDataImageBytes !== undefined && /^data:/i.test(url) && dataUrlBytes(url) > state.maxDataImageBytes) {
+    state.report.images.failed++;
+    state.report.warn(`Inline images over ${formatBytes(state.maxDataImageBytes)} were removed. Configure an upload destination to keep them.`);
     return;
   }
   const altAttr = el.getAttribute("alt")?.trim();
@@ -1135,6 +1144,8 @@ function image(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   if (width && width > 2) props.previewWidth = Math.round(width);
   const align = alignmentOf(el, decl) ?? ctx.align;
   if (align && align !== "left" && align !== "justify") props.textAlignment = align;
+  const original = el.getAttribute("data-original-src")?.trim();
+  if (original && /^https?:\/\//i.test(original) && isSafeUrl(original)) props.originalUrl = original;
   if (ctx.link) {
     if (state.tools.has("link") && isSafeUrl(ctx.link)) props.href = ctx.link;
     else state.report.downgrade("image link", "image");

@@ -56,8 +56,10 @@ function image(url: string, props: Props) {
   // Display width as a style, so it isn't read back as the intrinsic width.
   const display = preview && preview !== width ? ` style="width:${preview}px"` : "";
   const href = str(props.href) && isSafeUrl(str(props.href)) ? str(props.href) : "";
+  // Read back on import, so an image that was already re-hosted isn't copied again.
+  const original = /^https?:\/\//i.test(str(props.originalUrl)) && isSafeUrl(str(props.originalUrl)) ? ` data-original-src="${escapeAttr(str(props.originalUrl))}"` : "";
   return (attrs: string) => {
-    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${srcset}${size}${display}>`;
+    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${srcset}${size}${display}${original}>`;
     return href ? `<a${attrs} href="${escapeAttr(href)}">${img}</a>` : img;
   };
 }
