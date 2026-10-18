@@ -1,5 +1,5 @@
 import { VISUAL_PROPERTIES } from "./rules/styles";
-import type { DropReason, FidelityReport, ParseMode } from "./types";
+import type { CleanupSummary, DropReason, FidelityReport, ParseMode } from "./types";
 
 /** Reasons that are intended clean-up and don't lower the score. */
 const EXPECTED_DROPS = new Set<DropReason>(["content", "noise", "hidden", "tracking", "unsafe"]);
@@ -17,6 +17,7 @@ export class ReportBuilder {
 
   readonly colors = { palette: 0, hex: 0 };
   readonly headings = { promoted: 0, dropped: 0 };
+  cleanup: CleanupSummary = { sections: 0, labels: [] };
 
   drop(tag: string, reason: DropReason, text?: string | null) {
     const key = `${tag}\u0000${reason}`;
@@ -68,6 +69,7 @@ export class ReportBuilder {
       colors: { ...this.colors },
       headings: { ...this.headings },
       images: { ...this.images },
+      cleanup: { ...this.cleanup, labels: [...this.cleanup.labels] },
       warnings: [...this.warnings],
     };
   }

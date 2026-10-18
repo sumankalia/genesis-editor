@@ -4,6 +4,8 @@ export { browserDom, type DomAdapter } from "./dom";
 export { isSafeUrl } from "./sanitize";
 export { PALETTE, type PaletteName } from "./colors";
 export type {
+  CleanOptions,
+  CleanupSummary,
   DropReason,
   FidelityReport,
   HtmlBlock,

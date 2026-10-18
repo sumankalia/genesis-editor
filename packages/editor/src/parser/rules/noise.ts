@@ -1,4 +1,4 @@
-// Tracking layer (§9 layer 2). Noise scoring (layers 3–5) is phase 2.
+// Tracking (§9 layer 2) and noise scoring (layers 3–5) data.
 
 /** Image and iframe hosts that are trackers or ad servers. */
 export const TRACKER_HOSTS = [
@@ -35,3 +35,29 @@ export const PLACEHOLDER_SRC =
 /** Attributes that hold the real image URL on lazy-loaded images, in priority order. */
 export const LAZY_SRC_ATTRIBUTES = ["data-src", "data-lazy-src", "data-original", "data-orig-src", "data-hi-res-src"];
 export const LAZY_SRCSET_ATTRIBUTES = ["data-srcset", "data-lazy-srcset"];
+
+// Noise scoring (§9 layers 3–5).
+
+/** Class/id tokens that mark page furniture. Tokens are split on `-`, `_`, spaces, and camelCase. */
+export const NEGATIVE_TOKENS = new Set([
+  "ad", "ads", "advert", "sponsor", "promo", "share", "sharing", "social", "related", "recommended",
+  "newsletter", "subscribe", "signup", "cookie", "consent", "gdpr", "popup", "modal", "comments",
+  "disqus", "breadcrumb", "pagination", "toolbar", "sidebar", "widget", "menu", "skip", "outbrain", "taboola",
+]);
+
+/** Class/id tokens that mark the content itself. */
+export const POSITIVE_TOKENS = new Set(["article", "content", "entry", "post", "body", "story", "text", "prose", "main"]);
+
+/** Phrases that make up most of the text of page furniture. Matched case-insensitively. */
+export const NOISE_PHRASES = [
+  "share on", "follow us", "read more", "related", "sign up", "subscribe", "advertisement", "sponsored",
+];
+
+/** Elements whose content is never scored, so only whole containers are removed. */
+export const PROTECTED_CONTENT = "blockquote, figure, table, pre, li";
+
+/** Elements scored as possible page furniture. */
+export const SCORED_CONTAINERS = new Set(["div", "section", "aside", "ul", "ol", "p"]);
+
+/** Landmarks that are page furniture. `header`/`footer` only at page level. */
+export const LANDMARKS = "nav, [role=navigation], [role=banner], [role=contentinfo], [role=search], header, footer";

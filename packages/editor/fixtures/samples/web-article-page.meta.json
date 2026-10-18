@@ -1,0 +1,31 @@
+{
+  "source": "Full blog post page with site furniture (synthetic, §9 layers 3–5)",
+  "minScore": 0.85,
+  "mustInclude": [
+    "Shipping a block editor in six weeks",
+    "By Dana Reyes",
+    "Why paste mattered most",
+    "A shadow box is not an ad",
+    "The best paste is the one",
+    "Further reading",
+    "https://example.com/fixtures"
+  ],
+  "mustExclude": [
+    "We use cookies",
+    "Careers",
+    "Home",
+    "Share on",
+    "twitter.com",
+    "Related posts",
+    "Tables that paste",
+    "Subscribe to our newsletter",
+    "3 comments",
+    "Great write-up",
+    "RSS",
+    "analytics"
+  ],
+  "expect": [
+    { "path": "0", "type": "heading", "props": { "level": 1 } },
+    { "path": "1", "type": "paragraph" }
+  ]
+}

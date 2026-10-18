@@ -11,7 +11,7 @@ export type SampleMeta = {
   mustExclude?: string[];
   /** Shape checks: `path` is a dot path of block indexes, e.g. `"2.0"` for the first child of the third block. */
   expect?: { path: string; type?: string; props?: Record<string, unknown> }[];
-  options?: Pick<ParseOptions, "mode" | "tools" | "baseUrl">;
+  options?: Pick<ParseOptions, "mode" | "tools" | "baseUrl" | "clean">;
 };
 
 export type Check = { name: string; ok: boolean; detail?: string };

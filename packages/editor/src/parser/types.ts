@@ -54,6 +54,26 @@ export type HtmlBlock = {
  */
 export type ParseMode = "clean" | "strict";
 
+export type CleanOptions = {
+  /** Set to `false` to skip page-furniture removal (main-content scoping, landmarks, scoring). Defaults to `true`. */
+  noise?: boolean;
+  /** Elements matching, inside, or containing these selectors are never removed as noise. */
+  keepSelectors?: string[];
+  /** Elements matching these selectors are always removed, even in small pastes. */
+  dropSelectors?: string[];
+  /** Extra phrases that mark page furniture when they make up most of an element's text. */
+  phrases?: string[];
+};
+
+export type CleanupSummary = {
+  /** Page-furniture sections removed (share bars, related links, navigation…). */
+  sections: number;
+  /** Why, e.g. `"share"`, `"related"`, `"navigation"`, in the order first seen. */
+  labels: string[];
+  /** Set when noise removal didn't run: `"small"` for pastes under 3 blocks or 500 characters, `"off"` when disabled. */
+  skipped?: "small" | "off";
+};
+
 export type ParseOptions = {
   /** `"strict"` also snaps custom colors to the palette, keeps only text inside unknown elements, and drops media whose tool is off instead of linking it. Defaults to `"clean"`. */
   mode?: ParseMode;
@@ -63,6 +83,8 @@ export type ParseOptions = {
   baseUrl?: string;
   /** DOM to parse with. Defaults to the browser's `DOMParser`; use `linkedomDom` from `genesis-editor/parser/linkedom` on servers. */
   dom?: DomAdapter;
+  /** Page-furniture removal (§9 layers 3–5). */
+  clean?: CleanOptions;
   /** Longer input is truncated, with a warning. Defaults to 10 MB. */
   maxLength?: number;
   /** Deeper elements are ignored, with a warning. Defaults to 512. */
@@ -96,6 +118,8 @@ export type FidelityReport = {
     /** Images dropped because no usable URL was found. */
     failed: number;
   };
+  /** What noise removal took out. Undo it by parsing again with `clean: { noise: false }`. */
+  cleanup: CleanupSummary;
   warnings: string[];
 };
 

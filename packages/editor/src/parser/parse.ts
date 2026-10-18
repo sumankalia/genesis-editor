@@ -10,6 +10,7 @@ import {
   splitAtDoubleBreaks,
   type Run,
 } from "./inline";
+import { removeNoise } from "./noise";
 import { ReportBuilder } from "./report";
 import { LAZY_SRC_ATTRIBUTES, LAZY_SRCSET_ATTRIBUTES, PLACEHOLDER_SRC } from "./rules/noise";
 import { ASSUMED_COLUMN_PX, MAPPED_PROPERTIES, MONOSPACE_FONT, NEUTRAL_VALUES } from "./rules/styles";
@@ -123,6 +124,8 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   };
   const body = document.body ?? document.documentElement;
   if (!body) return { blocks: [], report: report.build(mode, 0) };
+  // Before sanitizing, so elements inside removed furniture aren't reported as unsupported.
+  report.cleanup = removeNoise(body, html, report, options.clean);
   sanitizeTree(body, report);
 
   const root = new Sink(state, paragraphMaker(state, {}, true), { synthetic: true });
