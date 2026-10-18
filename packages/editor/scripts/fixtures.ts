@@ -4,7 +4,8 @@
  *   pnpm fixtures [--dir <folder>]... [--only <text>] [--update] [--watch] [--trace] [--out <folder>]
  *
  * Samples are `*.html` files in `fixtures/samples/` and the git-ignored `fixtures/private/`, plus any
- * `--dir`. An optional `<name>.meta.json` beside a sample adds checks (see `SampleMeta`).
+ * `--dir`, and `*.json` collections there (an array of HTML strings or `{ HTML }` objects, one sample
+ * each). An optional `<name>.meta.json` beside an `.html` sample adds checks (see `SampleMeta`).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
@@ -26,11 +27,27 @@ const baselineDir = join(root, ".baseline");
 
 if (flag("screenshots")) console.warn("--screenshots is not implemented yet: the reports embed both renderings side by side instead.");
 
-function samplesIn(dir: string) {
+type Sample = { file: string; name: string; html?: string };
+
+/** A `.json` collection: an array of HTML strings or of objects with an `HTML`/`html` field (other fields are ignored). */
+function collection(file: string, name: string): Sample[] {
+  const data: unknown = JSON.parse(readFileSync(file, "utf8"));
+  if (!Array.isArray(data)) return [];
+  const width = String(data.length - 1).length;
+  return data.flatMap((item, i) => {
+    const html = typeof item === "string" ? item : (item as { HTML?: unknown; html?: unknown } | null)?.HTML ?? (item as { html?: unknown } | null)?.html;
+    return typeof html === "string" ? [{ file, name: `${name}__${String(i).padStart(width, "0")}`, html }] : [];
+  });
+}
+
+function samplesIn(dir: string): Sample[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { recursive: true, encoding: "utf8" })
-    .filter((f) => /\.html?$/i.test(f) && !f.split(/[\\/]/).includes("out"))
-    .map((f) => ({ file: join(dir, f), name: f.replace(/\.html?$/i, "").replace(/[\\/]/g, "__") }));
+    .filter((f) => /\.(html?|json)$/i.test(f) && !/\.meta\.json$/i.test(f) && !f.split(/[\\/]/).includes("out"))
+    .flatMap((f) => {
+      const name = f.replace(/\.(html?|json)$/i, "").replace(/[\\/]/g, "__");
+      return /\.json$/i.test(f) ? collection(join(dir, f), name) : [{ file: join(dir, f), name }];
+    });
 }
 
 function baselineFor(sample: SampleResult): BaselineDiff {
@@ -56,10 +73,10 @@ function baselineFor(sample: SampleResult): BaselineDiff {
 function run() {
   const samples = dirs.flatMap(samplesIn).filter((s) => !only.length || only.some((o) => s.name.includes(o)));
   const results: { result: SampleResult; baseline: BaselineDiff }[] = [];
-  for (const { file, name } of samples) {
-    const metaFile = file.replace(/\.html?$/i, ".meta.json");
-    const meta: SampleMeta = existsSync(metaFile) ? JSON.parse(readFileSync(metaFile, "utf8")) : {};
-    const result = runSample(name, readFileSync(file, "utf8"), meta);
+  for (const { file, name, html } of samples) {
+    const metaFile = file.replace(/\.(html?|json)$/i, ".meta.json");
+    const meta: SampleMeta = html === undefined && existsSync(metaFile) ? JSON.parse(readFileSync(metaFile, "utf8")) : {};
+    const result = runSample(name, html ?? readFileSync(file, "utf8"), meta);
     const baseline = baselineFor(result);
     const dir = join(outDir, name);
     mkdirSync(dir, { recursive: true });
