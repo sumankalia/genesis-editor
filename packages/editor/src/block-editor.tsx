@@ -274,6 +274,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     uploadRemote,
     uploadHeaders,
     rehostImages,
+    trustedHosts,
     uploadConcurrency,
     onUploadError,
     theme = "system",
@@ -335,7 +336,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const editableRef = useRef(editable);
   useLayoutEffect(() => {
     callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
-    uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse, uploadFromUrl, uploadRemote, uploadHeaders, rehostImages, uploadConcurrency };
+    uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse, uploadFromUrl, uploadRemote, uploadHeaders, rehostImages, trustedHosts, uploadConcurrency };
     htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit };
     editableRef.current = editable;
   });
@@ -366,7 +367,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
             const current = editorRef.current;
             const block = current?.getBlock(job.blockId);
             if (!current || (block?.props as { url?: string } | undefined)?.url !== job.url) return;
-            const props = /^https?:/i.test(job.url) ? { url, originalUrl: job.url } : { url };
+            const props = /^https?:/i.test(job.url) ? { url, originalUrl: job.url, hosted: true } : { url, hosted: true };
             current.transact((tr) => {
               tr.setMeta("addToHistory", false);
               tr.setMeta(REHOST_META, true);
@@ -399,8 +400,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     if (!editableRef.current) return;
     const visit = (list: Block[]) => {
       for (const block of list) {
-        const props = block.props as { url?: string; originalUrl?: string; alt?: string; name?: string };
-        if (block.type === "image" && props.url && !props.originalUrl && rehost.shouldRehost(props.url)) {
+        const props = block.props as { url?: string; originalUrl?: string; hosted?: boolean; alt?: string; name?: string };
+        if (block.type === "image" && props.url && !props.originalUrl && !props.hosted && rehost.shouldRehost(props.url)) {
           rehost.enqueue({ blockId: block.id, url: props.url, alt: props.alt || props.name || undefined, filename: fileNameFromUrl(props.url), source, report });
         }
         visit(block.children as Block[]);
@@ -428,6 +429,16 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   registerRehostQueue(editor, rehost);
   const colorScheme = useColorScheme(theme);
 
+  function markHosted(blockId: string, url: string) {
+    const current = editorRef.current;
+    const block = current?.getBlock(blockId);
+    if (!current || block?.type !== "image" || (block.props as { url?: string }).url !== url) return;
+    current.transact((tr) => {
+      tr.setMeta("addToHistory", false);
+      current.updateBlock(blockId, { props: { hosted: true } } as never);
+    });
+  }
+
   async function upload(file: File, blockId: string | undefined) {
     if (blockId) uploadStatuses.set(blockId, { state: "uploading", file });
     try {
@@ -438,7 +449,11 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         source: "upload",
       });
       rehost.rememberHost(url);
-      if (blockId) uploadStatuses.delete(blockId);
+      if (blockId) {
+        uploadStatuses.delete(blockId);
+        // BlockNote sets the URL once this resolves; then the image is marked as already on our storage.
+        setTimeout(() => markHosted(blockId, url), 0);
+      }
       return url;
     } catch (caught) {
       const error = caught instanceof Error ? caught : new Error("Upload failed.");

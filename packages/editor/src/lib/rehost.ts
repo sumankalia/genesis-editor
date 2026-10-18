@@ -92,6 +92,19 @@ function hostOf(url: string | undefined, base?: string) {
   }
 }
 
+/** Whether `trustedHosts` covers the image's host. */
+export function isTrustedHost(url: string, trusted: UploadConfig["trustedHosts"]) {
+  if (!trusted || !isRemote(url)) return false;
+  if (typeof trusted === "function") return trusted(url);
+  const host = hostOf(url)?.toLowerCase();
+  if (!host) return false;
+  return trusted.some((entry) => {
+    const pattern = entry.trim().toLowerCase();
+    if (pattern.startsWith("*.")) return host === pattern.slice(2) || host.endsWith(pattern.slice(1));
+    return host === (/^[a-z]+:\/\//.test(pattern) ? hostOf(pattern) : pattern);
+  });
+}
+
 function dataUrlParts(url: string) {
   const comma = url.indexOf(",");
   const header = url.slice(5, comma);
@@ -271,7 +284,7 @@ export class RehostQueue {
     const policy = config.rehostImages ?? "auto";
     if (policy === "off" || !url) return false;
     const usable = isInline(url) ? hasFileUploader(config) : isRemote(url) && (hasRemoteUploader(config) || hasFileUploader(config));
-    if (!usable) return false;
+    if (!usable || isTrustedHost(url, config.trustedHosts)) return false;
     if (typeof policy === "function") return policy(url);
     if (isInline(url)) return true;
     const host = hostOf(url);

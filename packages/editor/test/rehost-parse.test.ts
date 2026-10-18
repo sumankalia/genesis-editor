@@ -79,3 +79,23 @@ describe("parseHTMLAsync", () => {
     expect(report.images.rehostFailed).toBe(0);
   });
 });
+
+describe("hosted", () => {
+  it("exports as data-genesis-hosted and reads it back", () => {
+    const html = toHTML([{ type: "image", props: { url: "https://cdn.test/a.png", hosted: true } }]);
+    expect(html).toContain(" data-genesis-hosted");
+    expect(props(html)).toMatchObject({ url: "https://cdn.test/a.png", hosted: true });
+    expect(toHTML(parseHTML(html).blocks)).toBe(html);
+    expect(toHTML([{ type: "image", props: { url: "https://cdn.test/a.png", hosted: false } }])).not.toContain("hosted");
+  });
+
+  it("hosted images and trusted hosts are skipped by parseHTMLAsync; copies are marked hosted", async () => {
+    const uploadRemote = vi.fn(async (url: string) => url.replace("img.test", "cdn.test"));
+    const { blocks } = await parseHTMLAsync(
+      '<img src="https://mine.test/a.png" data-genesis-hosted><img src="https://trusted.test/b.png"><img src="https://img.test/c.png">',
+      { uploadRemote, trustedHosts: ["trusted.test"] },
+    );
+    expect(uploadRemote).toHaveBeenCalledOnce();
+    expect(blocks[2].props).toMatchObject({ url: "https://cdn.test/c.png", hosted: true });
+  });
+});

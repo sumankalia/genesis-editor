@@ -41,6 +41,12 @@ const remoteFn = `<BlockEditor
   uploadRemote={(url, { signal }) => copyToS3(url, { signal })}
 />`;
 
+const trusted = `<BlockEditor
+  uploadUrl="/api/uploads"
+  uploadFromUrl="/api/uploads/from-url"
+  trustedHosts={["cdn.example.com", "*.assets.example.com"]}   // or (url) => boolean
+/>`;
+
 const saving = `const editor = useRef<BlockEditorHandle>(null);
 
 async function save() {
@@ -160,9 +166,18 @@ export default function ImageUploadsPage() {
         each with a 30 s timeout. The same image pasted twice is copied once. A copy is aborted when
         its block is deleted or the editor unmounts. <code>rehostImages=&quot;auto&quot;</code> skips
         images on your page&apos;s origin, on your upload endpoints&apos; hosts and on hosts earlier
-        uploads returned. Exported HTML carries <code>data-original-src</code>, so images that were
-        already copied aren&apos;t copied again when the HTML is loaded back.
+        uploads returned.
       </p>
+      <p>
+        Images that are already on your storage are never copied. Direct uploads and finished
+        copies set <code>props.hosted</code>, which HTML export writes as{" "}
+        <code>data-genesis-hosted</code> (copies also carry <code>data-original-src</code>), so
+        loading the document again in a later session leaves them alone. Giving the image a
+        different URL clears the flag. For images your storage serves from other hosts, such as a
+        CDN, list them in <code>trustedHosts</code>; their images are never re-hosted, whatever{" "}
+        <code>rehostImages</code> says:
+      </p>
+      <CodeBlock code={trusted} />
       <p>
         Paste the article below. The mock server waits 1.5 s per image so you can see the badges;
         tick &quot;Make the server fail&quot; first to see the retry. &quot;Save when uploads

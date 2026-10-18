@@ -58,8 +58,10 @@ function image(url: string, props: Props) {
   const href = str(props.href) && isSafeUrl(str(props.href)) ? str(props.href) : "";
   // Read back on import, so an image that was already re-hosted isn't copied again.
   const original = /^https?:\/\//i.test(str(props.originalUrl)) && isSafeUrl(str(props.originalUrl)) ? ` data-original-src="${escapeAttr(str(props.originalUrl))}"` : "";
+  // The image is on the app's own storage, so loading this HTML again never copies it.
+  const hosted = props.hosted === true ? " data-genesis-hosted" : "";
   return (attrs: string) => {
-    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${srcset}${size}${display}${original}>`;
+    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${srcset}${size}${display}${original}${hosted}>`;
     return href ? `<a${attrs} href="${escapeAttr(href)}">${img}</a>` : img;
   };
 }

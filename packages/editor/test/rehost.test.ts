@@ -330,3 +330,26 @@ describe("upload helpers", () => {
     expect(fileNameFromUrl("data:image/png;base64,AA")).toBeUndefined();
   });
 });
+
+describe("trustedHosts", () => {
+  it("matches hosts, *.domains, origins and predicates", async () => {
+    const { isTrustedHost } = await import("../src/lib/rehost");
+    const list = ["cdn.example.com", "*.images.test", "https://assets.test:8443"];
+    expect(isTrustedHost("https://cdn.example.com/a.png", list)).toBe(true);
+    expect(isTrustedHost("https://CDN.example.com/a.png", list)).toBe(true);
+    expect(isTrustedHost("https://evil-cdn.example.com/a.png", list)).toBe(false);
+    expect(isTrustedHost("https://images.test/a.png", list)).toBe(true);
+    expect(isTrustedHost("https://eu.images.test/a.png", list)).toBe(true);
+    expect(isTrustedHost("https://notimages.test/a.png", list)).toBe(false);
+    expect(isTrustedHost("https://assets.test:8443/a.png", list)).toBe(true);
+    expect(isTrustedHost("https://assets.test/a.png", list)).toBe(false);
+    expect(isTrustedHost("data:image/png;base64,AA", list)).toBe(false);
+    expect(isTrustedHost("https://x.test/a.png", (url) => url.includes("x.test"))).toBe(true);
+  });
+
+  it("are never re-hosted, even when rehostImages says so", () => {
+    const { queue } = makeQueue({ uploadRemote: async () => "", trustedHosts: ["cdn.mine.test"], rehostImages: () => true });
+    expect(queue.shouldRehost("https://cdn.mine.test/a.png")).toBe(false);
+    expect(queue.shouldRehost("https://other.test/a.png")).toBe(true);
+  });
+});

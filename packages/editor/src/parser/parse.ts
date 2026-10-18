@@ -1146,6 +1146,7 @@ function image(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   if (align && align !== "left" && align !== "justify") props.textAlignment = align;
   const original = el.getAttribute("data-original-src")?.trim();
   if (original && /^https?:\/\//i.test(original) && isSafeUrl(original)) props.originalUrl = original;
+  if (el.hasAttribute("data-genesis-hosted")) props.hosted = true;
   if (ctx.link) {
     if (state.tools.has("link") && isSafeUrl(ctx.link)) props.href = ctx.link;
     else state.report.downgrade("image link", "image");

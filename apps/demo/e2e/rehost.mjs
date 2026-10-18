@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { chromium } from "playwright-core";
 
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
@@ -17,6 +19,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => m.type() === "error" && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
 const copies = [];
 page.on("request", (r) => r.method() === "POST" && r.url().includes("/api/mock-upload-from-url") && copies.push(r.url()));
+const PNG = readFileSync(new URL("../public/examples/lake.png", import.meta.url)).toString("base64");
 const mod = process.platform === "darwin" ? "Meta" : "Control";
 
 const response = await page.goto(`${BASE_URL}/docs/image-uploads`);
@@ -60,6 +63,8 @@ const loaded = await page
   .then(() => true, () => false);
 check("copied images load", loaded);
 check("pendingUploads is back to zero", (await demo.getByTestId("rehost-pending").innerText()) === "Nothing uploading");
+
+check("copies are marked hosted", (html.match(/data-genesis-hosted/g) ?? []).length === 3);
 
 // 3. Undo removes the paste in one step; the swap itself was never an undo step.
 await editor.locator("h3").click();
@@ -110,6 +115,24 @@ await page.waitForFunction(() => {
 }, null, { timeout: 15000 }).catch(() => {});
 const retried = await srcs();
 check("Retry copies the image", retried[0].includes("/api/mock-upload/") && (await failedBadges.count()) === 2, retried[0]);
+
+await page.reload();
+await editor.waitFor({ timeout: 15000 });
+await demo.scrollIntoViewIfNeeded();
+// A direct upload is marked hosted too, so a later load never copies it.
+await editor.locator(".bn-block-content").last().click();
+await page.evaluate((b64) => {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const dt = new DataTransfer();
+  dt.items.add(new File([bytes], "direct.png", { type: "image/png" }));
+  document.querySelector("[data-example='image-rehost'] .bn-editor").dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+}, PNG);
+await page.waitForFunction(() => document.querySelectorAll("[data-example='image-rehost'] .bn-editor img.bn-visual-media").length === 1, null, { timeout: 10000 }).catch(() => {});
+await page.waitForTimeout(300);
+await demo.getByRole("button", { name: "Save when uploads finish" }).click();
+await saved.filter({ hasText: "<img" }).waitFor({ timeout: 10000 }).catch(() => {});
+const withUpload = await saved.innerText();
+check("direct uploads are marked hosted", (withUpload.match(/data-genesis-hosted/g) ?? []).length === 1, `${(withUpload.match(/data-genesis-hosted/g) ?? []).length} hosted`);
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

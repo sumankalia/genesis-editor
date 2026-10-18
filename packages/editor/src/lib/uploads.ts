@@ -42,6 +42,12 @@ export type UploadConfig = {
    * Only active when an upload destination is configured.
    */
   rehostImages?: "auto" | "off" | ((url: string) => boolean);
+  /**
+   * Hosts whose images are never re-hosted, whatever `rehostImages` says: `"cdn.example.com"`,
+   * `"*.example.com"` (the domain and its subdomains), an origin such as `"https://cdn.example.com"`,
+   * or a predicate on the image URL.
+   */
+  trustedHosts?: readonly string[] | ((url: string) => boolean);
   /** Re-uploads running at once. Defaults to 4. */
   uploadConcurrency?: number;
 };

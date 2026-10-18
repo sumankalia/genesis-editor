@@ -275,6 +275,20 @@ describe("re-hosting support", () => {
     expect(editor.getBlock(id)?.props).toMatchObject({ srcset: "" });
   });
 
+  it("hosted vouches for one URL: a new URL clears it unless set in the same update", () => {
+    const { editor } = mounted(undefined, [
+      { type: "paragraph", content: "x" },
+      { type: "image", props: { url: "https://cdn.test/a.png", hosted: true } } as PartialBlock,
+    ]);
+    const id = editor.document[1].id;
+    editor.updateBlock(id, { props: { name: "renamed" } } as never);
+    expect(editor.getBlock(id)?.props).toMatchObject({ hosted: true });
+    editor.updateBlock(id, { props: { url: "https://elsewhere.test/b.png" } } as never);
+    expect(editor.getBlock(id)?.props).toMatchObject({ hosted: false });
+    editor.updateBlock(id, { props: { url: "https://cdn.test/c.png", hosted: true } } as never);
+    expect(editor.getBlock(id)?.props).toMatchObject({ hosted: true });
+  });
+
   it("drops large inline images from pastes when asked", () => {
     const { sanitize } = mounted();
     const big = `data:image/png;base64,${"A".repeat(4000)}`;

@@ -28,6 +28,8 @@ All notable changes to `genesis-editor`. The package is not published yet; every
 - Pasted `data:` images over 1 MB are left out of the paste, with a warning, when no upload destination is configured (`ParseOptions.maxDataImageBytes`). Loaded documents keep theirs.
 - `parseHTMLAsync(html, { uploadRemote | uploadFromUrl, … })` in `genesis-editor/parser` copies images before returning.
 - HTML export writes `originalUrl` as `data-original-src`, and import reads it back.
+- New image prop `hosted`: set after a direct upload and on re-hosted copies, exported as `data-genesis-hosted` and read back, so a later load never copies the app's own images. A new URL clears it unless the same update sets it.
+- `trustedHosts` (`"cdn.example.com"`, `"*.example.com"`, an origin, or a predicate): images on these hosts are never re-hosted, whatever `rehostImages` says. Also accepted by `parseHTMLAsync`.
 
 ### HTML
 

@@ -111,7 +111,8 @@ const imageImplementation = baseImage.implementation as unknown as { render: Ren
  * BlockNote's image plus the source attributes it drops (design §2): `alt`, `srcset`/`sizes`,
  * intrinsic `width`/`height`, `captionRich` (the caption's inline content as JSON, used on export
  * while it still matches `caption`), `href` (a link around the image) and `originalUrl` (set after
- * re-hosting). `name` stays the file name and the alt fallback.
+ * re-hosting), `hosted` (the URL is on the app's own storage: a direct upload or a re-hosted copy).
+ * `name` stays the file name and the alt fallback.
  */
 export const imageSpec = extendProps(
   {
@@ -135,6 +136,7 @@ export const imageSpec = extendProps(
     captionRich: { default: "" },
     href: { default: "" },
     originalUrl: { default: "" },
+    hosted: { default: false },
   },
 );
 
@@ -160,6 +162,7 @@ const changesAttributes = (tr: Transaction) => tr.steps.some((step) => "gapFrom"
 /**
  * A new `url` from the user (upload, file panel) makes the source's `srcset`, `sizes` and intrinsic
  * size stale, so they're cleared. Re-hosting sets `originalUrl` in the same update and keeps them.
+ * `hosted` is cleared too unless the same update set it: it vouches for one URL only.
  */
 export const imageSourceExtension = createExtension({
   key: "genesis-image-source",
@@ -172,9 +175,16 @@ export const imageSourceExtension = createExtension({
         const tr = state.tr;
         for (const [id, { node, pos }] of imagesById(state.doc)) {
           const old = before.get(id)?.node;
-          if (!old || old.attrs.url === node.attrs.url || old.attrs.originalUrl !== node.attrs.originalUrl) continue;
-          if (!node.attrs.srcset && !node.attrs.sizes && node.attrs.width == null && node.attrs.height == null) continue;
-          tr.setNodeMarkup(pos, undefined, { ...node.attrs, srcset: "", sizes: "", width: undefined, height: undefined });
+          if (!old || old.attrs.url === node.attrs.url) continue;
+          const attrs = { ...node.attrs };
+          if (node.attrs.hosted && old.attrs.hosted === node.attrs.hosted) attrs.hosted = false;
+          const sized = node.attrs.srcset || node.attrs.sizes || node.attrs.width != null || node.attrs.height != null;
+          if (sized && old.attrs.originalUrl === node.attrs.originalUrl) {
+            Object.assign(attrs, { srcset: "", sizes: "", width: undefined, height: undefined });
+          }
+          if (attrs.hosted !== node.attrs.hosted || attrs.srcset !== node.attrs.srcset || attrs.width !== node.attrs.width || attrs.sizes !== node.attrs.sizes || attrs.height !== node.attrs.height) {
+            tr.setNodeMarkup(pos, undefined, attrs);
+          }
         }
         return tr.docChanged ? tr : null;
       },
