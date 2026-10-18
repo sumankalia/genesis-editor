@@ -95,9 +95,15 @@ importers:
       prosemirror-history:
         specifier: ^1.5.1
         version: 1.5.1
+      prosemirror-model:
+        specifier: ^1.25.12
+        version: 1.25.12
       prosemirror-state:
         specifier: ^1.4.4
         version: 1.4.4
+      prosemirror-view:
+        specifier: ^1.42.6
+        version: 1.42.6
     devDependencies:
       '@eslint/js':
         specifier: ^9
