@@ -38,6 +38,26 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./parser": {
+      "import": {
+        "types": "./dist/parser/index.d.ts",
+        "default": "./dist/parser/index.js"
+      },
+      "require": {
+        "types": "./dist/parser/index.d.cts",
+        "default": "./dist/parser/index.cjs"
+      }
+    },
+    "./parser/linkedom": {
+      "import": {
+        "types": "./dist/parser/linkedom.d.ts",
+        "default": "./dist/parser/linkedom.js"
+      },
+      "require": {
+        "types": "./dist/parser/linkedom.d.cts",
+        "default": "./dist/parser/linkedom.cjs"
+      }
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -60,7 +80,8 @@
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "linkedom": "^0.18.0"
   },
   "dependencies": {
     "@blocknote/core": "~0.56.0",
@@ -93,5 +114,10 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "linkedom": {
+      "optional": true
+    }
   }
 }
