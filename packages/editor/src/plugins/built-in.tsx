@@ -19,6 +19,7 @@ import {
 } from "@blocknote/react";
 import { useMemo } from "react";
 
+import { quoteSpec } from "./specs";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
 
@@ -107,7 +108,7 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
   numberedList: () => blockTool("numberedList", "numberedListItem"),
   checkList: () => blockTool("checkList", "checkListItem"),
   toggleList: () => blockTool("toggleList", "toggleListItem"),
-  quote: () => blockTool("quote", "quote"),
+  quote: () => definePlugin({ name: "quote", blocks: { quote: quoteSpec } }),
   codeBlock: () => blockTool("codeBlock", "codeBlock"),
   divider: () => blockTool("divider", "divider"),
   table: () => blockTool("table", "table"),

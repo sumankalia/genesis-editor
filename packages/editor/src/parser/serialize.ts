@@ -1,3 +1,4 @@
+import { isSafeUrl } from "./sanitize";
 import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, type Props } from "./serialize-inline";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
 import type { HtmlBlock, HtmlTableContent, ToHTMLOptions } from "./types";
@@ -70,7 +71,7 @@ function serializeBlock(block: HtmlBlock): string {
     case "toggleListItem":
       return `<details open${attrs}${blockAttrs(props)}><summary>${inline(block.content)}</summary>${children}</details>`;
     case "quote":
-      return `<blockquote${attrs}${blockAttrs(props)}><p>${inline(block.content)}</p>${serializeQuoteChildren(block.children ?? [])}</blockquote>`;
+      return `<blockquote${attrs}${citeAttr(props.cite)}${blockAttrs(props)}><p>${inline(block.content)}</p>${serializeQuoteChildren(block.children ?? [])}</blockquote>`;
     case "codeBlock": {
       const language = typeof props.language === "string" && props.language !== "text" ? ` class="language-${escapeAttr(props.language)}"` : "";
       return `<pre${attrs}><code${language}>${escapeText(plainText(block.content))}</code></pre>${nested}`;
@@ -111,4 +112,8 @@ function serializeQuoteChildren(children: readonly HtmlBlock[]) {
   }
   flush();
   return html;
+}
+
+function citeAttr(cite: Props["cite"]) {
+  return typeof cite === "string" && cite && isSafeUrl(cite) ? ` cite="${escapeAttr(cite)}"` : "";
 }

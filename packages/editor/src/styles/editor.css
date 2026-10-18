@@ -112,6 +112,22 @@
   }
 }
 
+/* A quote's children (further paragraphs, its attribution) sit inside the quote's border. */
+.genesis-editor .bn-block:has(> [data-content-type="quote"]) > .bn-block-group {
+  margin-left: 0;
+  border-left: 2px solid rgb(125 121 122);
+  padding-left: 1em;
+  color: rgb(125 121 122);
+}
+
+.genesis-editor .bn-block:has(> [data-content-type="quote"]) > .bn-block-group > .bn-block-outer::before {
+  display: none;
+}
+
+.genesis-editor [data-content-type="paragraph"][data-meta*='"tag":"cite"'] {
+  font-size: 0.875em;
+}
+
 .genesis-editor-dialog::backdrop {
   background: rgb(0 0 0 / 0.3);
 }

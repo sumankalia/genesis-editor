@@ -854,6 +854,9 @@ function quote(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   sink.flush();
   reportStyles(el, decl, state);
   const props = blockProps("quote", el, decl, ctx, state);
+  const cite = el.getAttribute("cite");
+  const citeUrl = cite ? cleanHref(cite, state.base) : undefined;
+  if (citeUrl) props.cite = citeUrl;
   const enabled = state.tools.has("quote");
   const head = new HeadSink(state, (content) => withProps({ type: enabled ? "quote" : "paragraph", content }, enabled ? props : {}));
   const inner: Ctx = { ...blockChildCtx(el, decl, ctx, state), container: "quote" };
