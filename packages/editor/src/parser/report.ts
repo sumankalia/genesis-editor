@@ -18,6 +18,7 @@ export class ReportBuilder {
 
   readonly colors = { palette: 0, hex: 0 };
   readonly headings = { promoted: 0, dropped: 0 };
+  readonly fontSizes = { sized: 0, clamped: 0 };
   cleanup: CleanupSummary = { sections: 0, labels: [] };
 
   drop(tag: string, reason: DropReason, text?: string | null) {
@@ -69,6 +70,7 @@ export class ReportBuilder {
       downgrades: [...this.downgrades.values()].sort(byCount),
       colors: { ...this.colors },
       headings: { ...this.headings },
+      fontSizes: { ...this.fontSizes },
       images: { ...this.images },
       embeds: { ...this.embeds },
       cleanup: { ...this.cleanup, labels: [...this.cleanup.labels] },

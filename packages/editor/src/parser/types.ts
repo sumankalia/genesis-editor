@@ -13,6 +13,8 @@ export type HtmlStyles = {
   code?: true;
   textColor?: string;
   backgroundColor?: string;
+  /** A `fontSize` step other than the default, e.g. `"14px"`. */
+  fontSize?: string;
 };
 
 export type HtmlText = { type: "text"; text: string; styles: HtmlStyles };
@@ -127,6 +129,8 @@ export type FidelityReport = {
   downgrades: { from: string; to: string; count: number }[];
   colors: { palette: number; hex: number };
   headings: { promoted: number; dropped: number };
+  /** Text that kept a font size (`sized`), and sizes outside 6–20 px moved to the nearest end (`clamped`). */
+  fontSizes: { sized: number; clamped: number };
   images: {
     total: number;
     /** Relative URLs made absolute with `baseUrl` or `<base href>`. */

@@ -21,6 +21,7 @@ import { useMemo } from "react";
 
 import { embedSlashItem, embedSpec } from "./embed";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
+import { fontSizeSpec } from "./text-styles";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
 
@@ -135,4 +136,5 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       styles: { textColor: defaultStyleSpecs.textColor, backgroundColor: defaultStyleSpecs.backgroundColor },
       toolbarItems: { colors: ColorStyleButton },
     }),
+  fontSize: () => definePlugin({ name: "fontSize", styles: { fontSize: fontSizeSpec } }),
 };

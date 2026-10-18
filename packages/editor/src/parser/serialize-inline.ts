@@ -1,4 +1,5 @@
 import { cleanSwatches, cssColor, isPaletteName, type ColorSwatch } from "./colors";
+import { isFontSize } from "./font-size";
 import { isSafeUrl } from "./sanitize";
 import type { HtmlBlock, HtmlInline, HtmlStyles } from "./types";
 
@@ -50,8 +51,9 @@ function styled(html: string, styles: HtmlStyles) {
   if (styles.underline) html = `<u>${html}</u>`;
   if (styles.italic) html = `<em>${html}</em>`;
   if (styles.bold) html = `<strong>${html}</strong>`;
-  const color = colorAttrs(styles.textColor, styles.backgroundColor);
-  if (color) html = `<span${color}>${html}</span>`;
+  const size = !styles.code && isFontSize(styles.fontSize) ? styles.fontSize : undefined;
+  const attrs = colorAttrs(styles.textColor, styles.backgroundColor, size ? [`font-size:${size}`] : []);
+  if (attrs) html = `<span${attrs}${size ? ` data-font-size="${size}"` : ""}>${html}</span>`;
   return html;
 }
 

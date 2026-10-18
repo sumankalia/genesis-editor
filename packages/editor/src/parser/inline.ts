@@ -13,6 +13,8 @@ export type Run = {
   fromBr?: boolean;
   /** Effective source font size in px, for heading promotion. */
   size: number;
+  /** The size came from `data-font-size` (the editor's own export) and isn't normalized. */
+  literalSize?: boolean;
   /** Bold in the source, even when the bold tool is off. */
   sourceBold: boolean;
 };

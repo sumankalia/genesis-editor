@@ -1,3 +1,4 @@
+import { isFontSize } from "../parser/font-size";
 import { metaToProps } from "../parser/meta";
 import type { AnyPartialBlock } from "./types";
 
@@ -32,7 +33,9 @@ type InlineNode = { type?: string; text?: string; styles?: Record<string, unknow
 
 function cleanStyles(styles: Record<string, unknown> | undefined, support: SchemaSupport) {
   if (!styles) return styles;
-  return Object.fromEntries(Object.entries(styles).filter(([name]) => support.styles.has(name)));
+  return Object.fromEntries(
+    Object.entries(styles).filter(([name, value]) => support.styles.has(name) && (name !== "fontSize" || isFontSize(value))),
+  );
 }
 
 function cleanInline(content: unknown, support: SchemaSupport): unknown {

@@ -1,6 +1,7 @@
 import { deltaE2000, editorColor, isPaletteName, parseColor } from "./colors";
 import { parseStyle, toPx, type Declarations } from "./css";
 import { defaultDom, ELEMENT_NODE, TEXT_NODE } from "./dom";
+import { isFontSize, snapFontSize } from "./font-size";
 import {
   cleanAspectRatio,
   embedForElement,
@@ -63,6 +64,8 @@ type Ctx = {
   link?: string;
   pre: boolean;
   size: number;
+  /** A `data-font-size` step, taken as is. */
+  literalSize?: string;
   align?: Alignment;
   textOnly: boolean;
   container: Container;
@@ -81,7 +84,7 @@ type State = {
   /** Characters of body text per font size, to find the source's body size. */
   sizes: Map<number, number>;
   /** Paragraphs that may be styled headings, checked once the body size is known. */
-  candidates: WeakMap<HtmlBlock, { chars: number; bold: boolean; minSize: number }>;
+  candidates: WeakMap<HtmlBlock, { chars: number; bold: boolean; minSize: number; literal: boolean }>;
 };
 
 const KEYWORD_SIZES: Record<string, number> = {
@@ -153,7 +156,8 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   blocks = clampListDepth(blocks, 6);
   blocks = emptyWhitespaceOnly(blocks);
   if (options.clean?.emptyParagraphs !== "keep") blocks = collapseEmptyParagraphs(blocks, report);
-  countFontSizes(blocks, state);
+  if (state.tools.has("fontSize")) blocks = normalizeFontSizes(blocks, state);
+  else countFontSizes(blocks, state);
   if (options.trackProvenance) {
     const stamp = { at: new Date().toISOString(), engine: PARSER_ENGINE, ...(state.base ? { origin: state.base } : {}) };
     blocks = blocks.map((b) => ({ ...b, meta: mergeMeta(b.meta, { import: stamp }) }));
@@ -187,7 +191,10 @@ class Sink {
       const runs = finalizeRuns(group);
       if (!runs) continue;
       for (const run of runs) {
-        if (!run.pre || !run.fromBr) this.state.sizes.set(Math.round(run.size), (this.state.sizes.get(Math.round(run.size)) ?? 0) + run.text.length);
+        if ((!run.pre || !run.fromBr) && !run.literalSize) {
+          const size = Math.round(run.size * 10) / 10;
+          this.state.sizes.set(size, (this.state.sizes.get(size) ?? 0) + run.text.length);
+        }
       }
       const block = this.make(runsToInline(runs), runs);
       if (block) this.accept(block);
@@ -448,6 +455,9 @@ function makeRun(text: string, ctx: Ctx, state: State, br = false): Run {
     if (ctx.textColor) styles.textColor = ctx.textColor;
     if (ctx.backgroundColor) styles.backgroundColor = ctx.backgroundColor;
   }
+  if (tools.has("fontSize") && !ctx.code) {
+    styles.fontSize = ctx.literalSize ?? `${RAW_SIZE}${Math.round(ctx.size * 1000) / 1000}`;
+  }
   const link = tools.has("link") ? ctx.link : undefined;
   if (link) {
     // Docs, Word and most sites colour links blue; the editor already draws links that way.
@@ -460,9 +470,13 @@ function makeRun(text: string, ctx: Ctx, state: State, br = false): Run {
     pre: ctx.pre,
     br,
     size: ctx.size,
+    literalSize: !!ctx.literalSize,
     sourceBold: !!ctx.bold,
   };
 }
+
+/** Marks a source size in px that waits for the body size (`normalizeFontSizes`). */
+const RAW_SIZE = "raw:";
 
 // ---------------------------------------------------------------------------------------------
 // Styles.
@@ -550,6 +564,11 @@ function applyInlineCss(el: Element, decl: Declarations, ctx: Ctx, state: State,
   }
   const size = fontSize(decl.get("font-size"), ctx.size) ?? (tag === "font" ? FONT_TAG_SIZES[Number(el.getAttribute("size"))] : undefined);
   if (size) ctx.size = size;
+  const literal = el.getAttribute("data-font-size");
+  if (isFontSize(literal)) {
+    ctx.literalSize = literal;
+    ctx.size = parseInt(literal, 10);
+  } else if (size) ctx.literalSize = undefined;
   const whiteSpace = decl.get("white-space");
   if (whiteSpace) ctx.pre = /^pre/.test(whiteSpace) || whiteSpace === "break-spaces";
 }
@@ -668,6 +687,7 @@ function paragraphMaker(state: State, props: Record<string, string | number | bo
         chars: text.trim().length,
         bold: runs.every((r) => r.sourceBold || !r.text.trim()),
         minSize: Math.min(...runs.filter((r) => r.text.trim()).map((r) => r.size)),
+        literal: runs.some((r) => r.literalSize && r.text.trim()),
       });
     }
     return block;
@@ -1341,7 +1361,7 @@ function richCaption(captions: Element[], ctx: Ctx, state: State): HtmlInline[] 
   sub.flush();
   const lines = sub.blocks.filter((b) => b.type === "paragraph" && Array.isArray(b.content) && inlineText(b.content as HtmlInline[]).trim());
   if (lines.length !== 1) return undefined;
-  const content = lines[0].content as HtmlInline[];
+  const content = mapStyles(lines[0].content as HtmlInline[], (styles) => omit(styles, "fontSize"));
   const formatted = content.some((n) => n.type === "link" || Object.keys(n.styles).length);
   return formatted ? content : undefined;
 }
@@ -1417,7 +1437,7 @@ function promoteStyledHeadings(blocks: HtmlBlock[], state: State) {
     const info = state.candidates.get(block);
     if (!info || block.type !== "paragraph") return;
     const text = inlineText(block.content as HtmlInline[]).trim();
-    if (!info.bold || info.chars === 0 || info.chars > 120 || /[.:;,]$/.test(text) || text.includes("\n")) return;
+    if (info.literal || !info.bold || info.chars === 0 || info.chars > 120 || /[.:;,]$/.test(text) || text.includes("\n")) return;
     const ratio = info.minSize / body;
     const level = ratio >= 2 ? 2 : ratio >= 1.5 ? 3 : ratio >= 1.25 ? 4 : 0;
     if (!level) return;
@@ -1435,7 +1455,64 @@ function dominantSize(state: State) {
   return best || 16;
 }
 
-/** Font sizes other than the body size are lost until the `fontSize` tool exists (phase 5). */
+/**
+ * §5: source sizes become steps relative to the source's body size (the dominant size by text length
+ * becomes 16), clamped to 6–20. Headings and code keep no size; `data-font-size` steps are kept as is.
+ */
+function normalizeFontSizes(blocks: HtmlBlock[], state: State): HtmlBlock[] {
+  const body = dominantSize(state);
+  const { report } = state;
+  const sized = (content: HtmlInline[], keep: boolean) =>
+    spacesFollowNeighbours(mapStyles(content, (styles) => {
+      const value = styles.fontSize;
+      if (value === undefined) return styles;
+      delete styles.fontSize;
+      if (!keep || styles.code) return styles;
+      if (value.startsWith(RAW_SIZE)) {
+        const { size, clamped } = snapFontSize((parseFloat(value.slice(RAW_SIZE.length)) * 16) / body);
+        if (clamped) report.fontSizes.clamped++;
+        if (size) styles.fontSize = size;
+      } else if (isFontSize(value)) styles.fontSize = value;
+      return styles;
+    }));
+  const count = (content: HtmlInline[]) => {
+    for (const node of content) for (const text of node.type === "link" ? node.content : [node]) if (text.styles.fontSize) report.fontSizes.sized++;
+    return content;
+  };
+  const walk = (list: HtmlBlock[]): HtmlBlock[] =>
+    list.map((block) => {
+      let next = block;
+      const keep = block.type !== "heading" && block.type !== "codeBlock";
+      if (Array.isArray(block.content)) next = { ...block, content: count(sized(block.content as HtmlInline[], keep)) };
+      else if (block.content?.type === "tableContent") {
+        const table = block.content;
+        next = {
+          ...block,
+          content: { ...table, rows: table.rows.map((row) => ({ cells: row.cells.map((cell) => ({ ...cell, content: count(sized(cell.content, true)) })) })) },
+        };
+      }
+      return block.children?.length ? { ...next, children: walk(block.children) } : next;
+    });
+  return walk(blocks);
+}
+
+/** Whitespace between two runs takes their size when they agree and none otherwise, so it never stands out. */
+function spacesFollowNeighbours(content: HtmlInline[]): HtmlInline[] {
+  const texts = content.flatMap((node) => (node.type === "link" ? node.content : [node]));
+  if (!texts.some((t) => t.styles.fontSize)) return content;
+  let changed = false;
+  texts.forEach((text, i) => {
+    if (/\S/.test(text.text)) return;
+    const size = texts[i - 1]?.styles.fontSize === texts[i + 1]?.styles.fontSize ? texts[i - 1]?.styles.fontSize : undefined;
+    if (text.styles.fontSize === size) return;
+    changed = true;
+    if (size) text.styles.fontSize = size;
+    else delete text.styles.fontSize;
+  });
+  return changed ? mapStyles(content, (styles) => styles) : content;
+}
+
+/** With the `fontSize` tool off, sizes other than the body size are lost. */
 function countFontSizes(_blocks: HtmlBlock[], state: State) {
   const body = dominantSize(state);
   for (const [size, chars] of state.sizes) {

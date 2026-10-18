@@ -116,8 +116,10 @@ describe("modes and report", () => {
     expect(r.report.dropped[0]).toMatchObject({ reason: "hidden", preview: "secret" });
   });
 
-  it("drops and counts font sizes (phase 5)", () => {
-    const r = parse('<p>Body text long enough to be dominant.</p><p><span style="font-size:24px">big</span> words</p>');
+  it("drops and counts font sizes when the fontSize tool is off", () => {
+    const r = parse('<p>Body text long enough to be dominant.</p><p><span style="font-size:24px">big</span> words</p>', {
+      tools: ["bold"],
+    });
     expect(r.blocks[1].content).toEqual([t("big words")]);
     expect(r.report.unsupportedStyles.find((s) => s.prop === "font-size")).toBeTruthy();
   });

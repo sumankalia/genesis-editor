@@ -30,7 +30,7 @@ export const BLOCK_TOOLS = [
   "embed",
 ] as const;
 
-export const INLINE_TOOLS = ["bold", "italic", "underline", "strike", "code", "link", "colors"] as const;
+export const INLINE_TOOLS = ["bold", "italic", "underline", "strike", "code", "link", "colors", "fontSize"] as const;
 
 /** Every built-in tool, in menu order. The default when `tools` is omitted. */
 export const BUILT_IN_TOOLS = [...BLOCK_TOOLS, ...INLINE_TOOLS] as const;
