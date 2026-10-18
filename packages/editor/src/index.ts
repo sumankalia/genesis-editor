@@ -6,6 +6,7 @@ export type {
   EditorContent,
   GenesisBlock,
   HtmlChangeInfo,
+  HtmlExportOptions,
   HtmlFormatProps,
   UploadErrorEvent,
 } from "./block-editor";

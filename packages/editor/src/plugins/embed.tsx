@@ -4,11 +4,15 @@ import { closeHistory } from "prosemirror-history";
 
 import {
   cleanAspectRatio,
+  cleanFallback,
   embedBlockProps,
   embedForIframe,
+  embedForMarkup,
   embedForUrl,
   embedRegistry,
   resolveEmbedBlock,
+  widgetDocument,
+  type EmbedExtras,
   type EmbedRegistry,
   type ResolvedEmbed,
 } from "../parser/embeds";
@@ -34,6 +38,8 @@ type EmbedBlockProps = {
   title: string;
   caption: string;
   previewWidth: number;
+  fallback: string;
+  snippet: boolean;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
@@ -50,21 +56,23 @@ function isolate(node: HTMLElement) {
   }
 }
 
-/** What the `/embed` input accepts: a provider URL, `<iframe>` code, or (with generic embeds on) any `https:` page. */
-export function resolveEmbedInput(value: string, registry: EmbedRegistry): { resolved: ResolvedEmbed; aspectRatio?: string; title?: string } | null {
+export type EmbedInput = { resolved: ResolvedEmbed; extras: EmbedExtras };
+
+/**
+ * What the `/embed` input accepts: a provider URL, a site's embed code (`<blockquote class="twitter-tweet">…`,
+ * with or without its script), `<iframe>` code, or (with generic embeds on) any `https:` page. Code is only
+ * parsed (`DOMParser` documents run no scripts), never inserted.
+ */
+export function resolveEmbedInput(value: string, registry: EmbedRegistry): EmbedInput | null {
   const text = value.trim();
   if (text.startsWith("<")) {
-    const frame = new DOMParser().parseFromString(text, "text/html").querySelector("iframe");
-    const src = frame?.getAttribute("src");
-    const resolved = src ? embedForIframe(src, registry) : null;
-    if (!resolved || !frame) return null;
-    const width = Number(frame.getAttribute("width"));
-    const height = Number(frame.getAttribute("height"));
-    const aspectRatio = !resolved.provider ? (width > 0 && height > 0 ? cleanAspectRatio(`${width}/${height}`) : "16/9") : undefined;
-    return { resolved, aspectRatio, title: frame.getAttribute("title")?.trim() || undefined };
+    const found = embedForMarkup(new DOMParser().parseFromString(text, "text/html").documentElement, registry);
+    if (!found) return null;
+    const { resolved, fallback, snippet, title, aspectRatio, size } = found;
+    return { resolved, extras: { title, aspectRatio, ...size, fallback: fallback || undefined, snippet: snippet || undefined } };
   }
   const resolved = embedForUrl(text, registry) ?? embedForIframe(text, registry);
-  return resolved ? { resolved, aspectRatio: resolved.provider ? undefined : "16/9" } : null;
+  return resolved ? { resolved, extras: { aspectRatio: resolved.provider ? undefined : "16/9" } } : null;
 }
 
 function linkBlock(editor: AnyEditor, url: string, label: string) {
@@ -77,8 +85,8 @@ function renderEmpty(block: LooseBlock, editor: AnyEditor, dom: HTMLElement) {
   if (!editor.isEditable) return;
   const form = el("form", "genesis-embed-form");
   const input = el("input", "genesis-embed-input");
-  input.placeholder = "Paste a link or <iframe> code";
-  input.setAttribute("aria-label", "Embed link or iframe code");
+  input.placeholder = "Paste a link or embed code";
+  input.setAttribute("aria-label", "Embed link or embed code");
   const button = el("button", "genesis-embed-submit", "Embed");
   button.type = "submit";
   const error = el("p", "genesis-embed-error");
@@ -92,11 +100,11 @@ function renderEmpty(block: LooseBlock, editor: AnyEditor, dom: HTMLElement) {
     const result = resolveEmbedInput(input.value, registry);
     if (!result) {
       error.textContent = registry.generic
-        ? "That isn't an https link or iframe code we can embed."
+        ? "That isn't an https link or embed code we can embed."
         : "Only links from supported sites can be embedded here.";
       return;
     }
-    editor.updateBlock(block.id, { props: embedBlockProps(result.resolved, { aspectRatio: result.aspectRatio, title: result.title }) } as never);
+    editor.updateBlock(block.id, { props: embedBlockProps(result.resolved, result.extras) } as never);
   });
   dom.append(form);
   // After "/embed" the editor has focus; on load it doesn't, so nothing is stolen.
@@ -111,10 +119,13 @@ function render(block: LooseBlock, editor: AnyEditor) {
     renderEmpty(block, editor, dom);
     return { dom };
   }
-  const resolved = resolveEmbedBlock(props, embedRegistryOf(editor));
+  const registry = embedRegistryOf(editor);
+  const resolved = resolveEmbedBlock(props, registry);
   const pageUrl = resolved?.url ?? props.url;
   const width = props.previewWidth || resolved?.frame.maxWidth;
   if (width) dom.style.maxWidth = `${width}px`;
+  const fallback = cleanFallback(props.fallback);
+  let destroy: (() => void) | undefined;
 
   if (resolved) {
     const box = el("div", "genesis-embed-frame");
@@ -122,7 +133,7 @@ function render(block: LooseBlock, editor: AnyEditor) {
     if (height) box.style.height = `${height}px`;
     else box.style.aspectRatio = cleanAspectRatio(props.aspectRatio) ?? resolved.frame.aspectRatio ?? "16/9";
     const iframe = document.createElement("iframe");
-    // Sandbox before src, so the frame never loads unsandboxed.
+    // Sandbox before src/srcdoc, so the frame never loads unsandboxed.
     iframe.setAttribute("sandbox", resolved.frame.sandbox);
     iframe.setAttribute("referrerpolicy", resolved.provider ? "strict-origin-when-cross-origin" : "no-referrer");
     iframe.setAttribute("loading", "lazy");
@@ -132,12 +143,23 @@ function render(block: LooseBlock, editor: AnyEditor) {
       iframe.setAttribute("allowfullscreen", "");
     }
     if (!resolved.provider) iframe.setAttribute("credentialless", "");
-    iframe.src = resolved.frame.src;
+    if (fallback) {
+      // Readable while the frame loads; covered by it once loaded.
+      box.append(fallbackNode(fallback, pageUrl));
+      box.classList.add("genesis-embed-frame--fallback");
+      iframe.addEventListener("load", () => box.classList.add("genesis-embed-frame--loaded"), { once: true });
+    }
+    if (resolved.render === "widget") {
+      box.classList.add("genesis-embed-frame--widget");
+      iframe.srcdoc = widgetDocument(resolved, fallback, registry) ?? "";
+      destroy = followWidgetHeight(iframe, box);
+    } else iframe.src = resolved.frame.src;
     box.append(iframe);
     dom.append(box);
   } else {
     dom.classList.add("genesis-embed--blocked");
     dom.append(el("p", "genesis-embed-blocked", "This embed isn't allowed here."));
+    if (fallback) dom.append(fallbackNode(fallback, pageUrl));
   }
 
   const bar = el("div", "genesis-embed-bar");
@@ -165,7 +187,31 @@ function render(block: LooseBlock, editor: AnyEditor) {
   }
   isolate(bar);
   dom.append(bar);
-  return { dom };
+  return { dom, destroy };
+}
+
+/** The snippet's text as a quote, so the content reads before (or without) the frame. */
+function fallbackNode(fallback: string, pageUrl: string) {
+  const quote = el("blockquote", "genesis-embed-fallback");
+  quote.setAttribute("cite", pageUrl);
+  for (const line of fallback.split("\n")) quote.append(el("p", "", line));
+  return quote;
+}
+
+const WIDGET_MIN = 80;
+const WIDGET_MAX = 640;
+
+/** Sizes a widget frame to the height its document reports; only messages from that frame's window count. */
+function followWidgetHeight(iframe: HTMLIFrameElement, box: HTMLElement) {
+  const onMessage = (event: MessageEvent) => {
+    if (event.source !== iframe.contentWindow) return;
+    const height = (event.data as { genesisEmbedHeight?: unknown } | null)?.genesisEmbedHeight;
+    if (typeof height !== "number" || !Number.isFinite(height)) return;
+    box.style.aspectRatio = "";
+    box.style.height = `${Math.round(Math.min(WIDGET_MAX, Math.max(WIDGET_MIN, height)))}px`;
+  };
+  window.addEventListener("message", onMessage);
+  return () => window.removeEventListener("message", onMessage);
 }
 
 /**
@@ -184,6 +230,8 @@ export const embedSpec = createBlockSpec(
       title: { default: "" },
       caption: { default: "" },
       previewWidth: { default: 0 },
+      fallback: { default: "" },
+      snippet: { default: false },
     },
     content: "none",
   },
@@ -195,8 +243,35 @@ export const embedSpec = createBlockSpec(
 export const embedSlashItem = {
   key: "embed",
   title: "Embed",
-  subtext: "YouTube, X, Figma, maps, or iframe code",
-  aliases: ["iframe", "youtube", "video", "tweet", "twitter", "figma", "spotify", "map", "loom", "codepen"],
+  subtext: "YouTube, X, Instagram, Bluesky, maps, or embed code",
+  aliases: [
+    "iframe",
+    "youtube",
+    "video",
+    "tweet",
+    "twitter",
+    "figma",
+    "spotify",
+    "map",
+    "loom",
+    "codepen",
+    "instagram",
+    "tiktok",
+    "threads",
+    "bluesky",
+    "reddit",
+    "facebook",
+    "pinterest",
+    "tumblr",
+    "mastodon",
+    "linkedin",
+    "imgur",
+    "flickr",
+    "giphy",
+    "telegram",
+    "gist",
+    "soundcloud",
+  ],
   group: "Media",
   icon: <SquarePlay size={18} />,
   block: { type: "embed" },

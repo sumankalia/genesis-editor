@@ -260,6 +260,50 @@
   background: var(--background);
 }
 
+/* Embed code's text, readable until the frame has loaded (and when the embed isn't allowed). */
+.genesis-editor .genesis-embed-fallback {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  overflow: hidden;
+  border-left: 3px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.genesis-editor .genesis-embed-fallback p {
+  margin: 0 0 0.375rem;
+}
+
+.genesis-editor .genesis-embed-fallback p:last-child {
+  margin-bottom: 0;
+  color: var(--muted-foreground);
+}
+
+.genesis-editor .genesis-embed-frame--fallback {
+  position: relative;
+}
+
+.genesis-editor .genesis-embed-frame--fallback .genesis-embed-fallback {
+  position: absolute;
+  inset: 0;
+}
+
+.genesis-editor .genesis-embed-frame--fallback iframe {
+  position: relative;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.genesis-editor .genesis-embed-frame--loaded iframe {
+  opacity: 1;
+}
+
+.genesis-editor .genesis-embed-frame--widget {
+  transition: height 0.15s;
+}
+
 .genesis-editor .genesis-embed-bar {
   display: flex;
   align-items: center;

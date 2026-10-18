@@ -39,7 +39,9 @@ import {
 import { embedRegistry, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { metaFromProps, stripMeta, type GenesisMeta, type MetaOptions } from "./parser/meta";
 import { toHTML } from "./parser/serialize";
-import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
+import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode, ToHTMLOptions } from "./parser/types";
+
+export type HtmlExportOptions = Pick<ToHTMLOptions, "embeds" | "embedScripts">;
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
@@ -205,8 +207,11 @@ export type BlockEditorHandle = {
   setBlocks: (blocks: EditorContent) => void;
   /** Lossy Markdown export of the current document. */
   getMarkdown: () => string;
-  /** The current document as HTML, in the format `genesis-editor/parser` reads back losslessly. */
-  getHTML: () => string;
+  /**
+   * The current document as HTML, in the format `genesis-editor/parser` reads back losslessly. Embeds that came
+   * from a site's embed code are written back as that code; `embeds: "iframe" | "link"` and `embedScripts` change that.
+   */
+  getHTML: (options?: HtmlExportOptions) => string;
   /** Replaces the whole document with parsed HTML and returns the import report. Counts as an edit. */
   setHTML: (html: string) => FidelityReport;
   /** The report from the most recent HTML import, or `null` if nothing was imported yet. */
@@ -514,7 +519,13 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [documentBlocks, metaPolicy],
   );
   const exportedHtml = useCallback(
-    () => toHTML(exportedBlocks() as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders, swatches }),
+    (options: HtmlExportOptions = {}) =>
+      toHTML(exportedBlocks() as unknown as HtmlBlock[], {
+        embeds: options.embeds,
+        embedScripts: options.embedScripts,
+        embedProviders: embedOptions.embedProviders,
+        swatches,
+      }),
     [exportedBlocks, embedOptions, swatches],
   );
 

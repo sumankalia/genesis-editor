@@ -1,7 +1,7 @@
 import type { Block, BlockNoteEditor, BlockNoteEditorOptions, PartialBlock } from "@blocknote/core";
 import { TextSelection } from "prosemirror-state";
 
-import { embedForUrl, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
+import { embedForMarkup, embedForUrl, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { metaFromProps } from "./parser/meta";
 import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
@@ -133,6 +133,13 @@ export function insertBlocks(editor: BlockNoteEditor, blocks: PartialBlock[]): B
   });
 }
 
+/** Whether text holds a site's embed code or an embeddable `<iframe>` (parsed by `DOMParser`, which runs no scripts). */
+function isEmbedCode(text: string, editor: object, anywhere = false) {
+  if (!anywhere && !/^\s*</.test(text)) return false;
+  if (!/<(blockquote|iframe|script|div|a)\b/i.test(text)) return false;
+  return !!embedForMarkup(new DOMParser().parseFromString(text, "text/html").documentElement, embedRegistryOf(editor));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches BlockNote's own option type
 type PasteHandler = NonNullable<BlockNoteEditorOptions<any, any, any>["pasteHandler"]>;
 
@@ -150,10 +157,13 @@ export function createPasteHandler(
     const types = data ? Array.from(data.types) : [];
     if (!data || types.includes("blocknote/html") || types.includes("vscode-editor-data")) return defaultPasteHandler();
     let html = types.includes("text/html") ? data.getData("text/html") : "";
+    const plain = types.includes("text/plain") ? data.getData("text/plain") : "";
+    const embeds = "embed" in editor.schema.blockSchema;
+    // Embed code copied as text (a site's "Copy code" button, or code shown highlighted): import the code itself.
+    if (embeds && isEmbedCode(plain, editor) && !(html && isEmbedCode(html, editor, true))) html = plain;
     if (!html) {
       // A provider URL copied from the address bar arrives as plain text; it goes in as a link first.
-      const url = types.includes("text/plain") ? data.getData("text/plain").trim() : "";
-      const embeds = "embed" in editor.schema.blockSchema;
+      const url = plain.trim();
       if (!embeds || !/^https?:\/\/\S+$/.test(url) || !embedForUrl(url, embedRegistryOf(editor))) return defaultPasteHandler();
       html = `<p><a href="${escapeAttr(url)}">${escapeText(url)}</a></p>`;
     }
