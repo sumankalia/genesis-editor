@@ -42,7 +42,10 @@ function serializeList(tag: "ul" | "ol", items: HtmlBlock[]) {
       const value = i > 0 && typeof start === "number" ? ` value="${start}"` : "";
       const box = item.type === "checkListItem" ? `<input type="checkbox"${item.props?.checked ? " checked" : ""} disabled>` : "";
       const content = inline(item.content);
-      const children = item.children?.length ? serializeBlocks(item.children) : "";
+      const nested = item.children ?? [];
+      // Plain HTML reads a heading in an `li` as bold text (§6), so non-list children need the container.
+      const plain = nested.every((c) => c.type in LIST_TAGS || c.type === "paragraph");
+      const children = !nested.length ? "" : plain ? serializeBlocks(nested) : `<div data-genesis-children>${serializeBlocks(nested)}</div>`;
       // Without a lead paragraph the first child would become the item's own text.
       const lead = !content && children ? "<p></p>" : content;
       return `<li${value}${blockAttrs(item.props)}>${box}${lead}${children}</li>`;

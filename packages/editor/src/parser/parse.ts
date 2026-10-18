@@ -373,7 +373,7 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
 function nestedChildren(el: Element, ctx: Ctx, sink: Sink, state: State) {
   sink.flush();
   const sub = new Sink(state, paragraphMaker(state, {}, false), { synthetic: true });
-  flow(el, { ...ctx, align: undefined }, sub, state);
+  flow(el, { ...ctx, align: undefined, container: "root" }, sub, state);
   sub.flush();
   const parent = sink.lastBlock();
   if (parent && parent.type !== "table") (parent.children ??= []).push(...sub.blocks);
@@ -400,8 +400,7 @@ function makeRun(text: string, ctx: Ctx, state: State, br = false): Run {
   }
   const link = tools.has("link") ? ctx.link : undefined;
   if (link) {
-    // Docs, Word and most sites style links as blue + underline; the editor already draws links that way.
-    delete styles.underline;
+    // Docs, Word and most sites colour links blue; the editor already draws links that way.
     if (styles.textColor?.startsWith("#") && LINK_COLORS.some((c) => deltaE2000(styles.textColor!, c) <= 10)) delete styles.textColor;
   }
   return {
@@ -473,7 +472,8 @@ function applyInlineCss(el: Element, decl: Declarations, ctx: Ctx, state: State,
   if (style) ctx.italic = /italic|oblique/.test(style);
   const decoration = decl.get("text-decoration-line") ?? decl.get("text-decoration");
   if (decoration && tag !== "a") {
-    if (/underline/.test(decoration)) ctx.underline = true;
+    // CSS underline inside a link is link styling (Docs, Word); a `<u>` tag still counts.
+    if (/underline/.test(decoration) && !ctx.link) ctx.underline = true;
     if (/line-through/.test(decoration)) ctx.strike = true;
   }
   const family = decl.get("font-family") ?? (tag === "font" ? el.getAttribute("face") ?? undefined : undefined);
