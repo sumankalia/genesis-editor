@@ -112,10 +112,17 @@
   }
 }
 
-/* A quote's children (further paragraphs, its attribution) sit inside the quote's border. */
+/* A quote's children (further paragraphs, its attribution) sit inside one border with the quote. */
+.genesis-editor .bn-block:has(> [data-content-type="quote"] + .bn-block-group) {
+  border-left: 2px solid rgb(125 121 122);
+}
+
+.genesis-editor .bn-block:has(> [data-content-type="quote"] + .bn-block-group) > [data-content-type="quote"] blockquote {
+  border-left: none;
+}
+
 .genesis-editor .bn-block:has(> [data-content-type="quote"]) > .bn-block-group {
   margin-left: 0;
-  border-left: 2px solid rgb(125 121 122);
   padding-left: 1em;
   color: rgb(125 121 122);
 }

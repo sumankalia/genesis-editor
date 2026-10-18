@@ -35,6 +35,7 @@ const examples = {
   "plugin-callout": load(() => import("./plugin-callout")),
   "html-value": load(() => import("./html-value")),
   "html-paste": load(() => import("./html-paste")),
+  "block-meta": load(() => import("./block-meta")),
 };
 
 export type ExampleName = keyof typeof examples;

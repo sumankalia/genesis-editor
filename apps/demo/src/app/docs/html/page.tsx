@@ -35,6 +35,23 @@ editor.current.getHTML();               // "<h2>Hello</h2>\\n<p>World</p>"
 const report = editor.current.setHTML(html);
 editor.current.lastReport;              // the report from the last import`;
 
+const metaOptions = `<BlockEditor
+  meta={{
+    policy: "strip-on-export", // keep meta in the document, leave it out of onChange/getBlocks/getHTML
+    trackProvenance: true,     // stamp imported blocks with meta.import
+  }}
+/>
+
+import { stripMeta } from "genesis-editor";
+const publicJson = stripMeta(blocks);           // or ref.current.getBlocks({ meta: "strip" })`;
+
+const metaShape = `{
+  "type": "heading",
+  "props": { "level": 2 },
+  "content": [{ "type": "text", "text": "Launch notes", "styles": {} }],
+  "meta": { "v": 1, "attrs": { "id": "launch", "lang": "en" } }
+}`;
+
 const serverUse = `import { parseHTML, toHTML } from "genesis-editor/parser";
 import { linkedomDom } from "genesis-editor/parser/linkedom";
 
@@ -113,6 +130,40 @@ export default function HtmlPage() {
         latest one is also on the ref as <code>lastReport</code>.
       </p>
       <CodeBlock code={refMethods} />
+
+      <H2>Block metadata</H2>
+      <p>
+        What a block can&apos;t show but shouldn&apos;t lose is kept in its <code>meta</code>: the
+        source element&apos;s <code>id</code>, <code>lang</code>, and <code>dir</code>, and where a
+        block came from, such as a quote&apos;s attribution. It&apos;s a top-level object on the
+        block, so databases can query it, and it&apos;s left out when there&apos;s nothing to keep.
+      </p>
+      <CodeBlock code={metaShape} />
+      <p>
+        <code>meta</code> moves with its block through copy and paste, drag, undo, and
+        collaboration. Splitting a block copies it to both halves, except <code>attrs.id</code>,
+        which stays on the first; a pasted <code>id</code> that already exists in the document is
+        dropped. HTML export writes only <code>id</code>, <code>lang</code>, and <code>dir</code>,
+        and the clipboard&apos;s HTML for other apps never carries it.
+      </p>
+      <CodeBlock code={metaOptions} />
+      <p>
+        <code>meta.v</code> is the schema version. Older versions are migrated when a document
+        loads, and meta from a newer version is kept as it is. Integrators and plugins can store
+        their own data under <code>meta.ext[name]</code>.
+      </p>
+      <Example name="block-meta" minHeight={360} />
+
+      <H3>Quotes and images</H3>
+      <p>
+        Quotes keep every paragraph and their <code>&lt;cite&gt;</code> attribution as children,
+        drawn inside the quote and exported inside <code>&lt;blockquote&gt;</code>, plus the{" "}
+        <code>cite</code> source URL. Images keep <code>alt</code> apart from the file name, along
+        with <code>srcset</code>/<code>sizes</code>, the intrinsic <code>width</code> and{" "}
+        <code>height</code>, a surrounding link (<code>href</code>), and a formatted caption
+        (<code>captionRich</code>, used on export until the caption is edited). Replacing an
+        image&apos;s file clears the old <code>srcset</code>.
+      </p>
 
       <H2>On the server</H2>
       <p>

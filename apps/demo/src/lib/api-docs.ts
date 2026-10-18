@@ -39,6 +39,10 @@ const REFERENCED_TYPES = [
   "ParseMode",
   "CleanOptions",
   "CleanupSummary",
+  "GenesisBlock",
+  "GenesisMeta",
+  "MetaOptions",
+  "StoredDocument",
   "ToolSelection",
   "ToolOptions",
   "ToolbarConfig",
@@ -49,7 +53,7 @@ const REFERENCED_TYPES = [
 
 const ENTRY = join(process.cwd(), "../../packages/editor/src/index.ts");
 const PARSER_ENTRY = join(process.cwd(), "../../packages/editor/src/parser/index.ts");
-const PARSER_TYPES = ["ToHTMLOptions", "HtmlBlock", "DropReason"];
+const PARSER_TYPES = ["ToHTMLOptions", "HtmlBlock", "DropReason", "WrapperFrame"];
 
 function describe(symbol: ts.Symbol, checker: ts.TypeChecker): ApiMember {
   const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0];
