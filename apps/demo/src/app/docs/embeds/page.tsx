@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BUILT_IN_EMBED_PROVIDERS, GENERIC_SANDBOX, PROVIDER_SANDBOX } from "genesis-editor/parser";
+import { BUILT_IN_EMBED_PROVIDERS, GENERIC_SANDBOX, PROVIDER_SANDBOX, WIDGET_SANDBOX } from "genesis-editor/parser";
 
 import { CodeBlock } from "@/components/site/code-block";
 import { Callout, DocsHeader, H2, H3 } from "@/components/site/docs";
@@ -49,12 +49,56 @@ const linkForm = `import { toHTML } from "genesis-editor/parser";
 toHTML(blocks, { embeds: "link" });
 // <figure data-genesis-embed="link" data-provider="youtube" data-url="…"><a href="https://www.youtube.com/watch?v=…">YouTube: https://…</a></figure>`;
 
+const snippetExport = `editor.getHTML();                          // default "auto": embed code back as embed code
+// <figure data-genesis-embed="snippet" data-provider="twitter" data-url="https://twitter.com/jack/status/20" …>
+//   <blockquote class="twitter-tweet"><p>just setting up my twttr</p><p><a href="…">— jack (@jack) March 21, 2006</a></p></blockquote>
+// </figure>
+
+editor.getHTML({ embedScripts: true });    // + each site's official <script>, once, for publishing elsewhere
+editor.getHTML({ embeds: "iframe" });      // our sandboxed iframes; the text goes in data-fallback
+editor.getHTML({ embeds: "link" });        // email and RSS: the text as a quote, then the link
+
+// The same options on toHTML(blocks, options) from "genesis-editor/parser".`;
+
+const customSnippet = `const acme = defineEmbedProvider({
+  name: "acme",
+  label: "Acme Posts",
+  match: [/^https:\\/\\/acme\\.social\\/p\\/(\\d+)$/],
+  frameOrigins: ["https://embed.acme.social"],
+  toEmbed: (url, [, id]) => ({ src: \`https://embed.acme.social/p/\${id}\`, height: 480 }),
+  snippet: {
+    selector: "blockquote.acme-post",
+    url: (el) => el.querySelector("a[href^='https://acme.social/p/']")?.getAttribute("href"),
+    // Optional: written back on export (escape anything you add; body is already escaped).
+    toHTML: (url, body) => \`<blockquote class="acme-post">\${body}</blockquote>\`,
+    script: "https://acme.social/embed.js",
+  },
+});`;
+
+/** Site, embed code read, how it's drawn, why. */
+const approaches: [string, string, string, string][] = [
+  ["X / Twitter", "blockquote.twitter-tweet", "Our iframe", "platform.twitter.com/embed/Tweet.html is the frame widgets.js itself loads."],
+  ["Instagram", "blockquote.instagram-media", "Our iframe", "The /embed/ page is public and frameable."],
+  ["TikTok", "blockquote.tiktok-embed", "Our iframe", "tiktok.com/embed/v2 is the player embed.js inserts."],
+  ["Threads", "blockquote.text-post-media", "Our iframe", "threads.net …/embed/ is frameable (threads.com sends X-Frame-Options: DENY)."],
+  ["Bluesky", "blockquote.bluesky-embed", "Our iframe", "embed.bsky.app takes the post's DID URI. Handle-only URLs stay links: the frame needs a DID."],
+  ["Reddit", "blockquote.reddit-embed-bq", "Our iframe", "embed.reddit.com allows any ancestor. Reddit may block automated browsers."],
+  ["Facebook", "div.fb-post, div.fb-video", "Our iframe", "The post.php / video.php plugins are the frames the SDK creates."],
+  ["Pinterest", "a[data-pin-do=embedPin]", "Our iframe", "assets.pinterest.com/ext/embed.html is the frame pinit.js inserts."],
+  ["Tumblr", "div.tumblr-post", "Our iframe", "embed.tumblr.com needs the snippet's key, so the embed URL is the stored URL."],
+  ["Mastodon", "blockquote.mastodon-embed", "Our iframe", "Every server serves /@user/id/embed. Listed servers are providers; others become sandboxed generic embeds."],
+  ["Imgur", "blockquote.imgur-embed-pub", "Our iframe", "imgur.com/…/embed is the frame embed.js inserts."],
+  ["Flickr", "a[data-flickr-embed]", "Our iframe", "The photo's /player/ page. The widget writes the image itself, so export is the iframe."],
+  ["Telegram", "script[data-telegram-post]", "Our iframe", "t.me/channel/id?embed=1 is the frame the widget script inserts."],
+  ["GitHub Gist", "script[src^=gist.github.com]", "Sandboxed widget", "Script-only: it writes the gist into the page and has no frame URL."],
+];
+
 export default function EmbedsPage() {
   return (
     <>
       <DocsHeader
         title="Embeds"
-        description="Videos, posts, music, maps and design files from 20 providers, plus sandboxed iframes from anywhere else."
+        description={`Videos, posts, music, maps and design files from ${BUILT_IN_EMBED_PROVIDERS.length} providers, from links, iframe code or the sites' own embed code, plus sandboxed iframes from anywhere else.`}
       />
 
       <H2>Adding embeds</H2>
@@ -72,13 +116,17 @@ export default function EmbedsPage() {
           <code>height</code>.
         </li>
         <li>
-          <strong>Paste a page with embeds.</strong> Iframes and the sites&apos; own markup
-          (<code>blockquote.twitter-tweet</code>, <code>.instagram-media</code>,{" "}
-          <code>.tiktok-embed</code>) become embeds; their scripts are dropped.
+          <strong>Paste a site&apos;s embed code</strong>, the <code>&lt;blockquote&gt;</code> plus{" "}
+          <code>&lt;script&gt;</code> that X, Instagram, Bluesky, Threads, Reddit and others give
+          you. See <a href="#embed-code">Embed code</a>.
         </li>
         <li>
-          <strong>Type <code>/embed</code></strong> and paste a link or iframe code into the box.
-          This is the one place a link to an unknown site can become a (sandboxed) embed.
+          <strong>Paste a page with embeds.</strong> Iframes and the sites&apos; own markup become
+          embeds; their scripts are dropped.
+        </li>
+        <li>
+          <strong>Type <code>/embed</code></strong> and paste a link, embed code or iframe code into
+          the box. This is the one place a link to an unknown site can become a (sandboxed) embed.
         </li>
       </ul>
       <Example name="embeds" minHeight={560} />
@@ -86,6 +134,81 @@ export default function EmbedsPage() {
         Every embed has a bar with the site and an <em>Open ↗</em> link. Many sites refuse to be
         framed, and a page can&apos;t detect that across origins, so the link is always there.
       </p>
+
+      <H2 id="embed-code">Embed code</H2>
+      <p>
+        Many sites&apos; &quot;Embed&quot; button gives a <code>&lt;blockquote&gt;</code> (or a{" "}
+        <code>&lt;div&gt;</code> or <code>&lt;a&gt;</code>) holding the post&apos;s text, plus a{" "}
+        <code>&lt;script&gt;</code> that swaps it for the real thing. The editor reads that code
+        with or without its script: in pasted HTML, pasted as text (the &quot;Copy code&quot;
+        button), in <code>value</code> / <code>setHTML</code>, and in the <code>/embed</code> box.
+        The pasted script is never run or kept. Only the post&apos;s URL and readable text are.
+      </p>
+      <ul>
+        <li>
+          <strong>The text stays.</strong> The blockquote&apos;s lines are stored on the block (
+          <code>fallback</code>). They show while the frame loads and when the policy refuses the
+          embed. With the <code>embed</code> tool off, they become paragraphs above the link.
+        </li>
+        <li>
+          <strong>It exports back as embed code.</strong> <code>getHTML()</code> writes the
+          site&apos;s canonical snippet, rebuilt from the stored URL and text (never from the pasted
+          markup), inside our figure. It reads as a quote anywhere, renders as the real post when
+          published with the site&apos;s script, and reads back to the same block.
+        </li>
+      </ul>
+      <Example name="embed-code" minHeight={760} />
+      <H3>How each site is drawn</H3>
+      <p>
+        Wherever a site has a frame URL, we draw the post in our own sandboxed iframe, rebuilt from
+        the post URL. The site&apos;s widget script is never loaded into your page. Only script-only
+        embeds, which have no frame URL, run the site&apos;s official script, and only inside an
+        opaque-origin <code>srcdoc</code> frame (<code>sandbox=&quot;{WIDGET_SANDBOX}&quot;</code>,
+        no <code>allow-same-origin</code>).
+      </p>
+      <div className="not-prose my-6 overflow-x-auto" data-testid="embed-code-approaches">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1.5 pr-3 font-medium">Site</th>
+              <th className="py-1.5 pr-3 font-medium">Embed code read</th>
+              <th className="py-1.5 pr-3 font-medium">Drawn with</th>
+              <th className="py-1.5 font-medium">Why</th>
+            </tr>
+          </thead>
+          <tbody className="align-top">
+            {approaches.map(([site, code, how, why]) => (
+              <tr key={site} className="border-b last:border-0">
+                <td className="py-1.5 pr-3 font-medium">{site}</td>
+                <td className="py-1.5 pr-3 font-mono text-xs">{code}</td>
+                <td className="py-1.5 pr-3">{how}</td>
+                <td className="py-1.5 text-muted-foreground">{why}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Spotify, SoundCloud, YouTube, LinkedIn, Giphy and most others only give iframe code, which
+        maps to the same providers. Instagram and TikTok frames ignore the embed&apos;s caption
+        text; X frames show the live post.
+      </p>
+      <H3>Exporting embed code</H3>
+      <CodeBlock code={snippetExport} />
+      <Callout>
+        Widget embeds (Gist) run the site&apos;s script inside the <code>srcdoc</code> frame, and
+        that frame inherits your page&apos;s Content Security Policy. If you set one, add{" "}
+        <code>getEmbedScriptSrc()</code> to <code>script-src</code> and allow the frame&apos;s
+        one-line inline height reporter. Otherwise the frame keeps its default height.
+      </Callout>
+      <H3>Embed code for your own providers</H3>
+      <p>
+        A provider can declare a <code>snippet</code> matcher. Its <code>selector</code> may match
+        a <code>blockquote</code>, <code>div</code>, <code>a</code> or <code>script</code>, and{" "}
+        <code>url</code> reads the page URL from it. That URL must still pass the provider&apos;s{" "}
+        <code>match</code>, so a look-alike snippet pointing elsewhere is ignored.
+      </p>
+      <CodeBlock code={customSnippet} />
 
       <H2>Providers</H2>
       <div className="not-prose my-6 flex flex-wrap gap-1.5" data-testid="embed-providers">
@@ -157,7 +280,8 @@ export default function EmbedsPage() {
       <CodeBlock code={linkForm} />
       <p>
         With the <code>embed</code> tool off, embeds in pasted or loaded HTML become link
-        paragraphs (tweets stay quotes), and the <Link href="/docs/html">import report</Link>{" "}
+        paragraphs (blockquote embed code stays a quote; an exported embed&apos;s text becomes
+        paragraphs above its link), and the <Link href="/docs/html">import report</Link>{" "}
         counts them under <code>downgrades</code>. <code>report.embeds</code> counts provider
         embeds, generic embeds, and iframes the policy turned into links (<code>blocked</code>).
       </p>

@@ -192,6 +192,13 @@ Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
 />
 ```
 
+`embed` takes links, iframe code, and sites' own embed code (the `<blockquote>`
+plus `<script>` from X, Instagram, Bluesky, Threads, Reddit, Mastodon and
+others) in pastes, `value` and `/embed`. Pasted scripts are never run. Posts are
+drawn in sandboxed iframes rebuilt from their URL, their text is kept as a
+fallback, and `getHTML()` writes them back as the site's embed code
+(`getHTML({ embedScripts: true })` adds the official scripts).
+
 Existing content that uses a disabled tool is converted when it loads: unknown
 blocks become paragraphs that keep their text, tables become one paragraph per
 row, and headings move to the nearest allowed level.

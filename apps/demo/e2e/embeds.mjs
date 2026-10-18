@@ -21,7 +21,7 @@ const mod = process.platform === "darwin" ? "Meta" : "Control";
 
 const response = await page.goto(`${BASE_URL}/docs/embeds`);
 check("/docs/embeds renders", response?.status() === 200);
-check("lists the 20 built-in providers", (await page.locator("[data-testid='embed-providers'] > span").count()) === 20);
+check("lists the 33 built-in providers", (await page.locator("[data-testid='embed-providers'] > span").count()) === 33);
 const demo = page.locator("[data-example='embeds']");
 const editor = demo.locator(".bn-editor");
 await editor.waitFor({ timeout: 15000 });

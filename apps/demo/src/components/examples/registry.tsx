@@ -38,6 +38,7 @@ const examples = {
   "block-meta": load(() => import("./block-meta")),
   "image-rehost": load(() => import("./image-rehost")),
   embeds: load(() => import("./embeds")),
+  "embed-code": load(() => import("./embed-code")),
   colors: load(() => import("./colors")),
   "font-size": load(() => import("./font-size")),
 };
