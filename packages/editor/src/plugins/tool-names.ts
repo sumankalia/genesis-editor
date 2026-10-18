@@ -1,5 +1,7 @@
 // Tool names and option types with no runtime dependencies, shared by the editor and `genesis-editor/parser`.
 
+import type { ColorToolOptions } from "../parser/colors";
+
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 /** Options for built-in tools that take any. */
@@ -8,6 +10,7 @@ export type ToolOptions = {
     /** Heading levels to offer. Defaults to all six; the menus show the first three. */
     levels?: HeadingLevel[];
   };
+  colors: ColorToolOptions;
 };
 
 export const BLOCK_TOOLS = [
@@ -27,7 +30,7 @@ export const BLOCK_TOOLS = [
   "embed",
 ] as const;
 
-export const INLINE_TOOLS = ["bold", "italic", "underline", "strike", "code", "link", "color"] as const;
+export const INLINE_TOOLS = ["bold", "italic", "underline", "strike", "code", "link", "colors"] as const;
 
 /** Every built-in tool, in menu order. The default when `tools` is omitted. */
 export const BUILT_IN_TOOLS = [...BLOCK_TOOLS, ...INLINE_TOOLS] as const;
@@ -49,7 +52,7 @@ export const DEFAULT_TOOLBAR = [
   "alignLeft",
   "alignCenter",
   "alignRight",
-  "color",
+  "colors",
   "nest",
   "unnest",
   "link",

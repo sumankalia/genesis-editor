@@ -129,10 +129,10 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       inlineContent: { link: defaultInlineContentSpecs.link },
       toolbarItems: { link: CreateLinkButton },
     }),
-  color: () =>
+  colors: () =>
     definePlugin({
-      name: "color",
+      name: "colors",
       styles: { textColor: defaultStyleSpecs.textColor, backgroundColor: defaultStyleSpecs.backgroundColor },
-      toolbarItems: { color: ColorStyleButton },
+      toolbarItems: { colors: ColorStyleButton },
     }),
 };

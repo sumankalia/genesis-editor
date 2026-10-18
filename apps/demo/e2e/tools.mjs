@@ -78,7 +78,7 @@ const h1 = (await page.locator("article h1").first().innerText()).trim();
 check("/docs/tools renders", h1 === "Tools & plugins", h1);
 check("sidebar links the tools page", (await page.locator("aside a[aria-current='page'][href='/docs/tools']").count()) === 1);
 const toolNames = await page.getByTestId("tool-names").innerText();
-check("built-in tool table lists block and inline tools", ["heading", "image", "bold", "link", "color"].every((t) => toolNames.includes(t)));
+check("built-in tool table lists block and inline tools", ["heading", "image", "bold", "link", "colors"].every((t) => toolNames.includes(t)));
 
 // Headings (levels 1–2) and image only.
 const basic = page.locator("[data-example='tools-basic']");

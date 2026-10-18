@@ -3,7 +3,16 @@ export { parseHTMLAsync, type ParseAsyncOptions } from "./async";
 export { toHTML } from "./serialize";
 export { browserDom, type DomAdapter } from "./dom";
 export { isSafeUrl } from "./sanitize";
-export { PALETTE, type PaletteName } from "./colors";
+export {
+  PALETTE,
+  contrastRatio,
+  editorColor,
+  isStoredColor,
+  withContrast,
+  type ColorSwatch,
+  type ColorToolOptions,
+  type PaletteName,
+} from "./colors";
 export { META_VERSION, migrateMeta, stripMeta } from "./meta";
 export {
   defineEmbedProvider,

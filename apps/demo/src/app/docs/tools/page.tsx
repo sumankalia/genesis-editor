@@ -57,7 +57,7 @@ const toolDescriptions: Record<string, string> = {
   strike: "Strikethrough. Mod+Shift+S.",
   code: "Inline code. Mod+E.",
   link: "Links: toolbar button, Mod+K, pasted links.",
-  color: "Text and background colors.",
+  colors: "Text and background colors: palette, brand swatches and any hex.",
 };
 
 export default async function ToolsPage() {

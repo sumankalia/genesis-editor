@@ -444,7 +444,7 @@ function makeRun(text: string, ctx: Ctx, state: State, br = false): Run {
   if (ctx.underline && tools.has("underline")) styles.underline = true;
   if (ctx.strike && tools.has("strike")) styles.strike = true;
   if (ctx.code && tools.has("code")) styles.code = true;
-  if (tools.has("color")) {
+  if (tools.has("colors")) {
     if (ctx.textColor) styles.textColor = ctx.textColor;
     if (ctx.backgroundColor) styles.backgroundColor = ctx.backgroundColor;
   }
@@ -482,8 +482,14 @@ function colorValue(value: string | undefined, kind: "text" | "background", stat
   if (!value) return undefined;
   const token = kind === "background" ? backgroundColorToken(value) : value;
   if (!token || !parseColor(token)) return undefined;
-  const color = editorColor(token, kind, state.mode !== "strict");
+  const { custom, palette, swatches } = state.tools.colors;
+  const color = editorColor(token, kind, { hex: custom && state.mode !== "strict", palette, swatches });
   return color ?? null;
+}
+
+/** A `data-text-color`/`data-background-color` value the editor knows by name. */
+function namedColor(value: string | null, state: State): value is string {
+  return isPaletteName(value) || (!!value && state.tools.colors.swatches.some((s) => s.name === value));
 }
 
 function backgroundColorToken(value: string) {
@@ -530,14 +536,14 @@ function applyInlineCss(el: Element, decl: Declarations, ctx: Ctx, state: State,
   if (family && MONOSPACE_FONT.test(family)) ctx.code = true;
   const color = colorValue(decl.get("color") ?? (tag === "font" ? el.getAttribute("color") ?? undefined : undefined), "text", state);
   const dataText = el.getAttribute("data-text-color");
-  if (isPaletteName(dataText)) ctx.textColor = dataText;
+  if (namedColor(dataText, state)) ctx.textColor = dataText;
   else if (color !== undefined) {
     ctx.textColor = color ?? undefined;
     countColor(color, state);
   }
   const background = colorValue(decl.get("background-color") ?? decl.get("background"), "background", state);
   const dataBackground = el.getAttribute("data-background-color");
-  if (isPaletteName(dataBackground)) ctx.backgroundColor = dataBackground;
+  if (namedColor(dataBackground, state)) ctx.backgroundColor = dataBackground;
   else if (background !== undefined) {
     ctx.backgroundColor = background ?? undefined;
     countColor(background, state);
@@ -571,15 +577,15 @@ function blockProps(type: string, el: Element, decl: Declarations, ctx: Ctx, sta
   const props: Record<string, string | number | boolean> = {};
   const align = alignmentOf(el, decl) ?? ctx.align;
   if (allowed.includes("textAlignment") && align && align !== "left") props.textAlignment = align;
-  if (state.tools.has("color")) {
+  if (state.tools.has("colors")) {
     const dataText = el.getAttribute("data-text-color");
-    const text = isPaletteName(dataText) ? dataText : colorValue(decl.get("color"), "text", state);
+    const text = namedColor(dataText, state) ? dataText : colorValue(decl.get("color"), "text", state);
     if (allowed.includes("textColor") && text && text !== "default") props.textColor = text;
     const dataBackground = el.getAttribute("data-background-color");
-    const background = isPaletteName(dataBackground) ? dataBackground : colorValue(decl.get("background-color") ?? decl.get("background"), "background", state);
+    const background = namedColor(dataBackground, state) ? dataBackground : colorValue(decl.get("background-color") ?? decl.get("background"), "background", state);
     if (allowed.includes("backgroundColor") && background && background !== "default") props.backgroundColor = background;
-    countColor(typeof text === "string" && !isPaletteName(dataText) ? text : undefined, state);
-    countColor(typeof background === "string" && !isPaletteName(dataBackground) ? background : undefined, state);
+    countColor(typeof text === "string" && !namedColor(dataText, state) ? text : undefined, state);
+    countColor(typeof background === "string" && !namedColor(dataBackground, state) ? background : undefined, state);
   }
   return props;
 }
@@ -615,7 +621,7 @@ function inline(el: Element, tag: string, decl: Declarations, ctx: Ctx, sink: Si
   if (marks) {
     state.report.mapped++;
     for (const [key, value] of Object.entries(marks)) (next as Record<string, unknown>)[key] = value;
-    const toolFor: Record<string, string> = { bold: "bold", italic: "italic", underline: "underline", strike: "strike", code: "code", backgroundColor: "color" };
+    const toolFor: Record<string, string> = { bold: "bold", italic: "italic", underline: "underline", strike: "strike", code: "code", backgroundColor: "colors" };
     for (const key of Object.keys(marks)) {
       const tool = toolFor[key];
       if (tool && !state.tools.has(tool as never)) state.report.downgrade(tag, "text");
@@ -1015,12 +1021,12 @@ function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
       if (rowspan > 1) props.rowspan = rowspan;
       const align = alignmentOf(cell, cellDecl);
       if (align && align !== "left") props.textAlignment = align;
-      if (state.tools.has("color")) {
+      if (state.tools.has("colors")) {
         const dataBg = cell.getAttribute("data-background-color");
-        const bg = isPaletteName(dataBg) ? dataBg : colorValue(cellDecl.get("background-color") ?? cellDecl.get("background") ?? cell.getAttribute("bgcolor") ?? undefined, "background", state);
+        const bg = namedColor(dataBg, state) ? dataBg : colorValue(cellDecl.get("background-color") ?? cellDecl.get("background") ?? cell.getAttribute("bgcolor") ?? undefined, "background", state);
         if (bg) props.backgroundColor = bg;
         const dataFg = cell.getAttribute("data-text-color");
-        const fg = isPaletteName(dataFg) ? dataFg : colorValue(cellDecl.get("color"), "text", state);
+        const fg = namedColor(dataFg, state) ? dataFg : colorValue(cellDecl.get("color"), "text", state);
         if (fg) props.textColor = fg;
       }
       cells.push({ type: "tableCell", props, content: sub.content() });

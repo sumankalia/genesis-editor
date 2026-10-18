@@ -1,5 +1,5 @@
 import { isSafeUrl } from "./sanitize";
-import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, type Props } from "./serialize-inline";
+import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, withSwatches, type Props } from "./serialize-inline";
 import { embedRegistry, type EmbedRegistry } from "./embeds";
 import { serializeEmbed } from "./serialize-embed";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
@@ -21,7 +21,7 @@ export function toHTML(blocks: readonly HtmlBlock[], options: ToHTMLOptions = {}
   // No origin: the exporting app's origin isn't known, and generic frames are sandboxed without `allow-same-origin`.
   env = { embeds: options.embeds ?? "iframe", registry: embedRegistry({}, options.embedProviders, { origin: "" }) };
   try {
-    return serializeBlocks(blocks, options.separator ?? "\n");
+    return withSwatches(options.swatches, () => serializeBlocks(blocks, options.separator ?? "\n"));
   } finally {
     env = previous;
   }

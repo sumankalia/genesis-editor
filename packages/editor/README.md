@@ -178,7 +178,7 @@ menu, Markdown shortcuts, the formatting toolbar, the mobile toolbar, and paste
 Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
 `toggleList`, `quote`, `codeBlock`, `divider`, `table`, `image`, `video`,
 `audio`, `file`. Inline tools: `bold`, `italic`, `underline`, `strike`, `code`,
-`link`, `color`. They're exported as `BLOCK_TOOLS`, `INLINE_TOOLS`, and
+`link`, `colors`. They're exported as `BLOCK_TOOLS`, `INLINE_TOOLS`, and
 `BUILT_IN_TOOLS`, so "everything except tables" is
 `BUILT_IN_TOOLS.filter((tool) => tool !== "table")`.
 
@@ -199,7 +199,7 @@ of showing it on selection, and `toolbar={false}` removes it.
 
 The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `file`,
 `bold`, `italic`, `underline`, `strike`, `code`, `alignLeft`, `alignCenter`,
-`alignRight`, `color`, `nest`, `unnest`, `link`, followed by plugin items.
+`alignRight`, `colors`, `nest`, `unnest`, `link`, followed by plugin items.
 
 ### Plugins
 

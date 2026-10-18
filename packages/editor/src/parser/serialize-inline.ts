@@ -1,4 +1,4 @@
-import { cssColor, isPaletteName } from "./colors";
+import { cleanSwatches, cssColor, isPaletteName, type ColorSwatch } from "./colors";
 import { isSafeUrl } from "./sanitize";
 import type { HtmlBlock, HtmlInline, HtmlStyles } from "./types";
 
@@ -60,18 +60,33 @@ export function plainText(content: HtmlBlock["content"]) {
   return content.map((n) => (n.type === "link" ? n.content.map((t) => t.text).join("") : n.text)).join("");
 }
 
+let swatches: ColorSwatch[] = [];
+
+/** Runs `fn` with the swatches `toHTML` was given. */
+export function withSwatches<T>(list: readonly ColorSwatch[] | undefined, fn: () => T): T {
+  const previous = swatches;
+  swatches = cleanSwatches(list);
+  try {
+    return fn();
+  } finally {
+    swatches = previous;
+  }
+}
+
+const named = (value: string) => isPaletteName(value) || swatches.some((s) => s.name === value);
+
 export function colorAttrs(text: unknown, background: unknown, extraStyle: string[] = []) {
   const style = [...extraStyle];
   const data: string[] = [];
   if (typeof text === "string" && text !== "default") {
-    const css = cssColor(text, "text");
+    const css = cssColor(text, "text", swatches);
     if (css) style.push(`color:${css}`);
-    if (isPaletteName(text)) data.push(` data-text-color="${text}"`);
+    if (css && named(text)) data.push(` data-text-color="${text}"`);
   }
   if (typeof background === "string" && background !== "default") {
-    const css = cssColor(background, "background");
+    const css = cssColor(background, "background", swatches);
     if (css) style.push(`background-color:${css}`);
-    if (isPaletteName(background)) data.push(` data-background-color="${background}"`);
+    if (css && named(background)) data.push(` data-background-color="${background}"`);
   }
   return (style.length ? ` style="${style.join(";")}"` : "") + data.join("");
 }

@@ -1,4 +1,5 @@
 import type { ToolSelection } from "../plugins/tool-names";
+import type { ColorSwatch } from "./colors";
 import type { DomAdapter } from "./dom";
 import type { EmbedOptions, EmbedProvider } from "./embeds";
 import type { GenesisMeta } from "./meta";
@@ -155,4 +156,6 @@ export type ToHTMLOptions = {
   embeds?: "iframe" | "link";
   /** Custom providers, so their embeds are rebuilt on export. Without them, those embeds are written as sandboxed generic iframes. */
   embedProviders?: readonly EmbedProvider[];
+  /** Brand swatches (`tools.colors.swatches`), so colours stored by swatch name export as their hex. */
+  swatches?: readonly ColorSwatch[];
 };

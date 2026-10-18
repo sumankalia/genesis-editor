@@ -154,26 +154,124 @@ const DEFAULT_TEXT = ["#000000", "#111111", "#1f1f1f", "#202124", "#222222", "#3
 const DEFAULT_BACKGROUND = ["#ffffff"];
 const DEFAULT_DELTA_E = 5;
 
+/** An integrator colour offered next to the palette, stored by `name` like a palette colour. */
+export type ColorSwatch = { name: string; hex: string };
+
+/** `tools.colors` options (§4). */
+export type ColorToolOptions = {
+  /** Offer the nine palette colours. Default `true`. */
+  palette?: boolean;
+  /** Offer document colours and Custom… (any hex). With `false`, pasted hex snaps to a named colour. Default `true`. */
+  custom?: boolean;
+  /** Brand colours: lowercase names (`a-z`, `0-9`, `-`) that aren't palette names, and `#rrggbb` values. */
+  swatches?: readonly ColorSwatch[];
+};
+
+export type ColorConfig = { palette: boolean; custom: boolean; swatches: ColorSwatch[] };
+
+export const DEFAULT_COLOR_CONFIG: ColorConfig = { palette: true, custom: true, swatches: [] };
+
+const SWATCH_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+const HEX6 = /^#[0-9a-f]{6}$/;
+const HEX8 = /^#[0-9a-f]{8}$/;
+
+/** Valid swatches only: bad names, palette names, duplicates and non-hex values are skipped. */
+export function cleanSwatches(swatches: readonly ColorSwatch[] | undefined): ColorSwatch[] {
+  const out: ColorSwatch[] = [];
+  for (const swatch of swatches ?? []) {
+    const name = typeof swatch?.name === "string" ? swatch.name : "";
+    const hex = typeof swatch?.hex === "string" ? swatch.hex.toLowerCase() : "";
+    if (!SWATCH_NAME.test(name) || name === "default" || isPaletteName(name) || !HEX6.test(hex)) continue;
+    if (out.some((s) => s.name === name)) continue;
+    out.push({ name, hex });
+  }
+  return out;
+}
+
+/** The colour config for a `tools.colors` entry: `true` and `undefined` give the defaults. */
+export function resolveColorConfig(entry: unknown): ColorConfig {
+  if (!entry || typeof entry !== "object") return DEFAULT_COLOR_CONFIG;
+  const options = entry as ColorToolOptions;
+  return { palette: options.palette !== false, custom: options.custom !== false, swatches: cleanSwatches(options.swatches) };
+}
+
 /**
- * Maps a CSS color to what the editor stores (§4): a palette name within ΔE2000 ≤ 3 of its light-theme
- * value, otherwise lowercase `#rrggbb`. Default-looking colours (near-black text, white backgrounds),
- * transparent and unparsable values give `undefined`. With `allowHex: false` (strict mode) every colour
- * snaps to the nearest palette name.
+ * Whether `value` is something the editor stores (§4): `"default"`, a palette or swatch name, or
+ * lowercase `#rrggbb` (backgrounds also `#rrggbbaa`).
  */
-export function editorColor(value: string, kind: "text" | "background", allowHex = true): string | undefined {
+export function isStoredColor(value: unknown, kind: "text" | "background", swatches: readonly ColorSwatch[] = []): value is string {
+  if (typeof value !== "string") return false;
+  if (value === "default" || isPaletteName(value) || swatches.some((s) => s.name === value)) return true;
+  return HEX6.test(value) || (kind === "background" && HEX8.test(value));
+}
+
+/** RGB plus alpha in 0–1. Same rules as `parseColor`. */
+export function parseColorAlpha(value: string): [Rgb, number] | undefined {
   const rgb = parseColor(value);
   if (!rgb) return undefined;
-  const hex = toHex(rgb);
+  const v = value.trim().toLowerCase();
+  let alpha = 1;
+  if (v.startsWith("#") && (v.length === 5 || v.length === 9)) {
+    const a = v.length === 5 ? v[4] + v[4] : v.slice(7);
+    alpha = parseInt(a, 16) / 255;
+  } else {
+    const fn = /^(?:rgba?|hsla?)\(([^)]*)\)$/.exec(v);
+    const part = fn?.[1].split(/[\s,/]+/).filter(Boolean)[3];
+    if (part !== undefined) alpha = part.endsWith("%") ? parseFloat(part) / 100 : parseFloat(part);
+  }
+  return [rgb, Math.max(0, Math.min(1, alpha))];
+}
+
+/** `rgb` drawn at `alpha` over white, for comparing a translucent background with opaque swatches. */
+function overWhite([r, g, b]: Rgb, alpha: number): Rgb {
+  return [r, g, b].map((c) => Math.round(c * alpha + 255 * (1 - alpha))) as Rgb;
+}
+
+export type EditorColorOptions = {
+  /** Keep colours that aren't near a named one as hex. `false` in strict mode and with `custom: false`. */
+  hex?: boolean;
+  /** Snap to and fall back on palette names. Default `true`. */
+  palette?: boolean;
+  swatches?: readonly ColorSwatch[];
+};
+
+/**
+ * Maps a CSS color to what the editor stores (§4): a palette or swatch name within ΔE2000 ≤ 3 of its
+ * light-theme value, otherwise lowercase `#rrggbb` (`#rrggbbaa` for translucent backgrounds).
+ * Default-looking colours (near-black text, white backgrounds), transparent and unparsable values give
+ * `undefined`. With `hex: false` (strict mode, `custom: false`) a colour that isn't a near match goes to
+ * the palette name for its hue, or to the nearest swatch when the palette is off.
+ */
+export function editorColor(
+  value: string,
+  kind: "text" | "background",
+  options: boolean | EditorColorOptions = {},
+): string | undefined {
+  const { hex: allowHex = true, palette = true, swatches = [] } = typeof options === "boolean" ? { hex: options } : options;
+  const parsed = parseColorAlpha(value);
+  if (!parsed) return undefined;
+  const [rgb, alpha] = parsed;
+  const translucent = kind === "background" && alpha < 0.99;
+  const hex = toHex(translucent ? overWhite(rgb, alpha) : rgb);
   const defaults = kind === "text" ? DEFAULT_TEXT : DEFAULT_BACKGROUND;
   if (defaults.some((d) => deltaE2000(hex, d) <= DEFAULT_DELTA_E)) return undefined;
-  let best: PaletteName = "gray";
+  const named: [string, string][] = [
+    ...(palette ? (Object.keys(PALETTE) as PaletteName[]).map((name): [string, string] => [name, PALETTE[name][kind]]) : []),
+    ...swatches.map((s): [string, string] => [s.name, s.hex]),
+  ];
+  let best: string | undefined;
   let bestDistance = Infinity;
-  for (const name of Object.keys(PALETTE) as PaletteName[]) {
-    const distance = deltaE2000(hex, PALETTE[name][kind]);
+  for (const [name, value] of named) {
+    const distance = deltaE2000(hex, value);
     if (distance < bestDistance) [best, bestDistance] = [name, distance];
   }
-  if (bestDistance <= PALETTE_DELTA_E) return best;
-  return allowHex ? hex : nearestByHue(hex);
+  if (best && bestDistance <= PALETTE_DELTA_E) return best;
+  if (allowHex) {
+    if (!translucent) return hex;
+    return `${toHex(rgb)}${Math.round(alpha * 255).toString(16).padStart(2, "0")}`;
+  }
+  if (palette) return nearestByHue(hex);
+  return best;
 }
 
 /**
@@ -203,7 +301,41 @@ export function isPaletteName(value: string | null | undefined): value is Palett
   return !!value && Object.prototype.hasOwnProperty.call(PALETTE, value);
 }
 
-/** The CSS value for a stored color: palette names map to their hex value. */
-export function cssColor(value: string, kind: "text" | "background") {
-  return value in PALETTE ? PALETTE[value as PaletteName][kind] : /^#[0-9a-f]{6}$/i.test(value) ? value : undefined;
+/** The CSS value for a stored color: palette and swatch names map to their hex value. */
+export function cssColor(value: string, kind: "text" | "background", swatches: readonly ColorSwatch[] = []) {
+  if (isPaletteName(value)) return PALETTE[value][kind];
+  const swatch = swatches.find((s) => s.name === value);
+  if (swatch) return swatch.hex;
+  const v = value.toLowerCase();
+  return HEX6.test(v) || (kind === "background" && HEX8.test(v)) ? v : undefined;
+}
+
+function luminance(hex: string) {
+  const [r, g, b] = hexToRgb(hex)!.map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two `#rrggbb` colours, 1–21. */
+export function contrastRatio(a: string, b: string) {
+  const [la, lb] = [luminance(a), luminance(b)];
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/**
+ * `hex` moved toward black or white, whichever the background contrasts with more, until it reaches
+ * `min` contrast against `background`. Colours that already do come back unchanged.
+ */
+export function withContrast(hex: string, background: string, min = 3) {
+  const color = hex.slice(0, 7).toLowerCase();
+  if (!HEX6.test(color) || contrastRatio(color, background) >= min) return color;
+  const rgb = hexToRgb(color)!;
+  const target = contrastRatio("#000000", background) >= contrastRatio("#ffffff", background) ? 0 : 255;
+  for (let t = 0.05; t < 1; t += 0.05) {
+    const mixed = toHex(rgb.map((c) => Math.round(c + (target - c) * t)) as Rgb);
+    if (contrastRatio(mixed, background) >= min) return mixed;
+  }
+  return toHex([target, target, target]);
 }

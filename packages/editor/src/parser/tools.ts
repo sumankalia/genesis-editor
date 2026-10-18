@@ -1,3 +1,4 @@
+import { resolveColorConfig, type ColorConfig } from "./colors";
 import { BUILT_IN_TOOLS, type BuiltInToolName, type ToolSelection } from "../plugins/tool-names";
 
 const ALL_LEVELS = [1, 2, 3, 4, 5, 6];
@@ -5,6 +6,7 @@ const ALL_LEVELS = [1, 2, 3, 4, 5, 6];
 export type ParserTools = {
   has(tool: BuiltInToolName): boolean;
   headingLevels: number[];
+  colors: ColorConfig;
 };
 
 /** The parser's view of the editor's `tools`: same rules as the editor (omitted = everything on). */
@@ -24,7 +26,8 @@ export function resolveTools(tools: ToolSelection | undefined): ParserTools {
     const levels = (tools as { heading?: { levels?: number[] } }).heading?.levels;
     if (typeof levels === "object" && levels?.length) headingLevels = [...levels].sort((a, b) => a - b);
   }
-  return { has: (tool) => enabled.has(tool), headingLevels };
+  const colors = resolveColorConfig(tools && !Array.isArray(tools) ? (tools as Record<string, unknown>).colors : undefined);
+  return { has: (tool) => enabled.has(tool), headingLevels, colors };
 }
 
 /** The closest allowed heading level, preferring the lower-ranked (larger number) one on ties. */
