@@ -55,6 +55,8 @@ const REFERENCED_TYPES = [
   "EmbedOptions",
   "EmbedProvider",
   "EmbedFrame",
+  "ColorToolOptions",
+  "ColorSwatch",
 ];
 
 const ENTRY = join(process.cwd(), "../../packages/editor/src/index.ts");

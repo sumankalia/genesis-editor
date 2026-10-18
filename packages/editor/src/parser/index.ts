@@ -13,6 +13,7 @@ export {
   type ColorToolOptions,
   type PaletteName,
 } from "./colors";
+export { FONT_SIZES, isFontSize, snapFontSize } from "./font-size";
 export { META_VERSION, migrateMeta, stripMeta } from "./meta";
 export {
   defineEmbedProvider,
