@@ -23,7 +23,7 @@ import {
   TAG_CLASSES,
   UNSUPPORTED_MARKS,
 } from "./rules/tags";
-import { sanitizeTree } from "./sanitize";
+import { isSafeUrl, sanitizeTree } from "./sanitize";
 import { nearestLevel, resolveTools, type ParserTools } from "./tools";
 import type {
   HtmlBlock,
@@ -35,7 +35,7 @@ import type {
   ParseOptions,
   ParseResult,
 } from "./types";
-import { cleanHref, isTrackerUrl, largestSrcsetCandidate, resolveUrl } from "./urls";
+import { cleanHref, cleanSrcset, isTrackerUrl, largestSrcsetCandidate, resolveUrl } from "./urls";
 
 type Alignment = "left" | "center" | "right" | "justify";
 type Container = "root" | "list" | "quote" | "cell" | "heading";
@@ -1116,14 +1116,29 @@ function image(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
     state.report.images.failed++;
     return;
   }
-  const alt = (el.getAttribute("alt") ?? el.getAttribute("title") ?? "").trim();
+  const altAttr = el.getAttribute("alt")?.trim();
+  const alt = altAttr || (el.getAttribute("title") ?? "").trim();
   const props: Record<string, string | number | boolean> = { url };
   if (alt) props.name = alt;
+  if (altAttr) props.alt = altAttr;
+  const srcset = cleanSrcset(LAZY_SRCSET_ATTRIBUTES.map((a) => el.getAttribute(a)).find(Boolean) ?? el.getAttribute("srcset"), state.base);
+  if (srcset) {
+    props.srcset = srcset;
+    const sizes = el.getAttribute("sizes")?.trim();
+    if (sizes && sizes.length <= 500 && !/[<>"]/.test(sizes)) props.sizes = sizes;
+  }
+  for (const dimension of ["width", "height"] as const) {
+    const value = el.getAttribute(dimension)?.trim();
+    if (value && /^\d{1,5}$/.test(value) && Number(value) > 2) props[dimension] = Number(value);
+  }
   const width = toPx(decl.get("width"), ASSUMED_COLUMN_PX) ?? toPx(el.getAttribute("width"));
   if (width && width > 2) props.previewWidth = Math.round(width);
   const align = alignmentOf(el, decl) ?? ctx.align;
   if (align && align !== "left" && align !== "justify") props.textAlignment = align;
-  if (ctx.link) state.report.downgrade("image link", "image");
+  if (ctx.link) {
+    if (state.tools.has("link") && isSafeUrl(ctx.link)) props.href = ctx.link;
+    else state.report.downgrade("image link", "image");
+  }
   sink.flush();
   emitMedia({ type: "image", props }, "image", alt || url, ctx, sink, state);
 }
@@ -1207,7 +1222,10 @@ function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: St
   }
   sub.flush();
   const mediaBlock = [...sub.blocks].reverse().find((b) => b.type === "image" || b.type === "video" || b.type === "audio");
-  if (mediaBlock && caption) mediaBlock.props = { ...mediaBlock.props, caption };
+  if (mediaBlock && caption) {
+    const rich = mediaBlock.type === "image" ? richCaption(captions, figCtx, state) : undefined;
+    mediaBlock.props = { ...mediaBlock.props, caption: rich ? inlineText(rich) : caption, ...(rich ? { captionRich: JSON.stringify(rich) } : {}) };
+  }
   sink.push(...sub.blocks);
   const quoteBlock = !mediaBlock ? sub.blocks.find((b) => b.type === "quote") : undefined;
   if (quoteBlock && caption) {
@@ -1222,6 +1240,18 @@ function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: St
       sink.push(...capSink.blocks);
     }
   }
+}
+
+/** A caption's inline content, when it has formatting or links that plain `caption` text would lose. */
+function richCaption(captions: Element[], ctx: Ctx, state: State): HtmlInline[] | undefined {
+  const sub = new Sink(state, (content) => ({ type: "paragraph", content }));
+  for (const c of captions) flow(c, { ...ctx, container: "root" }, sub, state);
+  sub.flush();
+  const lines = sub.blocks.filter((b) => b.type === "paragraph" && Array.isArray(b.content) && inlineText(b.content as HtmlInline[]).trim());
+  if (lines.length !== 1) return undefined;
+  const content = lines[0].content as HtmlInline[];
+  const formatted = content.some((n) => n.type === "link" || Object.keys(n.styles).length);
+  return formatted ? content : undefined;
 }
 
 /** WordPress's file block: a link to the file plus a separate "Download" button linking to the same URL. */

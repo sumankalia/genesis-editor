@@ -87,7 +87,7 @@ describe("media", () => {
 
   it("reads figure captions, alignment and width", () => {
     expect(blocks('<figure class="aligncenter"><img src="https://x.com/a.png" alt="A" width="300"><figcaption>Cap</figcaption></figure>')).toEqual([
-      { type: "image", props: { url: "https://x.com/a.png", name: "A", previewWidth: 300, textAlignment: "center", caption: "Cap" } },
+      { type: "image", props: { url: "https://x.com/a.png", name: "A", alt: "A", width: 300, previewWidth: 300, textAlignment: "center", caption: "Cap" } },
     ]);
   });
 

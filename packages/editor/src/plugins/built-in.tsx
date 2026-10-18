@@ -19,7 +19,7 @@ import {
 } from "@blocknote/react";
 import { useMemo } from "react";
 
-import { quoteSpec } from "./specs";
+import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
 
@@ -112,7 +112,7 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
   codeBlock: () => blockTool("codeBlock", "codeBlock"),
   divider: () => blockTool("divider", "divider"),
   table: () => blockTool("table", "table"),
-  image: () => blockTool("image", "image"),
+  image: () => definePlugin({ name: "image", blocks: { image: imageSpec }, extensions: [imageSourceExtension] }),
   video: () => blockTool("video", "video"),
   audio: () => blockTool("audio", "audio"),
   file: () => blockTool("file", "file"),

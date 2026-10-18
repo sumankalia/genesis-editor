@@ -64,3 +64,20 @@ export function largestSrcsetCandidate(srcset: string | null | undefined) {
   }
   return best?.url;
 }
+
+/**
+ * A `srcset` with relative candidates resolved and unusable ones (data:, other schemes, bad descriptors)
+ * removed. `undefined` unless at least two candidates remain: one adds nothing over `src`.
+ */
+export function cleanSrcset(srcset: string | null | undefined, base: string | undefined) {
+  if (!srcset) return undefined;
+  const out: string[] = [];
+  for (const candidate of srcset.split(/,\s+(?=\S)/)) {
+    const [raw, descriptor, extra] = candidate.trim().split(/\s+/);
+    if (!raw || extra !== undefined || (descriptor && !/^\d+(\.\d+)?[wx]$/.test(descriptor))) continue;
+    const url = resolveUrl(raw, base).url;
+    if (!/^(https?:\/\/|\/)/i.test(url) || /[\s"<>]/.test(url)) continue;
+    out.push(descriptor ? `${url} ${descriptor}` : url);
+  }
+  return out.length > 1 ? out.join(", ") : undefined;
+}

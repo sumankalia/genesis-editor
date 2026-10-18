@@ -1,6 +1,6 @@
 import { isSafeUrl } from "./sanitize";
-import { blockAttrs, escapeAttr, escapeText, inline, type Props } from "./serialize-inline";
-import type { HtmlTableCell, HtmlTableContent } from "./types";
+import { blockAttrs, escapeAttr, escapeText, inline, plainText, type Props } from "./serialize-inline";
+import type { HtmlInline, HtmlTableCell, HtmlTableContent } from "./types";
 
 export function serializeTable(content: HtmlTableContent | undefined, attrs = "") {
   if (!content?.rows?.length) return "";
@@ -24,11 +24,42 @@ function serializeCell(cell: HtmlTableCell, header: boolean) {
 }
 
 /** Wraps media in a `<figure>` when it has a caption or alignment; `attrs` go on the outermost element. */
-function figure(tag: string, attrsAndRest: string, props: Props, attrs: string) {
-  const caption = typeof props.caption === "string" && props.caption ? `<figcaption>${escapeText(props.caption)}</figcaption>` : "";
+function figure(media: (attrs: string) => string, props: Props, attrs: string) {
+  const text = typeof props.caption === "string" ? props.caption : "";
+  const caption = text ? `<figcaption>${richCaption(props.captionRich, text) ?? escapeText(text)}</figcaption>` : "";
   const align = blockAttrs({ textAlignment: props.textAlignment });
-  if (caption || align) return `<figure${attrs}${align}><${tag}${attrsAndRest}${caption}</figure>`;
-  return `<${tag}${attrs}${attrsAndRest}`;
+  if (caption || align) return `<figure${attrs}${align}>${media("")}${caption}</figure>`;
+  return media(attrs);
+}
+
+/** `captionRich` as HTML, only while its text still matches `caption` (the caption may have been edited since). */
+function richCaption(json: Props["captionRich"], caption: string) {
+  if (typeof json !== "string" || !json) return undefined;
+  try {
+    const content = JSON.parse(json) as HtmlInline[];
+    return Array.isArray(content) && plainText(content) === caption ? inline(content) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const str = (value: Props[string]) => (typeof value === "string" ? value : "");
+const int = (value: Props[string]) => (typeof value === "number" && value > 0 ? Math.round(value) : undefined);
+
+function image(url: string, props: Props) {
+  const alt = str(props.alt) || str(props.name);
+  const srcset = str(props.srcset) && !str(props.originalUrl) ? ` srcset="${escapeAttr(str(props.srcset))}"${str(props.sizes) ? ` sizes="${escapeAttr(str(props.sizes))}"` : ""}` : "";
+  const width = int(props.width);
+  const height = int(props.height);
+  const preview = int(props.previewWidth);
+  const size = (width ? ` width="${width}"` : "") + (height ? ` height="${height}"` : "");
+  // Display width as a style, so it isn't read back as the intrinsic width.
+  const display = preview && preview !== width ? ` style="width:${preview}px"` : "";
+  const href = str(props.href) && isSafeUrl(str(props.href)) ? str(props.href) : "";
+  return (attrs: string) => {
+    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${srcset}${size}${display}>`;
+    return href ? `<a${attrs} href="${escapeAttr(href)}">${img}</a>` : img;
+  };
 }
 
 export function serializeMedia(type: "image" | "video" | "audio", props: Props, attrs = "") {
@@ -36,9 +67,9 @@ export function serializeMedia(type: "image" | "video" | "audio", props: Props, 
   if (!url) return "";
   const name = typeof props.name === "string" ? props.name : "";
   const width = typeof props.previewWidth === "number" && type !== "audio" ? ` width="${Math.round(props.previewWidth)}"` : "";
-  if (type === "image") return figure("img", ` src="${escapeAttr(url)}" alt="${escapeAttr(name)}"${width}>`, props, attrs);
+  if (type === "image") return figure(image(url, props), props, attrs);
   const title = name ? ` title="${escapeAttr(name)}"` : "";
-  return figure(type, ` src="${escapeAttr(url)}" controls${title}${width}></${type}>`, props, attrs);
+  return figure((a) => `<${type}${a} src="${escapeAttr(url)}" controls${title}${width}></${type}>`, props, attrs);
 }
 
 export function serializeFile(props: Props, attrs = "") {

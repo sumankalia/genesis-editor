@@ -29,7 +29,17 @@ const doc: HtmlBlock[] = [
       ],
     },
   },
-  { type: "image", props: { url: "https://x.com/a.png", name: "Alt", caption: "Cap", previewWidth: 320, textAlignment: "center" } },
+  { type: "image", props: { url: "https://x.com/a.png", name: "Alt", alt: "Alt", caption: "Cap", previewWidth: 320, textAlignment: "center" } },
+  {
+    type: "image",
+    props: {
+      url: "https://x.com/b.png", name: "B", alt: "B", width: 1200, height: 800, previewWidth: 600, href: "https://x.com/",
+      srcset: "https://x.com/b-600.png 600w, https://x.com/b.png 1200w", sizes: "(max-width: 600px) 100vw, 600px",
+      caption: "Photo by Ada", captionRich: JSON.stringify([{ type: "text", text: "Photo by ", styles: {} }, { type: "link", href: "https://ada.example/", content: [{ type: "text", text: "Ada", styles: { bold: true } }] }]),
+    },
+  },
+  { type: "quote", props: { cite: "https://x.com/s" }, content: [{ type: "text", text: "Q", styles: {} }], children: [{ type: "paragraph", content: [{ type: "text", text: "Ada", styles: {} }], meta: { v: 1, source: { tag: "cite" } } }] },
+  { type: "paragraph", content: [{ type: "text", text: "Anchored", styles: {} }], meta: { v: 1, attrs: { id: "a1", lang: "fr", dir: "rtl" } } },
   { type: "video", props: { url: "https://x.com/v.mp4", name: "Clip" } },
   { type: "audio", props: { url: "https://x.com/a.mp3" } },
   { type: "file", props: { url: "https://x.com/f.pdf", name: "f.pdf", caption: "Doc" } },

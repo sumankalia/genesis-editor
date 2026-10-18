@@ -25,7 +25,7 @@ describe("headings (§6)", () => {
   });
 
   it("turns an image-only heading into an image", () => {
-    expect(blocks('<h2><img src="https://x.com/a.png" alt="Logo"></h2>')).toEqual([{ type: "image", props: { url: "https://x.com/a.png", name: "Logo" } }]);
+    expect(blocks('<h2><img src="https://x.com/a.png" alt="Logo"></h2>')).toEqual([{ type: "image", props: { url: "https://x.com/a.png", name: "Logo", alt: "Logo" } }]);
   });
 
   it("links the whole heading when a link wraps it and strips permalink anchors", () => {
