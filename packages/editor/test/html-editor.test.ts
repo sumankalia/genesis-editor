@@ -1,4 +1,5 @@
 import { BlockNoteEditor, type PartialBlock } from "@blocknote/core";
+import { TextSelection } from "prosemirror-state";
 import { describe, expect, it, vi } from "vitest";
 
 import { createPasteHandler, exportHTML, importHTML, insertBlocks } from "../src/html";
@@ -79,6 +80,86 @@ describe("insertBlocks", () => {
     expect(editor.document.length).toBeGreaterThan(3);
     editor.undo();
     expect(editor.document.map((b) => b.content)).toEqual([[{ type: "text", text: "Keep", styles: {} }]]);
+  });
+});
+
+describe("insertBlocks splits the block at the cursor (§13)", () => {
+  function at(content: PartialBlock[], offset: number, to = offset) {
+    const { editor, sanitize } = mounted(undefined, content);
+    editor.setTextCursorPosition(editor.document[0], "start");
+    editor.transact((tr) => {
+      const start = tr.selection.from;
+      tr.setSelection(TextSelection.create(tr.doc, start + offset, start + to));
+    });
+    const paste = (html: string) => insertBlocks(editor, importHTML(html, {}, sanitize).blocks);
+    const shape = () =>
+      editor.document.map((b) => [
+        b.type,
+        (b.content as { text: string }[]).map((c) => c.text).join(""),
+        ...(b.children.length ? [b.children.length] : []),
+      ]);
+    const caret = () =>
+      editor.transact((tr) => [editor.getTextCursorPosition().block.id, tr.selection.$from.parentOffset] as const);
+    return { editor, paste, shape, caret };
+  }
+
+  it("keeps a single-paragraph paste inline", () => {
+    const { paste, shape, caret, editor } = at([{ type: "paragraph", content: "abcd" }], 2);
+    paste("<p>x</p>");
+    expect(shape()).toEqual([["paragraph", "abxcd"]]);
+    expect(caret()).toEqual([editor.document[0].id, 3]);
+  });
+
+  it("joins the text after the cursor to the last pasted paragraph", () => {
+    const { paste, shape, caret, editor } = at([{ type: "paragraph", content: "abcd" }], 2);
+    paste("<p>x</p><p>y</p>");
+    expect(shape()).toEqual([["paragraph", "abx"], ["paragraph", "ycd"]]);
+    expect(caret()).toEqual([editor.document[1].id, 1]);
+  });
+
+  it("keeps the text after the cursor as its own block after a non-paragraph", () => {
+    const { paste, shape } = at([{ type: "paragraph", content: "abcd" }], 2);
+    paste("<p>x</p><h3>y</h3>");
+    expect(shape()).toEqual([["paragraph", "abx"], ["heading", "y"], ["paragraph", "cd"]]);
+  });
+
+  it("gives the tail the cursor block's type and props", () => {
+    const { paste, shape, editor } = at([{ type: "heading", props: { level: 2 }, content: "Title" }], 2);
+    paste("<h3>y</h3><ul><li>z</li></ul>");
+    expect(shape()).toEqual([["heading", "Ti"], ["heading", "y"], ["bulletListItem", "z"], ["heading", "tle"]]);
+    expect(editor.document[3].props).toMatchObject({ level: 2 });
+    expect(new Set(editor.document.map((b) => b.id)).size).toBe(4);
+  });
+
+  it("drops the empty half when pasting at the start or end", () => {
+    const start = at([{ type: "paragraph", content: "cd" }], 0);
+    start.paste("<h3>y</h3><p>z</p>");
+    expect(start.shape()).toEqual([["heading", "y"], ["paragraph", "zcd"]]);
+    const end = at([{ type: "paragraph", content: "ab" }], 2);
+    end.paste("<p>x</p><h3>y</h3>");
+    expect(end.shape()).toEqual([["paragraph", "abx"], ["heading", "y"]]);
+  });
+
+  it("replaces a selection", () => {
+    const { paste, shape } = at([{ type: "paragraph", content: "abcd" }], 1, 3);
+    paste("<p>x</p><p>y</p>");
+    expect(shape()).toEqual([["paragraph", "ax"], ["paragraph", "yd"]]);
+  });
+
+  it("moves the cursor block's children along with the text after the cursor", () => {
+    const { paste, shape } = at(
+      [{ type: "paragraph", content: "abcd", children: [{ type: "paragraph", content: "child" }] }],
+      2,
+    );
+    paste("<p>x</p><p>y</p>");
+    expect(shape()).toEqual([["paragraph", "abx"], ["paragraph", "ycd", 1]]);
+  });
+
+  it("is one undo step", () => {
+    const { paste, shape, editor } = at([{ type: "paragraph", content: "abcd" }], 2);
+    paste("<p>x</p><h3>y</h3>");
+    editor.undo();
+    expect(shape()).toEqual([["paragraph", "abcd"]]);
   });
 });
 
