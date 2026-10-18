@@ -61,6 +61,11 @@ export type CleanOptions = {
   keepSelectors?: string[];
   /** Elements matching these selectors are always removed, even in small pastes. */
   dropSelectors?: string[];
+  /**
+   * `"collapse"` trims empty paragraphs at the start and end and turns runs of them into one;
+   * `"keep"` keeps them all, so the editor's own HTML loads back unchanged. Defaults to `"collapse"`.
+   */
+  emptyParagraphs?: "collapse" | "keep";
   /** Extra phrases that mark page furniture when they make up most of an element's text. */
   phrases?: string[];
 };

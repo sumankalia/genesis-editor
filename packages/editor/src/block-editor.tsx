@@ -28,7 +28,14 @@ import { BlockNoteView } from "@blocknote/shadcn";
 
 import { CleanupToast } from "./components/cleanup-toast";
 import { GenesisFilePanel } from "./components/file-panel";
-import { createPasteHandler, exportHTML, importHTML, pasteWithoutCleanup, type HtmlImport } from "./html";
+import {
+  createPasteHandler,
+  exportHTML,
+  importHTML,
+  pasteWithoutCleanup,
+  type HtmlImport,
+  type HtmlImportOptions,
+} from "./html";
 import type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { LinkDialog } from "./components/link-dialog";
@@ -184,6 +191,11 @@ function rerenderEmptyFileBlock(editor: BlockNoteEditor, blockId: string, name: 
   setName(name);
 }
 
+/** A whole document (`value`, `defaultValue`, `setHTML`) keeps its blank lines; pastes collapse them. */
+function documentOptions(options: HtmlImportOptions): HtmlImportOptions {
+  return { ...options, clean: { ...options.clean, emptyParagraphs: "keep" } };
+}
+
 function nonEmpty(blocks: EditorContent | undefined) {
   return blocks && blocks.length > 0 ? blocks : undefined;
 }
@@ -256,7 +268,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     let imported: HtmlImport | null = null;
     const parse = (html: string | undefined) => {
       if (!html?.trim()) return undefined;
-      imported = importHTML(html, { mode: htmlMode, tools, baseUrl, clean }, sanitize);
+      imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean }), sanitize);
       return nonEmpty(imported.blocks);
     };
     const content =
@@ -449,7 +461,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
 
   const applyHtml = useCallback(
     (html: string, asEdit: boolean) => {
-      const result = importHTML(html, htmlOptions.current, sanitize);
+      const result = importHTML(html, documentOptions(htmlOptions.current), sanitize);
       applyingValue.current = !asEdit;
       try {
         editor.replaceBlocks(editor.document, result.blocks.length ? result.blocks : [{ type: "paragraph" }]);

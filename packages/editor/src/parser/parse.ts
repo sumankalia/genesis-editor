@@ -135,6 +135,8 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   let blocks = root.blocks;
   promoteStyledHeadings(blocks, state);
   blocks = clampListDepth(blocks, 6);
+  blocks = emptyWhitespaceOnly(blocks);
+  if (options.clean?.emptyParagraphs !== "keep") blocks = collapseEmptyParagraphs(blocks, report);
   countFontSizes(blocks, state);
   return { blocks, report: report.build(mode, blocks.length) };
 }
@@ -961,10 +963,12 @@ function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
 
   if (!state.tools.has("table")) {
     state.report.downgrade("table", "paragraphs");
-    const paragraphs = outRows.map((row) => ({
-      type: "paragraph",
-      content: runsToInline(row.cells.flatMap((cell, i) => [...(i ? inlineToRuns([{ type: "text", text: "\t", styles: {} }]) : []), ...inlineToRuns(cell.content)])),
-    }));
+    const paragraphs = outRows
+      .filter((row) => row.cells.some((cell) => cell.content.some((node) => /\S/.test(node.type === "text" ? node.text : node.content.map((t) => t.text).join("")))))
+      .map((row) => ({
+        type: "paragraph",
+        content: runsToInline(row.cells.flatMap((cell, i) => [...(i ? inlineToRuns([{ type: "text", text: "\t", styles: {} }]) : []), ...inlineToRuns(cell.content)])),
+      }));
     return sink.push(...paragraphs, ...after);
   }
 
@@ -1247,6 +1251,42 @@ function countFontSizes(_blocks: HtmlBlock[], state: State) {
 }
 
 /** Lists deeper than `max` levels are moved up to the deepest allowed level (§3). */
+/** Whitespace-only content is canonically empty (§3), whichever path produced it; code keeps its whitespace. */
+function emptyWhitespaceOnly(blocks: HtmlBlock[]): HtmlBlock[] {
+  return blocks.map((block) => {
+    let next = block;
+    const content = block.content;
+    if (block.type !== "codeBlock" && Array.isArray(content) && content.length) {
+      const text = content.map((node) => (node.type === "text" ? node.text : node.content.map((t) => t.text).join(""))).join("");
+      if (!/\S/.test(text.replace(/\u00a0/g, " "))) next = { ...block, content: [] };
+    }
+    return block.children?.length ? { ...next, children: emptyWhitespaceOnly(block.children) } : next;
+  });
+}
+
+function isEmptyParagraph(block: HtmlBlock) {
+  const content = block.content;
+  return block.type === "paragraph" && (!content || (Array.isArray(content) && !content.length)) && !block.children?.length;
+}
+
+/** Trims empty paragraphs at the edges of each block list and collapses runs of them into one. */
+function collapseEmptyParagraphs(blocks: HtmlBlock[], report: ReportBuilder): HtmlBlock[] {
+  const out: HtmlBlock[] = [];
+  for (const block of blocks) {
+    const empty = isEmptyParagraph(block);
+    if (empty && (!out.length || isEmptyParagraph(out[out.length - 1]))) {
+      report.drop("p", "noise");
+      continue;
+    }
+    out.push(block.children?.length ? { ...block, children: collapseEmptyParagraphs(block.children, report) } : block);
+  }
+  while (out.length && isEmptyParagraph(out[out.length - 1])) {
+    out.pop();
+    report.drop("p", "noise");
+  }
+  return out;
+}
+
 function clampListDepth(blocks: HtmlBlock[], max: number, depth = 1): HtmlBlock[] {
   const out: HtmlBlock[] = [];
   for (const block of blocks) {
