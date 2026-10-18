@@ -62,7 +62,9 @@ const loaded = await page
   .waitForFunction(() => [...document.querySelectorAll("[data-example='image-rehost'] .bn-editor img.bn-visual-media")].every((el) => el.complete && el.naturalWidth > 0), null, { timeout: 5000 })
   .then(() => true, () => false);
 check("copied images load", loaded);
-check("pendingUploads is back to zero", (await demo.getByTestId("rehost-pending").innerText()) === "Nothing uploading");
+// The counter is polled every 150 ms, so give it a moment to catch up.
+const idle = await demo.getByTestId("rehost-pending").filter({ hasText: "Nothing uploading" }).waitFor({ timeout: 2000 }).then(() => true, () => false);
+check("pendingUploads is back to zero", idle);
 
 check("copies are marked hosted", (html.match(/data-genesis-hosted/g) ?? []).length === 3);
 
