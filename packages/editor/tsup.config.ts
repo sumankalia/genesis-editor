@@ -12,7 +12,7 @@ export default defineConfig([
     ...shared,
     entry: ["src/index.ts"],
     clean: true,
-    external: ["react", "react-dom", /^@blocknote\//, "lucide-react", "prosemirror-state", "prosemirror-history"],
+    external: ["react", "react-dom", /^@blocknote\//, "lucide-react", "prosemirror-state", "prosemirror-history", "prosemirror-view", "prosemirror-model"],
     // The editor relies on hooks and browser APIs, so it must be a client component in React Server Components apps.
     banner: { js: '"use client";' },
   },

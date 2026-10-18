@@ -2,6 +2,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
@@ -56,7 +57,9 @@ import { MAX_INLINE_DATA_IMAGE_BYTES, RehostQueue, fileNameFromUrl } from "./lib
 import { UploadStatusStore } from "./lib/upload-status";
 import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig } from "./lib/uploads";
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
+import { resolveColorConfig } from "./parser/colors";
 import { registerEmbedRegistry } from "./plugins/embed";
+import { swatchCss } from "./plugins/text-styles";
 import { acceptsFile } from "./plugins/files";
 import { REHOST_META, registerRehostQueue } from "./plugins/specs";
 import {
@@ -153,6 +156,11 @@ export type BlockEditorProps = UploadConfig &
   embeds?: EmbedOptions;
   /** Extra embed providers (`defineEmbedProvider`), tried before the built-ins. Read once. */
   embedProviders?: EmbedProvider[];
+  /**
+   * `"auto"` lightens or darkens hex text that would have less than 3:1 contrast with the theme's
+   * background. Only the rendering changes; the stored colour stays exact. Palette colours already adapt.
+   */
+  colorContrast?: "auto" | "off";
   /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
@@ -298,6 +306,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     meta,
     embeds,
     embedProviders,
+    colorContrast = "off",
     latestDocument,
   },
   ref,
@@ -311,6 +320,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const [setup] = useState(() => resolveEditorSetup(tools, plugins, metaPolicy !== "off"));
   const [support] = useState(() => schemaSupport(setup.schema));
   const [embedOptions] = useState(() => ({ embeds, embedProviders: [...(embedProviders ?? []), ...setup.embedProviders] }));
+  const [swatches] = useState(() => resolveColorConfig(tools && !Array.isArray(tools) ? (tools as Record<string, unknown>).colors : undefined).swatches);
+  const scopeId = useId().replace(/[^a-z0-9-]/gi, "");
   const [embedSetup] = useState(() =>
     embedRegistry(embedOptions.embeds, embedOptions.embedProviders, {
       strict: htmlMode === "strict",
@@ -503,8 +514,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [documentBlocks, metaPolicy],
   );
   const exportedHtml = useCallback(
-    () => toHTML(exportedBlocks() as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders }),
-    [exportedBlocks, embedOptions],
+    () => toHTML(exportedBlocks() as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders, swatches }),
+    [exportedBlocks, embedOptions, swatches],
   );
 
   const uploadToBlock = useCallback(
@@ -623,11 +634,11 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     if (htmlTimer.current) clearTimeout(htmlTimer.current);
     htmlTimer.current = null;
     const blocks = exportedBlocks();
-    const html = toHTML(blocks as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders });
+    const html = toHTML(blocks as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders, swatches });
     lastHtml.current = html;
     const emit = callbacks.current.onChange as HtmlFormatProps["onChange"];
     emit?.(html, { blocks, report: lastReport.current, editor });
-  }, [editor, exportedBlocks, embedOptions]);
+  }, [editor, exportedBlocks, embedOptions, swatches]);
 
   const applyHtml = useCallback(
     (html: string, asEdit: boolean) => {
@@ -815,6 +826,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       <div
         className={cn("genesis-editor", className)}
         data-color-scheme={colorScheme}
+        data-color-contrast={colorContrast === "auto" ? "auto" : undefined}
+        data-genesis-id={scopeId}
         data-mobile-toolbar={editable && mobileToolbar ? "" : undefined}
         data-toolbar={resolvedToolbar.placement}
         onKeyDownCapture={handleKeyDownCapture}
@@ -823,6 +836,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         onCopy={stripClipboardMeta}
         onCut={stripClipboardMeta}
       >
+        {swatches.length > 0 && <style>{swatchCss(scopeId, swatches)}</style>}
         <ToolbarItemsContext.Provider value={toolbarItems}>
           <BlockNoteView
             editor={editor}

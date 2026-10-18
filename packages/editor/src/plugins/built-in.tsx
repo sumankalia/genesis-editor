@@ -3,7 +3,6 @@ import {
   BasicTextStyleButton,
   BlockTypeSelect,
   blockTypeSelectItems,
-  ColorStyleButton,
   CreateLinkButton,
   FileCaptionButton,
   FileDeleteButton,
@@ -19,9 +18,11 @@ import {
 } from "@blocknote/react";
 import { useMemo } from "react";
 
+import { ColorPickerButton } from "../components/color-picker";
+import { resolveColorConfig } from "../parser/colors";
 import { embedSlashItem, embedSpec } from "./embed";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
-import { fontSizeSpec } from "./text-styles";
+import { backgroundColorSpec, blockHexColorsExtension, fontSizeSpec, textColorSpec } from "./text-styles";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
 
@@ -130,11 +131,14 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       inlineContent: { link: defaultInlineContentSpecs.link },
       toolbarItems: { link: CreateLinkButton },
     }),
-  colors: () =>
-    definePlugin({
+  colors: (options?: ToolOptions["colors"]) => {
+    const config = resolveColorConfig(options);
+    return definePlugin({
       name: "colors",
-      styles: { textColor: defaultStyleSpecs.textColor, backgroundColor: defaultStyleSpecs.backgroundColor },
-      toolbarItems: { colors: ColorStyleButton },
-    }),
+      styles: { textColor: textColorSpec, backgroundColor: backgroundColorSpec },
+      extensions: [blockHexColorsExtension],
+      toolbarItems: { colors: () => <ColorPickerButton config={config} /> },
+    });
+  },
   fontSize: () => definePlugin({ name: "fontSize", styles: { fontSize: fontSizeSpec } }),
 };
