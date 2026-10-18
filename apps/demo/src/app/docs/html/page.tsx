@@ -20,6 +20,15 @@ const changeInfo = `<BlockEditor
   baseUrl="https://example.com/" // resolve relative links and images
 />`;
 
+const cleanOptions = `<BlockEditor
+  clean={{
+    keepSelectors: [".callout"],   // never removed
+    dropSelectors: [".disclaimer"], // always removed
+    phrases: ["Werbung"],           // more furniture phrases
+  }}
+  cleanupToast={false}              // hide the toast; read report.cleanup instead
+/>`;
+
 const refMethods = `const editor = useRef<BlockEditorHandle>(null);
 
 editor.current.getHTML();               // "<h2>Hello</h2>\\n<p>World</p>"
@@ -73,8 +82,26 @@ export default function HtmlPage() {
         BlockNote&apos;s own lossless clipboard, and pastes into code blocks stay plain text.
       </p>
       <p>
+        A paste of a single paragraph goes in at the cursor. Anything longer splits the block at
+        the cursor: the text after it joins the last pasted paragraph, or stays a block of its own
+        type when the paste ends with something else.
+      </p>
+
+      <H3>Page furniture</H3>
+      <p>
+        Larger pastes from web pages also lose their navigation, cookie banners, share bars,
+        related-post lists, newsletter boxes, and comments. A full page is cut down to its{" "}
+        <code>article</code> or <code>main</code>, and other containers are scored on their class
+        names, link density, and wording, so it takes several signals to remove anything. Quotes,
+        figures, tables, code, and list items are never scored. A toast says what was removed and
+        offers <strong>Undo cleanup</strong>, which pastes the same content again without it.
+        Pastes under 3 blocks or 500 characters are left alone.
+      </p>
+      <CodeBlock code={cleanOptions} />
+      <p>
         Try the samples: <strong>Paste</strong> inserts them directly, and <strong>Copy</strong>{" "}
-        puts them on your clipboard to paste yourself.
+        puts them on your clipboard to paste yourself. <strong>Blog page</strong> shows the
+        cleanup toast.
       </p>
       <Example name="html-paste" minHeight={300} />
 

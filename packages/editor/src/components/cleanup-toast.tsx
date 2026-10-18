@@ -26,7 +26,8 @@ export function CleanupToast({ summary, onUndo, onDismiss }: CleanupToastProps) 
   }, [summary, onDismiss]);
 
   return (
-    <div className="pointer-events-none sticky bottom-4 z-20 flex justify-center px-4">
+    // Zero height so the toast floats over the editor's last lines instead of adding space below it.
+    <div className="pointer-events-none sticky bottom-4 z-20 flex h-0 items-end justify-center px-4">
       <div
         role="status"
         data-testid="cleanup-toast"

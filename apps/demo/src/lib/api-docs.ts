@@ -37,6 +37,8 @@ const REFERENCED_TYPES = [
   "HtmlChangeInfo",
   "FidelityReport",
   "ParseMode",
+  "CleanOptions",
+  "CleanupSummary",
   "ToolSelection",
   "ToolOptions",
   "ToolbarConfig",

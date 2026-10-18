@@ -40,6 +40,14 @@ function ReportSummary({ report }: { report: FidelityReport }) {
       <dd>{removed.length ? removed.join(", ") : "nothing"}</dd>
       <dt className="text-muted-foreground">Unwrapped</dt>
       <dd>{unwrapped} wrapper elements</dd>
+      <dt className="text-muted-foreground">Cleanup</dt>
+      <dd data-testid="paste-cleanup">
+        {report.cleanup.sections
+          ? `${report.cleanup.sections} sections (${report.cleanup.labels.join(", ")})`
+          : report.cleanup.skipped === "small"
+            ? "skipped (small paste)"
+            : "nothing removed"}
+      </dd>
       <dt className="text-muted-foreground">Colors</dt>
       <dd>
         {report.colors.palette} palette, {report.colors.hex} custom

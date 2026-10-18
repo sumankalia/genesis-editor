@@ -90,6 +90,37 @@ await page.mouse.click(5, 5);
 await page.waitForTimeout(300);
 await demo.screenshot({ path: `${SHOTS}/html-paste.png` });
 
+// Page furniture and Undo cleanup.
+await pasteEditor.locator("h2").first().click();
+await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
+await demo.getByRole("button", { name: "Paste" }).nth(2).click();
+await page.waitForTimeout(300);
+const toast = demo.getByTestId("cleanup-toast");
+const toastText = (await toast.innerText().catch(() => "")).replace(/\s+/g, " ");
+check("cleanup toast says what was removed", /Removed \d+ sections \(.+\) Undo cleanup/.test(toastText), toastText);
+const cleaned = await pasteEditor.innerText();
+check("blog page: article kept", cleaned.includes("Shipping a block editor in six weeks") && cleaned.includes("one click brings it all back"));
+check("blog page: furniture removed", !/We use cookies|Careers|Related posts|newsletter|© 2026/.test(cleaned));
+check("report shows the cleanup", /\d+ sections \(/.test(await demo.getByTestId("paste-cleanup").innerText()));
+await page.waitForTimeout(200);
+await demo.screenshot({ path: `${SHOTS}/cleanup-toast.png` });
+await toast.getByRole("button", { name: "Undo cleanup" }).click();
+await page.waitForTimeout(300);
+const restored = await pasteEditor.innerText();
+check("Undo cleanup restores the furniture", /We use cookies[\s\S]*Shipping a block editor[\s\S]*Related posts[\s\S]*© 2026/.test(restored));
+check("Undo cleanup replaces the paste instead of adding to it", restored.split("Shipping a block editor in six weeks").length === 2);
+check("toast closes after Undo cleanup", (await toast.count()) === 0);
+check("report shows cleanup off", (await demo.getByTestId("paste-cleanup").innerText()) === "nothing removed");
+await page.keyboard.press(`${mod}+z`);
+await page.waitForTimeout(200);
+check("one undo removes the uncleaned paste", !(await pasteEditor.innerText()).includes("Shipping a block editor"));
+await demo.getByRole("button", { name: "Paste" }).nth(2).click();
+await page.waitForTimeout(200);
+await pasteEditor.locator("p").first().click();
+await page.keyboard.type("x");
+await page.waitForTimeout(200);
+check("editing dismisses the toast", (await toast.count()) === 0);
+
 // Copy puts both HTML and plain text on the clipboard.
 await demo.getByRole("button", { name: "Copy Web article" }).click();
 await page.waitForTimeout(200);
