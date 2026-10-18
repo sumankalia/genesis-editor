@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createPasteHandler, exportHTML, importHTML, insertBlocks, pasteWithoutCleanup } from "../src/html";
 import { resolveEditorSetup } from "../src/plugins/resolve";
-import { sanitizeBlocks, schemaSupport } from "../src/plugins/sanitize";
+import { schemaSupport, toEditorBlocks } from "../src/plugins/sanitize";
 import type { ToolSelection } from "../src/plugins/resolve";
 
 function mounted(tools?: ToolSelection, initialContent?: PartialBlock[]) {
@@ -16,7 +16,7 @@ function mounted(tools?: ToolSelection, initialContent?: PartialBlock[]) {
     initialContent: initialContent as never,
   }) as unknown as BlockNoteEditor;
   editor.mount(document.createElement("div"));
-  const sanitize = (blocks: PartialBlock[]) => sanitizeBlocks(blocks, support) as PartialBlock[];
+  const sanitize = (blocks: PartialBlock[]) => toEditorBlocks(blocks, support) as PartialBlock[];
   return { editor, sanitize };
 }
 

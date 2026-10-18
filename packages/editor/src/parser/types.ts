@@ -1,5 +1,6 @@
 import type { ToolSelection } from "../plugins/tool-names";
 import type { DomAdapter } from "./dom";
+import type { GenesisMeta } from "./meta";
 
 /** Inline styles in BlockNote's shape: toggles are `true`, colors are a palette name or `#rrggbb`. */
 export type HtmlStyles = {
@@ -46,6 +47,8 @@ export type HtmlBlock = {
   props?: Record<string, string | number | boolean>;
   content?: HtmlInline[] | HtmlTableContent;
   children?: HtmlBlock[];
+  /** Kept source attributes and other metadata (§16). Left out when empty. */
+  meta?: GenesisMeta;
 };
 
 /**
@@ -90,6 +93,8 @@ export type ParseOptions = {
   dom?: DomAdapter;
   /** Page-furniture removal (§9 layers 3–5). */
   clean?: CleanOptions;
+  /** Stamp top-level blocks with `meta.import` (`at`, `engine`, and `baseUrl` as `origin`). Defaults to `false`. */
+  trackProvenance?: boolean;
   /** Longer input is truncated, with a warning. Defaults to 10 MB. */
   maxLength?: number;
   /** Deeper elements are ignored, with a warning. Defaults to 512. */

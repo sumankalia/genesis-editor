@@ -30,13 +30,14 @@ import { CleanupToast } from "./components/cleanup-toast";
 import { GenesisFilePanel } from "./components/file-panel";
 import {
   createPasteHandler,
-  exportHTML,
   importHTML,
   pasteWithoutCleanup,
   type HtmlImport,
   type HtmlImportOptions,
 } from "./html";
-import type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
+import { metaFromProps, stripMeta, type GenesisMeta, type MetaOptions } from "./parser/meta";
+import { toHTML } from "./parser/serialize";
+import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
@@ -62,11 +63,14 @@ import {
   type ToolSelection,
   type ToolbarConfig,
 } from "./plugins/resolve";
-import { sanitizeBlocks, schemaSupport } from "./plugins/sanitize";
+import { schemaSupport, toEditorBlocks } from "./plugins/sanitize";
 import type { AnyEditor, AnyPartialBlock, GenesisPlugin } from "./plugins/types";
 
+/** A block as `onChange` and `getBlocks` return it: BlockNote's block plus a top-level `meta` when it has any. */
+export type GenesisBlock = Block & { meta?: GenesisMeta };
+
 /** Blocks to load. Plugin block types are accepted alongside the built-in ones. */
-export type EditorContent = (PartialBlock | AnyPartialBlock)[];
+export type EditorContent = ((PartialBlock | AnyPartialBlock) & { meta?: GenesisMeta })[];
 
 export type UploadErrorEvent = {
   error: Error;
@@ -79,7 +83,7 @@ export type UploadErrorEvent = {
 
 export type HtmlChangeInfo = {
   /** The document the HTML was serialized from. */
-  blocks: Block[];
+  blocks: GenesisBlock[];
   /** The report from the most recent HTML import (initial value, `setHTML`, or paste), if any. */
   report: FidelityReport | null;
   editor: BlockNoteEditor;
@@ -93,7 +97,7 @@ export type BlocksFormatProps = {
   /** Controlled content. When it changes to something other than the current document, the editor content is replaced. */
   value?: EditorContent;
   /** Called after every user edit with the full document. */
-  onChange?: (blocks: Block[], editor: BlockNoteEditor) => void;
+  onChange?: (blocks: GenesisBlock[], editor: BlockNoteEditor) => void;
   defaultValue?: never;
 };
 
@@ -119,6 +123,11 @@ export type BlockEditorProps = UploadConfig &
   clean?: CleanOptions;
   /** After a paste that removed page furniture, show "Removed N sections · Undo cleanup". Defaults to `true`. */
   cleanupToast?: boolean;
+  /**
+   * Per-block metadata kept from imports (`id`/`lang`/`dir`, quote attributions…). `policy: "off"` leaves
+   * it out of the schema; changing between `"off"` and the other policies mounts a new editor.
+   */
+  meta?: MetaOptions;
   /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
@@ -157,8 +166,8 @@ export type BlockEditorHandle = {
   editor: BlockNoteEditor;
   /** Moves focus into the editor. */
   focus: () => void;
-  /** The current document. */
-  getBlocks: () => Block[];
+  /** The current document. `{ meta: "strip" }` leaves out `meta`, like `stripMeta`. */
+  getBlocks: (options?: { meta?: "keep" | "strip" }) => GenesisBlock[];
   /** Replaces the whole document. Counts as an edit for `onChange` and persistence. */
   setBlocks: (blocks: EditorContent) => void;
   /** Lossy Markdown export of the current document. */
@@ -208,7 +217,7 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
   const latestDocument = useRef<AnyPartialBlock[] | null>(null);
   return (
     <EditorInstance
-      key={setupSignature(props.tools, props.plugins)}
+      key={setupSignature(props.tools, props.plugins, props.meta?.policy !== "off")}
       {...props}
       latestDocument={latestDocument}
       ref={ref}
@@ -246,6 +255,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     tools,
     toolbar,
     plugins,
+    meta,
     latestDocument,
   },
   ref,
@@ -254,13 +264,15 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const persistKey = persistOptions?.key ?? null;
   const debounceMs = persistOptions?.debounceMs ?? 0;
   // Tools, content, and persistence key are read once: changing them later needs a new editor.
-  const [setup] = useState(() => resolveEditorSetup(tools, plugins));
+  const metaPolicy = meta?.policy ?? "keep";
+  const trackProvenance = meta?.trackProvenance;
+  const [setup] = useState(() => resolveEditorSetup(tools, plugins, metaPolicy !== "off"));
   const [support] = useState(() => schemaSupport(setup.schema));
   const isHtml = format === "html";
   const htmlValue = isHtml && typeof value === "string" ? value : undefined;
   const blocksValue = isHtml ? undefined : (value as EditorContent | undefined);
   const sanitize = useCallback(
-    (blocks: EditorContent) => sanitizeBlocks(blocks, support) as PartialBlock[],
+    (blocks: EditorContent) => toEditorBlocks(blocks, support) as PartialBlock[],
     [support],
   );
   const [initial] = useState(() => {
@@ -268,7 +280,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     let imported: HtmlImport | null = null;
     const parse = (html: string | undefined) => {
       if (!html?.trim()) return undefined;
-      imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean }), sanitize);
+      imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance }), sanitize);
       return nonEmpty(imported.blocks);
     };
     const content =
@@ -288,11 +300,11 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
   const uploadConfig = useRef<UploadConfig>({});
-  const htmlOptions = useRef({ mode: htmlMode, tools, baseUrl, clean });
+  const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance });
   useLayoutEffect(() => {
     callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
     uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse };
-    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean };
+    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance };
   });
 
   const lastReport = useRef<FidelityReport | null>(initial.report);
@@ -345,6 +357,15 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   }) as unknown as BlockNoteEditor;
   const colorScheme = useColorScheme(theme);
 
+  /** The document in public JSON, with `meta` as kept in the document. */
+  const documentBlocks = useCallback(() => metaFromProps(editor.document) as GenesisBlock[], [editor]);
+  /** The document as it leaves the editor: `strip-on-export` drops `meta`. */
+  const exportedBlocks = useCallback(
+    () => (metaPolicy === "keep" ? documentBlocks() : stripMeta(documentBlocks())),
+    [documentBlocks, metaPolicy],
+  );
+  const exportedHtml = useCallback(() => toHTML(exportedBlocks() as unknown as HtmlBlock[]), [exportedBlocks]);
+
   const uploadToBlock = useCallback(
     async (file: File, blockId: string) => {
       const result = await editor.uploadFile?.(file, blockId);
@@ -389,12 +410,12 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     }
     if (!initial.key) return;
     try {
-      const savedAt = saveStoredDocument(initial.key, editor.document);
+      const savedAt = saveStoredDocument(initial.key, documentBlocks());
       callbacks.current.onPersistStatusChange?.({ status: "saved", savedAt });
     } catch (error) {
       callbacks.current.onPersistStatusChange?.({ status: "error", error });
     }
-  }, [editor, initial.key]);
+  }, [documentBlocks, initial.key]);
 
   const scheduleSave = useCallback(() => {
     if (!initial.key) return;
@@ -424,7 +445,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   }, [flushSave, initial]);
 
   // Controlled value
-  const lastEmitted = useRef<Block[] | null>(null);
+  const lastEmitted = useRef<GenesisBlock[] | null>(null);
   const lastValueJson = useRef<string | null>(blocksValue ? JSON.stringify(blocksValue) : null);
   const applyingValue = useRef(false);
 
@@ -437,14 +458,14 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     const json = JSON.stringify(blocksValue);
     if (json === lastValueJson.current) return;
     lastValueJson.current = json;
-    if (json === JSON.stringify(editor.document)) return;
+    if (json === JSON.stringify(exportedBlocks())) return;
     applyingValue.current = true;
     try {
       editor.replaceBlocks(editor.document, sanitize(blocksValue));
     } finally {
       applyingValue.current = false;
     }
-  }, [editor, blocksValue, sanitize]);
+  }, [editor, blocksValue, sanitize, exportedBlocks]);
 
   // HTML value: the last HTML received or emitted. Anything else is parsed and replaces the document.
   const lastHtml = useRef<string | null>(htmlValue ?? null);
@@ -453,11 +474,12 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const emitHtml = useCallback(() => {
     if (htmlTimer.current) clearTimeout(htmlTimer.current);
     htmlTimer.current = null;
-    const html = exportHTML(editor);
+    const blocks = exportedBlocks();
+    const html = toHTML(blocks as unknown as HtmlBlock[]);
     lastHtml.current = html;
     const emit = callbacks.current.onChange as HtmlFormatProps["onChange"];
-    emit?.(html, { blocks: editor.document, report: lastReport.current, editor });
-  }, [editor]);
+    emit?.(html, { blocks, report: lastReport.current, editor });
+  }, [editor, exportedBlocks]);
 
   const applyHtml = useCallback(
     (html: string, asEdit: boolean) => {
@@ -493,27 +515,27 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     setCleanup(null);
     scheduleSave();
     if (applyingValue.current) return;
-    const blocks = editor.document;
-    latestDocument.current = blocks as AnyPartialBlock[];
+    latestDocument.current = documentBlocks() as AnyPartialBlock[];
     if (isHtml) {
       if (htmlTimer.current) clearTimeout(htmlTimer.current);
       htmlTimer.current = setTimeout(emitHtml, 150);
       return;
     }
+    const blocks = exportedBlocks();
     lastEmitted.current = blocks;
     const emit = callbacks.current.onChange as BlocksFormatProps["onChange"];
     emit?.(blocks, editor);
-  }, [editor, scheduleSave, latestDocument, isHtml, emitHtml]);
+  }, [editor, scheduleSave, latestDocument, isHtml, emitHtml, documentBlocks, exportedBlocks]);
 
   useImperativeHandle(
     ref,
     () => ({
       editor,
       focus: () => editor.focus(),
-      getBlocks: () => editor.document,
+      getBlocks: (options) => (options?.meta === "strip" ? stripMeta(exportedBlocks()) : exportedBlocks()),
       setBlocks: (blocks) => editor.replaceBlocks(editor.document, sanitize(blocks)),
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
-      getHTML: () => exportHTML(editor),
+      getHTML: exportedHtml,
       setHTML: (html) => applyHtml(html, true),
       get lastReport() {
         return lastReport.current;
@@ -524,7 +546,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         if (initial.key) clearStoredDocument(initial.key);
       },
     }),
-    [editor, initial.key, sanitize, applyHtml],
+    [editor, initial.key, sanitize, applyHtml, exportedBlocks, exportedHtml],
   );
 
   // Links
@@ -582,6 +604,21 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [editor],
   );
 
+  // BlockNote writes `data-meta` into the clipboard. Other apps get none; with `strip-on-export`,
+  // neither does BlockNote's own format.
+  const stripClipboardMeta = useCallback(
+    (event: ReactClipboardEvent<HTMLDivElement>) => {
+      const data = event.clipboardData;
+      if (!data || metaPolicy === "off") return;
+      const formats = metaPolicy === "strip-on-export" ? ["text/html", "blocknote/html"] : ["text/html"];
+      for (const format of formats) {
+        const html = data.getData(format);
+        if (html.includes("data-meta=")) data.setData(format, html.replace(/\sdata-meta="[^"]*"/g, ""));
+      }
+    },
+    [metaPolicy],
+  );
+
   const getSlashItems = useCallback(
     async (query: string) =>
       filterSuggestionItems(
@@ -625,6 +662,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         onKeyDownCapture={handleKeyDownCapture}
         onPasteCapture={blockUnsupportedFiles}
         onDropCapture={blockUnsupportedFiles}
+        onCopy={stripClipboardMeta}
+        onCut={stripClipboardMeta}
       >
         <ToolbarItemsContext.Provider value={toolbarItems}>
           <BlockNoteView

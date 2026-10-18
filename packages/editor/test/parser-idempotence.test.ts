@@ -17,6 +17,8 @@ const style = fc.constantFrom(
   ' style="display:none"',
   ' class="share social"',
   ' class="post-content"',
+  ' id="sec-1" lang="fr"',
+  ' dir="rtl"',
 );
 const html: fc.Arbitrary<string> = fc.letrec<{ node: string; inline: string; block: string }>((tie) => ({
   inline: fc.oneof(

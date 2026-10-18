@@ -2,7 +2,7 @@ import { isSafeUrl } from "./sanitize";
 import { blockAttrs, escapeAttr, escapeText, inline, type Props } from "./serialize-inline";
 import type { HtmlTableCell, HtmlTableContent } from "./types";
 
-export function serializeTable(content: HtmlTableContent | undefined) {
+export function serializeTable(content: HtmlTableContent | undefined, attrs = "") {
   if (!content?.rows?.length) return "";
   const widths = content.columnWidths ?? [];
   const colgroup = widths.some((w) => typeof w === "number")
@@ -13,7 +13,7 @@ export function serializeTable(content: HtmlTableContent | undefined) {
   const row = (cells: HtmlTableCell[], header: boolean) => `<tr>${cells.map((cell, c) => serializeCell(cell, header || c < headerCols)).join("")}</tr>`;
   const head = content.rows.slice(0, headerRows).map((r) => row(r.cells, true)).join("");
   const body = content.rows.slice(headerRows).map((r) => row(r.cells, false)).join("");
-  return `<table>${colgroup}${head ? `<thead>${head}</thead>` : ""}${body ? `<tbody>${body}</tbody>` : ""}</table>`;
+  return `<table${attrs}>${colgroup}${head ? `<thead>${head}</thead>` : ""}${body ? `<tbody>${body}</tbody>` : ""}</table>`;
 }
 
 function serializeCell(cell: HtmlTableCell, header: boolean) {
@@ -23,26 +23,28 @@ function serializeCell(cell: HtmlTableCell, header: boolean) {
   return `<${tag}${spans}${blockAttrs(p)}>${inline(cell.content)}</${tag}>`;
 }
 
-function figure(inner: string, props: Props) {
+/** Wraps media in a `<figure>` when it has a caption or alignment; `attrs` go on the outermost element. */
+function figure(tag: string, attrsAndRest: string, props: Props, attrs: string) {
   const caption = typeof props.caption === "string" && props.caption ? `<figcaption>${escapeText(props.caption)}</figcaption>` : "";
   const align = blockAttrs({ textAlignment: props.textAlignment });
-  return caption || align ? `<figure${align}>${inner}${caption}</figure>` : inner;
+  if (caption || align) return `<figure${attrs}${align}><${tag}${attrsAndRest}${caption}</figure>`;
+  return `<${tag}${attrs}${attrsAndRest}`;
 }
 
-export function serializeMedia(type: "image" | "video" | "audio", props: Props) {
+export function serializeMedia(type: "image" | "video" | "audio", props: Props, attrs = "") {
   const url = typeof props.url === "string" && props.url && isSafeUrl(props.url, true) ? props.url : undefined;
   if (!url) return "";
   const name = typeof props.name === "string" ? props.name : "";
   const width = typeof props.previewWidth === "number" && type !== "audio" ? ` width="${Math.round(props.previewWidth)}"` : "";
-  if (type === "image") return figure(`<img src="${escapeAttr(url)}" alt="${escapeAttr(name)}"${width}>`, props);
+  if (type === "image") return figure("img", ` src="${escapeAttr(url)}" alt="${escapeAttr(name)}"${width}>`, props, attrs);
   const title = name ? ` title="${escapeAttr(name)}"` : "";
-  return figure(`<${type} src="${escapeAttr(url)}" controls${title}${width}></${type}>`, props);
+  return figure(type, ` src="${escapeAttr(url)}" controls${title}${width}></${type}>`, props, attrs);
 }
 
-export function serializeFile(props: Props) {
+export function serializeFile(props: Props, attrs = "") {
   const url = typeof props.url === "string" && props.url && isSafeUrl(props.url) ? props.url : undefined;
   if (!url) return "";
   const name = typeof props.name === "string" ? props.name : "";
   const caption = typeof props.caption === "string" && props.caption ? `<figcaption>${escapeText(props.caption)}</figcaption>` : "";
-  return `<figure><a href="${escapeAttr(url)}" download="${escapeAttr(name)}">${escapeText(name || url)}</a>${caption}</figure>`;
+  return `<figure${attrs}><a href="${escapeAttr(url)}" download="${escapeAttr(name)}">${escapeText(name || url)}</a>${caption}</figure>`;
 }

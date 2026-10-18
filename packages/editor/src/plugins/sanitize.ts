@@ -1,3 +1,4 @@
+import { metaToProps } from "../parser/meta";
 import type { AnyPartialBlock } from "./types";
 
 /** What the active schema supports, as plain data. */
@@ -7,6 +8,8 @@ export type SchemaSupport = {
   styles: Set<string>;
   links: boolean;
   headingLevels: readonly number[] | null;
+  /** Whether blocks have the `meta` prop (it's left out with `meta={{ policy: "off" }}`). */
+  meta: boolean;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reads arbitrary BlockNote schemas
@@ -21,6 +24,7 @@ export function schemaSupport(schema: { blockSchema: any; styleSchema: any; inli
     links: "link" in schema.inlineContentSchema,
     headingLevels:
       (schema.blockSchema.heading?.propSchema?.level?.values as readonly number[] | undefined) ?? null,
+    meta: Boolean(schema.blockSchema.paragraph?.propSchema?.meta),
   };
 }
 
@@ -74,10 +78,13 @@ function closestLevel(level: number, levels: readonly number[]) {
  * headings move to the nearest allowed level.
  */
 export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: SchemaSupport): AnyPartialBlock[] {
-  return blocks.flatMap((block): AnyPartialBlock[] => {
+  return blocks.flatMap((input): AnyPartialBlock[] => {
+    const block = support.meta ? input : withoutMetaProp(input);
     const children = block.children ? sanitizeBlocks(block.children, support) : undefined;
     const type = block.type ?? "paragraph";
     const kind = support.blocks[type];
+    const meta = (block.props as { meta?: string } | undefined)?.meta;
+    const metaProps = meta ? { props: { meta } } : {};
 
     if (kind) {
       const next: AnyPartialBlock = { ...block, children };
@@ -93,7 +100,7 @@ export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: Sche
 
     if (type === "table") {
       return [
-        ...tableRows(block.content).map((text) => ({ type: "paragraph", content: text }) as AnyPartialBlock),
+        ...tableRows(block.content).map((text, i) => ({ type: "paragraph", content: text, ...(i ? {} : metaProps) }) as AnyPartialBlock),
         ...(children ?? []),
       ];
     }
@@ -103,6 +110,19 @@ export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: Sche
       ? cleanInline(block.content, support)
       : (props.caption || props.name || props.url || "");
     if (!text && !children?.length) return [];
-    return [{ type: "paragraph", content: text as never, children } as AnyPartialBlock];
+    return [{ type: "paragraph", content: text as never, children, ...metaProps } as AnyPartialBlock];
   });
+}
+
+function withoutMetaProp(block: AnyPartialBlock): AnyPartialBlock {
+  const props = block.props as Record<string, unknown> | undefined;
+  if (!props || !("meta" in props)) return block;
+  const rest = { ...props };
+  delete rest.meta;
+  return { ...block, props: rest } as AnyPartialBlock;
+}
+
+/** Public block JSON (top-level `meta`) → blocks the editor can load. */
+export function toEditorBlocks(blocks: readonly AnyPartialBlock[], support: SchemaSupport): AnyPartialBlock[] {
+  return sanitizeBlocks(metaToProps(blocks), support);
 }

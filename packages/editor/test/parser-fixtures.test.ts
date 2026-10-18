@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { runSample, type SampleMeta } from "../fixtures/harness";
 import { browserDom, parseHTML, type HtmlBlock } from "../src/parser";
 import { linkedomDom } from "../src/parser/linkedom";
+import { metaFromProps, metaToProps } from "../src/parser/meta";
+import { resolveEditorSetup } from "../src/plugins/resolve";
 
 const dir = resolve(__dirname, "../fixtures/samples");
 const samples = readdirSync(dir)
@@ -35,10 +37,11 @@ describe.each(samples)("fixture $name", ({ name, html, meta }) => {
     expect(runSample(name, html, meta, browserDom).result.blocks).toEqual(result.result.blocks);
   });
 
-  it("loads into a BlockNote editor unchanged", () => {
+  it("loads into the editor's schema unchanged", () => {
     if (!result.result.blocks.length) return;
-    const editor = BlockNoteEditor.create({ initialContent: result.result.blocks as never });
-    expect(normalize(editor.document as never, editor)).toEqual(result.result.blocks);
+    const { schema } = resolveEditorSetup(undefined);
+    const editor = BlockNoteEditor.create({ schema, initialContent: metaToProps(result.result.blocks) as never });
+    expect(normalize(metaFromProps(editor.document) as never, editor)).toEqual(result.result.blocks);
   });
 });
 
@@ -46,8 +49,9 @@ describe.each(samples)("fixture $name", ({ name, html, meta }) => {
 function normalize(blocks: Record<string, unknown>[], editor: BlockNoteEditor): HtmlBlock[] {
   const schema = editor.schema.blockSchema as Record<string, { propSchema: Record<string, { default?: unknown }> }>;
   return blocks.map((block) => {
-    const { type, props, content, children } = block as { type: string; props: Record<string, unknown>; content?: unknown; children: Record<string, unknown>[] };
+    const { type, props, content, children, meta } = block as { type: string; props: Record<string, unknown>; content?: unknown; children: Record<string, unknown>[]; meta?: HtmlBlock["meta"] };
     const out: HtmlBlock = { type };
+    if (meta) out.meta = meta;
     const kept = Object.fromEntries(Object.entries(props).filter(([k, v]) => (type === "heading" && k === "level") || v !== schema[type].propSchema[k]?.default));
     if (Object.keys(kept).length) out.props = kept as HtmlBlock["props"];
     if (Array.isArray(content)) out.content = content as HtmlBlock["content"];

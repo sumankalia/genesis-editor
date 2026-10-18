@@ -10,6 +10,7 @@ import {
   splitAtDoubleBreaks,
   type Run,
 } from "./inline";
+import { cleanMetaAttrs, mergeMeta, PARSER_ENGINE } from "./meta";
 import { removeNoise } from "./noise";
 import { ReportBuilder } from "./report";
 import { LAZY_SRC_ATTRIBUTES, LAZY_SRCSET_ATTRIBUTES, PLACEHOLDER_SRC } from "./rules/noise";
@@ -138,6 +139,10 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   blocks = emptyWhitespaceOnly(blocks);
   if (options.clean?.emptyParagraphs !== "keep") blocks = collapseEmptyParagraphs(blocks, report);
   countFontSizes(blocks, state);
+  if (options.trackProvenance) {
+    const stamp = { at: new Date().toISOString(), engine: PARSER_ENGINE, ...(state.base ? { origin: state.base } : {}) };
+    blocks = blocks.map((b) => ({ ...b, meta: mergeMeta(b.meta, { import: stamp }) }));
+  }
   return { blocks, report: report.build(mode, blocks.length) };
 }
 
@@ -341,11 +346,11 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
   }
 
   const headingLevel = headingLevelOf(el, tag);
-  if (headingLevel) return heading(el, headingLevel, decl, next, sink, state);
+  if (headingLevel) return withElementMeta(el, sink, () => heading(el, headingLevel, decl, next, sink, state));
 
   if (el.hasAttribute("data-genesis-children")) return nestedChildren(el, next, sink, state);
   const cls = classes(el);
-  if (cls.some((c) => FIGURE_CLASSES.has(c))) return figure(el, decl, next, sink, state);
+  if (cls.some((c) => FIGURE_CLASSES.has(c))) return withElementMeta(el, sink, () => figure(el, decl, next, sink, state));
   if (cls.includes("wp-block-file") && fileBlock(el, sink, state)) return;
 
   const kind = TAG_CLASSES[tag] ?? (tag.includes(":") ? "inline" : undefined);
@@ -364,13 +369,38 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
       if (tag !== "body" && tag !== "html") state.report.unwrap(tag);
       return;
     case "block":
-      return block(el, tag, decl, next, sink, state);
+      return withElementMeta(el, sink, () => block(el, tag, decl, next, sink, state));
     case "drop":
       return;
     default:
       state.report.unwrap(tag);
       if (state.mode === "strict") flow(el, { ...next, textOnly: true }, sink, state);
       else flow(el, next, sink, state);
+  }
+}
+
+/**
+ * Keeps the element's `id`, `lang` and `dir` in `meta.attrs` of the blocks it pushes: `lang`/`dir` on
+ * each of them, `id` on the first only.
+ */
+function withElementMeta(el: Element, sink: Sink, run: () => void) {
+  const attrs = cleanMetaAttrs((name) => el.getAttribute(name));
+  if (!attrs) return run();
+  const { id, ...shared } = attrs;
+  let first = true;
+  const push = sink.push;
+  sink.push = (...blocks: HtmlBlock[]) => {
+    for (const b of blocks) {
+      const own = first && id ? { id, ...shared } : shared;
+      first = false;
+      if (Object.keys(own).length) b.meta = mergeMeta(b.meta, { attrs: own });
+    }
+    push.apply(sink, blocks);
+  };
+  try {
+    run();
+  } finally {
+    sink.push = push;
   }
 }
 
@@ -812,6 +842,8 @@ function list(el: Element, tag: string, decl: Declarations, ctx: Ctx, sink: Sink
     if (isLi) flow(li, blockChildCtx(li, liDecl, itemCtx, state), head, state);
     else visit(child, itemCtx, head, state);
     const item = head.result() ?? withProps({ type, content: [] }, props);
+    const attrs = isLi ? cleanMetaAttrs((name) => li.getAttribute(name)) : undefined;
+    if (attrs) item.meta = mergeMeta(item.meta, { attrs });
     state.report.mapped++;
     out.push(admitItem(item, state));
   }
@@ -824,12 +856,43 @@ function quote(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   const props = blockProps("quote", el, decl, ctx, state);
   const enabled = state.tools.has("quote");
   const head = new HeadSink(state, (content) => withProps({ type: enabled ? "quote" : "paragraph", content }, enabled ? props : {}));
-  flow(el, { ...blockChildCtx(el, decl, ctx, state), container: "quote" }, head, state);
+  const inner: Ctx = { ...blockChildCtx(el, decl, ctx, state), container: "quote" };
+  const attributions = elementChildren(el).filter(isAttribution);
+  for (let child = el.firstChild; child; child = child.nextSibling) {
+    if (!attributions.includes(child as Element)) visit(child, inner, head, state);
+  }
   const result = head.result();
   if (!result) return;
+  for (const a of attributions) addAttribution(result, a, inner, state);
   if (enabled) state.report.mapped++;
   else state.report.downgrade("blockquote", "paragraph");
   sink.push(result);
+}
+
+/** `<cite>`, `<footer>`, or a `<p>` holding only a `<cite>` (and dashes), directly inside a quote. */
+function isAttribution(el: Element) {
+  const tag = lower(el);
+  if (tag === "cite" || tag === "footer") return true;
+  if (tag !== "p") return false;
+  const kids = elementChildren(el);
+  if (kids.length !== 1 || lower(kids[0]) !== "cite") return false;
+  return /^[\s—–-]*$/.test((el.textContent ?? "").replace(kids[0].textContent ?? "", ""));
+}
+
+/** Appends an attribution paragraph (`meta.source.tag = "cite"`) to a quote. A `<cite>`'s own italics aren't applied. */
+function addAttribution(quoteBlock: HtmlBlock, el: Element, ctx: Ctx, state: State) {
+  const tag = lower(el);
+  const source = tag === "p" ? elementChildren(el)[0] : el;
+  const sub = new Sink(state, paragraphMaker(state, {}, false));
+  if (lower(source) === "cite") flow(source, ctx, sub, state);
+  else visit(source, ctx, sub, state);
+  sub.flush();
+  const content = sub.blocks.flatMap((b) => (b.type === "paragraph" && Array.isArray(b.content) ? [b.content as HtmlInline[]] : []));
+  const text = content.filter((c) => inlineText(c).trim());
+  if (!text.length) return;
+  const joined = text.reduce((all, c) => (all.length ? runsToInline([...inlineToRuns(all), ...inlineToRuns([{ type: "text", text: " ", styles: {} }]), ...inlineToRuns(c)]) : c), [] as HtmlInline[]);
+  const attrs = cleanMetaAttrs((name) => el.getAttribute(name));
+  (quoteBlock.children ??= []).push({ type: "paragraph", content: joined, meta: mergeMeta(undefined, { source: { tag: "cite" }, attrs }) });
 }
 
 function preText(node: Node): string {
@@ -1143,6 +1206,11 @@ function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: St
   const mediaBlock = [...sub.blocks].reverse().find((b) => b.type === "image" || b.type === "video" || b.type === "audio");
   if (mediaBlock && caption) mediaBlock.props = { ...mediaBlock.props, caption };
   sink.push(...sub.blocks);
+  const quoteBlock = !mediaBlock ? sub.blocks.find((b) => b.type === "quote") : undefined;
+  if (quoteBlock && caption) {
+    for (const c of captions) addAttribution(quoteBlock, c, figCtx, state);
+    return;
+  }
   if (!mediaBlock && caption) {
     for (const c of captions) {
       const capSink = new Sink(state, paragraphMaker(state, {}, false));
@@ -1272,13 +1340,15 @@ function isEmptyParagraph(block: HtmlBlock) {
 /** Trims empty paragraphs at the edges of each block list and collapses runs of them into one. */
 function collapseEmptyParagraphs(blocks: HtmlBlock[], report: ReportBuilder): HtmlBlock[] {
   const out: HtmlBlock[] = [];
-  for (const block of blocks) {
-    const empty = isEmptyParagraph(block);
-    if (empty && (!out.length || isEmptyParagraph(out[out.length - 1]))) {
+  for (const input of blocks) {
+    // Children first: a paragraph whose children all collapse away is itself empty.
+    const children = input.children?.length ? collapseEmptyParagraphs(input.children, report) : undefined;
+    const block = input.children ? (children?.length ? { ...input, children } : omit(input, "children")) : input;
+    if (isEmptyParagraph(block) && (!out.length || isEmptyParagraph(out[out.length - 1]))) {
       report.drop("p", "noise");
       continue;
     }
-    out.push(block.children?.length ? { ...block, children: collapseEmptyParagraphs(block.children, report) } : block);
+    out.push(block);
   }
   while (out.length && isEmptyParagraph(out[out.length - 1])) {
     out.pop();

@@ -1,4 +1,4 @@
-import { blockAttrs, escapeAttr, escapeText, inline, plainText, type Props } from "./serialize-inline";
+import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, type Props } from "./serialize-inline";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
 import type { HtmlBlock, HtmlTableContent, ToHTMLOptions } from "./types";
 
@@ -48,7 +48,7 @@ function serializeList(tag: "ul" | "ol", items: HtmlBlock[]) {
       const children = !nested.length ? "" : plain ? serializeBlocks(nested) : `<div data-genesis-children>${serializeBlocks(nested)}</div>`;
       // Without a lead paragraph the first child would become the item's own text.
       const lead = !content && children ? "<p></p>" : content;
-      return `<li${value}${blockAttrs(item.props)}>${box}${lead}${children}</li>`;
+      return `<li${value}${metaAttrs(item.meta)}${blockAttrs(item.props)}>${box}${lead}${children}</li>`;
     })
     .join("");
   return `<${tag}${startAttr}>${body}</${tag}>`;
@@ -56,35 +56,59 @@ function serializeList(tag: "ul" | "ol", items: HtmlBlock[]) {
 
 function serializeBlock(block: HtmlBlock): string {
   const props = (block.props ?? {}) as Props;
+  const attrs = metaAttrs(block.meta);
   const children = block.children?.length ? serializeBlocks(block.children) : "";
   const nested = children ? `<div data-genesis-children>${children}</div>` : "";
   switch (block.type) {
     case "paragraph":
-      return `<p${blockAttrs(props)}>${inline(block.content)}</p>${nested}`;
+      return `<p${attrs}${blockAttrs(props)}>${inline(block.content)}</p>${nested}`;
     case "heading": {
       const level = Math.min(6, Math.max(1, typeof props.level === "number" ? Math.round(props.level) : 1));
-      const heading = `<h${level}${blockAttrs(props)}>${inline(block.content)}</h${level}>`;
+      const heading = `<h${level}${attrs}${blockAttrs(props)}>${inline(block.content)}</h${level}>`;
       return props.isToggleable ? `<details open><summary>${heading}</summary>${children}</details>` : heading + nested;
     }
     case "toggleListItem":
-      return `<details open${blockAttrs(props)}><summary>${inline(block.content)}</summary>${children}</details>`;
+      return `<details open${attrs}${blockAttrs(props)}><summary>${inline(block.content)}</summary>${children}</details>`;
     case "quote":
-      return `<blockquote${blockAttrs(props)}><p>${inline(block.content)}</p>${children}</blockquote>`;
+      return `<blockquote${attrs}${blockAttrs(props)}><p>${inline(block.content)}</p>${serializeQuoteChildren(block.children ?? [])}</blockquote>`;
     case "codeBlock": {
       const language = typeof props.language === "string" && props.language !== "text" ? ` class="language-${escapeAttr(props.language)}"` : "";
-      return `<pre><code${language}>${escapeText(plainText(block.content))}</code></pre>${nested}`;
+      return `<pre${attrs}><code${language}>${escapeText(plainText(block.content))}</code></pre>${nested}`;
     }
     case "divider":
-      return `<hr>${nested}`;
+      return `<hr${attrs}>${nested}`;
     case "table":
-      return serializeTable(block.content as HtmlTableContent | undefined) + nested;
+      return serializeTable(block.content as HtmlTableContent | undefined, attrs) + nested;
     case "image":
     case "video":
     case "audio":
-      return serializeMedia(block.type, props) + nested;
+      return serializeMedia(block.type, props, attrs) + nested;
     case "file":
-      return serializeFile(props) + nested;
+      return serializeFile(props, attrs) + nested;
     default:
-      return `<p>${inline(block.content)}</p>${nested}`;
+      return `<p${attrs}>${inline(block.content)}</p>${nested}`;
   }
+}
+
+const isAttribution = (block: HtmlBlock) => block.type === "paragraph" && block.meta?.source?.tag === "cite";
+
+/** Quote children in order, with attribution paragraphs as `<cite>`. */
+function serializeQuoteChildren(children: readonly HtmlBlock[]) {
+  let html = "";
+  let run: HtmlBlock[] = [];
+  const flush = () => {
+    if (run.length) html += serializeBlocks(run);
+    run = [];
+  };
+  for (const child of children) {
+    if (!isAttribution(child)) {
+      run.push(child);
+      continue;
+    }
+    flush();
+    html += `<cite${metaAttrs(child.meta)}>${inline(child.content)}</cite>`;
+    if (child.children?.length) run.push(...child.children);
+  }
+  flush();
+  return html;
 }

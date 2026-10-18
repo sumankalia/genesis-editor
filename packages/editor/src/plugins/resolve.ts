@@ -9,6 +9,7 @@ import type { DefaultReactSuggestionItem } from "@blocknote/react";
 import { Plugin, PluginKey } from "prosemirror-state";
 
 import { builtInTools, corePlugin } from "./built-in";
+import { metaExtension, withMeta } from "./meta";
 import {
   BUILT_IN_TOOLS,
   DEFAULT_TOOLBAR,
@@ -57,8 +58,8 @@ function toolOptions(tools: ToolSelection | undefined, name: string) {
 }
 
 /** A stable string for the parts of `tools`/`plugins` that require a new editor when they change. */
-export function setupSignature(tools: ToolSelection | undefined, plugins: readonly GenesisPlugin[] | undefined) {
-  return JSON.stringify([tools ?? null, (plugins ?? []).map((plugin) => plugin.name)]);
+export function setupSignature(tools: ToolSelection | undefined, plugins: readonly GenesisPlugin[] | undefined, meta = true) {
+  return JSON.stringify([tools ?? null, (plugins ?? []).map((plugin) => plugin.name), meta]);
 }
 
 const noLinksKey = new PluginKey("genesis-no-links");
@@ -101,6 +102,8 @@ function pluginExtension(plugin: GenesisPlugin): ExtensionFactoryInstance | null
 export function resolveEditorSetup(
   tools: ToolSelection | undefined,
   userPlugins: readonly GenesisPlugin[] = [],
+  /** Adds the `meta` prop to every block, plugin blocks included. `false` for `meta={{ policy: "off" }}`. */
+  meta = true,
 ): EditorSetup {
   const seen = new Set<string>();
   for (const plugin of userPlugins) {
@@ -134,6 +137,10 @@ export function resolveEditorSetup(
     for (const [key, item] of Object.entries(plugin.toolbarItems ?? {})) toolbarItems.set(key, item);
   }
   if (!("link" in inlineContentSpecs)) extensions.push(stripLinks);
+  if (meta) {
+    for (const [type, spec] of Object.entries(blockSpecs)) blockSpecs[type] = withMeta(spec);
+    extensions.push(metaExtension);
+  }
 
   const schema = BlockNoteSchema.create({
     blockSpecs: blockSpecs as never,

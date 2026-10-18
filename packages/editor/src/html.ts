@@ -1,6 +1,7 @@
 import type { BlockNoteEditor, BlockNoteEditorOptions, PartialBlock } from "@blocknote/core";
 import { TextSelection } from "prosemirror-state";
 
+import { metaFromProps } from "./parser/meta";
 import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
 import type { CleanOptions, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
@@ -11,6 +12,7 @@ export type HtmlImportOptions = {
   tools?: ToolSelection;
   baseUrl?: string;
   clean?: CleanOptions;
+  trackProvenance?: boolean;
 };
 
 export type HtmlImport = { blocks: PartialBlock[]; report: FidelityReport };
@@ -25,7 +27,7 @@ export function importHTML(
 }
 
 export function exportHTML(editor: BlockNoteEditor): string {
-  return toHTML(editor.document as unknown as HtmlBlock[]);
+  return toHTML(metaFromProps(editor.document) as unknown as HtmlBlock[]);
 }
 
 function isEmptyParagraph(block: { type: string; content?: unknown; children: unknown[] }) {

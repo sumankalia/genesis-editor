@@ -4,15 +4,20 @@ export type {
   BlockEditorProps,
   BlocksFormatProps,
   EditorContent,
+  GenesisBlock,
   HtmlChangeInfo,
   HtmlFormatProps,
   UploadErrorEvent,
 } from "./block-editor";
 export type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
+export { META_VERSION, migrateMeta, stripMeta } from "./parser/meta";
+export type { GenesisMeta, MetaOptions, MetaPolicy } from "./parser/meta";
 export {
   DEFAULT_PERSIST_KEY,
+  STORAGE_VERSION,
   clearStoredDocument,
   loadStoredDocument,
+  migrateStoredDocument,
 } from "./lib/persistence";
 export type { PersistOptions, PersistStatus, StoredDocument } from "./lib/persistence";
 export { MAX_LOCAL_UPLOAD_BYTES, getUploadMode, mapResponsePath, uploadWithConfig } from "./lib/uploads";

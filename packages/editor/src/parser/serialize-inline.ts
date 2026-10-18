@@ -76,6 +76,17 @@ export function colorAttrs(text: unknown, background: unknown, extraStyle: strin
   return (style.length ? ` style="${style.join(";")}"` : "") + data.join("");
 }
 
+const META_ATTRS = ["id", "lang", "dir"] as const;
+
+/** The only engine meta HTML export writes (§16): `id`, `lang`, `dir`. */
+export function metaAttrs(meta: HtmlBlock["meta"]) {
+  const attrs = meta?.attrs;
+  if (!attrs) return "";
+  return META_ATTRS.filter((key) => typeof attrs[key] === "string" && attrs[key])
+    .map((key) => ` ${key}="${escapeAttr(attrs[key])}"`)
+    .join("");
+}
+
 export function blockAttrs(props: Props | undefined) {
   if (!props) return "";
   const align = props.textAlignment;
