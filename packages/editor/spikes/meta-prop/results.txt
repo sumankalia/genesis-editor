@@ -1,0 +1,22 @@
+PASS JSON: meta in editor.document for every block type {"p1":"m-p1","h1":"m-h1","l1":"m-l1","l2":"m-l2","t1":"m-t1","i1":"m-i1","p2":"m-p2"}
+PASS JSON: default is empty string ""
+PASS HTML: blocksToFullHTML writes data-meta
+PASS HTML: tryParseHTMLToBlocks(fullHTML) restores meta ["m-p1","m-h1","m-l1","m-t1","m-i1","m-p2"]
+info lossy HTML contains meta: true
+info clipboard types: blocknote/html, text/html, text/plain; blocknote/html carries data-meta: true
+PASS Copy/paste within editor keeps meta on whole blocks ["paragraph:m-p1","heading:m-h1","bulletListItem:m-l1","table:m-t1","image:m-i1","paragraph:m-p2","heading:m-h1","bulletListItem:m-l1","table:m-t1","image:m-i1","paragraph:m-p2"]
+PASS Copy/paste within editor keeps child meta ["m-l2"]
+PASS Copy/paste: first block merges into the target and takes its meta {"id":"p2","type":"paragraph","meta":"m-p2","children":[]}
+PASS Copy/paste between editors keeps meta on whole blocks ["paragraph:","heading:m-h1","bulletListItem:m-l1","table:m-t1","image:m-i1","paragraph:m-p2"]
+PASS Native Cmd+C / Cmd+V between editors keeps meta ["paragraph:","bulletListItem:m-l1"]
+PASS Drag via side menu moves the block and keeps meta ["h1:m-h1","l1:m-l1","t1:m-t1","i1:m-i1","p1:m-p1","p2:m-p2"]
+PASS Yjs: meta syncs to the other client {"p1":"m-p1","h1":"m-h1","l1":"m-l1","l2":"m-l2","t1":"m-t1","i1":"m-i1","p2":"m-p2"}
+PASS Yjs: updateBlock meta propagates back "changed-in-D"
+PASS Yjs: typing keeps meta on both clients {"text":"First paragraph typed","meta":"m-p1"}
+PASS Yjs: a fresh client loading the doc state sees meta {"p1":"m-p1","h1":"changed-in-D","l1":"m-l1","l2":"m-l2","t1":"m-t1","i1":"m-i1","p2":"m-p2"}
+PASS Split (Enter mid-block): the new block gets empty meta [{"text":"L","meta":"m-p2"},{"text":"ast paragraph","meta":""}]
+PASS Merge (Backspace): merged block keeps the first block's meta [{"text":"Last paragraph","meta":"m-p2"}]
+info Enter at block start (BlockNote keeps props there): [{"id":"p1","type":"paragraph","text":"First paragraph","meta":"m-p1"},{"id":"6f6e67f9-0138-4cb1-8c9e-13cb5ef5e872","type":"paragraph","text":"","meta":""},{"id":"h1","type":"heading","text":"A heading","meta":"m-h1"}]
+PASS Enter at block start: meta stays on exactly one block [{"id":"p1","type":"paragraph","text":"First paragraph","meta":"m-p1"},{"id":"6f6e67f9-0138-4cb1-8c9e-13cb5ef5e872","type":"paragraph","text":"","meta":""},{"id":"h1","type":"heading","text":"A heading","meta":"m-h1"}]
+
+17/17 passed
