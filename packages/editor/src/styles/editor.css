@@ -65,9 +65,20 @@
   background: var(--bn-colors-editor-background, var(--background));
 }
 
+/* Phones: the floating toolbar wraps instead of scrolling its buttons out of sight. */
+@media (max-width: 480px) {
+  .genesis-editor .bn-formatting-toolbar {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 1rem);
+    margin-inline: 0.5rem;
+    overflow: visible;
+  }
+}
+
 .genesis-editor .genesis-fixed-toolbar .bn-formatting-toolbar {
   flex-wrap: wrap;
   max-width: none;
+  margin-inline: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
