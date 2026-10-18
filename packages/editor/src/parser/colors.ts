@@ -172,7 +172,31 @@ export function editorColor(value: string, kind: "text" | "background", allowHex
     const distance = deltaE2000(hex, PALETTE[name][kind]);
     if (distance < bestDistance) [best, bestDistance] = [name, distance];
   }
-  return bestDistance <= PALETTE_DELTA_E || !allowHex ? best : hex;
+  if (bestDistance <= PALETTE_DELTA_E) return best;
+  return allowHex ? hex : nearestByHue(hex);
+}
+
+/**
+ * Strict mode's fallback: the palette name a person would call the colour. Nearest-ΔE2000 is dominated
+ * by lightness and maps pure blue to purple and hot pink backgrounds to green, so this buckets by hue.
+ */
+function nearestByHue(hex: string): PaletteName {
+  const [r, g, b] = hexToRgb(hex)!.map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (s < 0.15 || d < 0.08) return "gray";
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  if (h >= 345 || h < 15) return l < 0.3 && s < 0.6 ? "brown" : "red";
+  if (h < 45) return l < 0.4 ? "brown" : "orange";
+  if (h < 70) return "yellow";
+  if (h < 170) return "green";
+  if (h < 250) return "blue";
+  if (h < 320) return "purple";
+  return "pink";
 }
 
 export function isPaletteName(value: string | null | undefined): value is PaletteName {
