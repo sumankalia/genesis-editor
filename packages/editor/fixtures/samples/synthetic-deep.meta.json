@@ -1,0 +1,6 @@
+{
+  "source": "Synthetic deep nesting (700 divs, 11 list levels)",
+  "minScore": 0.9,
+  "mustInclude": ["before", "bottom", "after"],
+  "mustExclude": ["deep text"]
+}

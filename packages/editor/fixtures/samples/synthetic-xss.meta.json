@@ -1,0 +1,6 @@
+{
+  "source": "Synthetic XSS vectors",
+  "minScore": 0.5,
+  "mustInclude": ["Safe text", "ok link", "https://ok.example/", "The end."],
+  "mustExclude": ["alert", "javascript", "<script", "onerror", "onclick", "svg+xml", "template content", "steal"]
+}

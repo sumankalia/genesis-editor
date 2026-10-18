@@ -1,0 +1,11 @@
+{
+  "source": "WordPress block editor post (reconstructed)",
+  "minScore": 0.85,
+  "mustInclude": ["What’s new", "npm install genesis-editor", "The new editor in dark mode", "https://blog.example.com/wp-content/uploads/2026/10/hero.jpg"],
+  "mustExclude": ["utm_source", "pixel.wp.com", "data-ga-event", "dataLayer", "#whats-new"],
+  "expect": [
+    { "path": "0", "type": "heading", "props": { "level": 2 } },
+    { "path": "1", "type": "paragraph", "props": { "textAlignment": "center" } },
+    { "path": "2", "type": "image", "props": { "textAlignment": "center", "caption": "The new editor in dark mode" } }
+  ]
+}

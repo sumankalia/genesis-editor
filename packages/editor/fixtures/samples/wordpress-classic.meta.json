@@ -1,0 +1,10 @@
+{
+  "source": "WordPress classic editor post (reconstructed)",
+  "minScore": 0.8,
+  "mustInclude": ["Welcome to our garden", "Tulips in April", "closed", "mailto:hi@garden.example.org", "https://garden.example.org/map"],
+  "mustExclude": ["fbclid", "l.facebook.com"],
+  "expect": [
+    { "path": "0", "type": "heading", "props": { "level": 2, "textAlignment": "center" } },
+    { "path": "2", "type": "image", "props": { "caption": "Tulips in April", "textAlignment": "right" } }
+  ]
+}

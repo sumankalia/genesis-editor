@@ -1,0 +1,10 @@
+{
+  "source": "Google Docs clipboard (reconstructed)",
+  "minScore": 0.9,
+  "mustInclude": ["Quarterly planning", "the roadmap", "Merged cells", "suman"],
+  "mustExclude": ["docs-internal-guid", "utm_source", "google.com/url"],
+  "expect": [
+    { "path": "0", "type": "heading", "props": { "level": 1 } },
+    { "path": "1", "type": "heading", "props": { "level": 1 } }
+  ]
+}

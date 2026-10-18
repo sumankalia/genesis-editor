@@ -1,0 +1,5 @@
+{
+  "source": "Synthetic malformed HTML",
+  "minScore": 0.8,
+  "mustInclude": ["Unclosed paragraph", "bold italic", "para in item", "wide", "nested quote", "after a double break", "block in span", "orphan list item", "&lt;not a tag&gt;", "©"]
+}
