@@ -384,9 +384,13 @@ export function embedScriptTag(script: EmbedScript) {
   return `<script async src="${escapeAttr(script.src)}"${attrs} charset="utf-8"></script>`;
 }
 
-/** Posts the document height to the parent; the editor matches it to the frame by `event.source`. */
+/**
+ * Posts the content height to the parent; the editor matches it to the frame by `event.source`. The body's
+ * height, since the root's is never below the frame's; and on `load` too, since off-screen frames skip resize observations.
+ */
 const WIDGET_RESIZE =
-  "new ResizeObserver(function(){parent.postMessage({genesisEmbedHeight:document.documentElement.scrollHeight},'*')}).observe(document.documentElement)";
+  "function h(){parent.postMessage({genesisEmbedHeight:Math.ceil(document.body.getBoundingClientRect().height)},'*')}" +
+  "addEventListener('load',h);new ResizeObserver(h).observe(document.body)";
 
 /**
  * The `srcdoc` for a `render: "widget"` embed: the snippet rebuilt from the stored URL and text (never the
