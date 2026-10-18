@@ -6,7 +6,7 @@ import {
   usePortalElement,
   useUIMode,
 } from "@blocknote/react";
-import { ChevronDownIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
 import { DEFAULT_FONT_SIZE, FONT_SIZES } from "../parser/font-size";
 import { selectionFontSizes, setFontSize } from "../plugins/text-styles";
@@ -61,17 +61,21 @@ export function FontSizeSelect() {
       <Components.Generic.Menu.Dropdown className="bn-menu-dropdown genesis-font-size-menu">
         {FONT_SIZES.map((px) => {
           const size = px === DEFAULT_FONT_SIZE ? undefined : `${px}px`;
+          const selected = !mixed && current === size;
+          // Not `checked`: in the shadcn skin that makes a Base UI checkbox item, which stays open on click.
           return (
-            <Components.Generic.Menu.Item
-              key={px}
-              checked={!mixed && current === size}
-              onClick={() => apply(size)}
-            >
-              <span className="flex w-28 items-baseline justify-between gap-3 whitespace-nowrap" data-size={px}>
-                <span className="text-sm tabular-nums">{px === DEFAULT_FONT_SIZE ? "Default" : px}</span>
+            <Components.Generic.Menu.Item key={px} onClick={() => apply(size)}>
+              <span
+                className="flex w-32 items-center gap-3 whitespace-nowrap"
+                data-size={px}
+                data-selected={selected || undefined}
+                aria-current={selected || undefined}
+              >
+                <span className="flex-1 text-sm tabular-nums">{px === DEFAULT_FONT_SIZE ? "Default" : px}</span>
                 <span className="text-muted-foreground" style={{ fontSize: `${px}px` }} aria-hidden>
                   Aa
                 </span>
+                <CheckIcon className={`size-4 shrink-0 ${selected ? "" : "invisible"}`} aria-hidden />
               </span>
             </Components.Generic.Menu.Item>
           );

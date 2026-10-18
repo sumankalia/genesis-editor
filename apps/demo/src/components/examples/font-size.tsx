@@ -43,7 +43,7 @@ export default function FontSizeExample() {
         </button>
         {report && (
           <span className="text-muted-foreground" data-testid="font-size-report">
-            Last paste: {report.sized} sized, {report.clamped} clamped
+            Last import: {report.sized} sized, {report.clamped} clamped
           </span>
         )}
       </div>
