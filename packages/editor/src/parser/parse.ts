@@ -1157,12 +1157,13 @@ function details(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: S
     const sub = new HeadingSink(state);
     flow(headingEl, { ...inner, container: "heading" }, sub, state);
     sub.flush();
-    [head] = makeHeading(sub.content, headingLevelOf(headingEl, lower(headingEl))!, {}, state, { isToggleable: true });
+    const headingProps = blockProps("heading", headingEl, parseStyle(headingEl.getAttribute("style")), ctx, state);
+    [head] = makeHeading(sub.content, headingLevelOf(headingEl, lower(headingEl))!, headingProps, state, { isToggleable: true });
   } else {
     const sub = new HeadingSink(state);
     if (summary) flow(summary, inner, sub, state);
     sub.flush();
-    head = admitItem({ type: "toggleListItem", content: sub.content }, state);
+    head = admitItem(withProps({ type: "toggleListItem", content: sub.content }, blockProps("toggleListItem", el, decl, ctx, state)), state);
     if (head.type === "toggleListItem") state.report.mapped++;
   }
   if (body.blocks.length) head.children = body.blocks;
