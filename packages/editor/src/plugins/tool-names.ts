@@ -52,6 +52,7 @@ export const DEFAULT_TOOLBAR = [
   "alignLeft",
   "alignCenter",
   "alignRight",
+  "fontSize",
   "colors",
   "nest",
   "unnest",

@@ -1,10 +1,10 @@
 import { createExtension, createStyleSpec } from "@blocknote/core";
 import type { Node as PMNode } from "prosemirror-model";
-import { Plugin, PluginKey } from "prosemirror-state";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 
 import { cssColor, editorColor, isPaletteName, withContrast } from "../parser/colors";
-import { isFontSize } from "../parser/font-size";
+import { isFontSize, stepFontSize } from "../parser/font-size";
 
 /** Backgrounds hex text is checked against with `colorContrast="auto"`. */
 const LIGHT_BACKGROUND = "#ffffff";
@@ -125,6 +125,77 @@ export function swatchCss(scope: string, swatches: readonly { name: string; hex:
     )
     .join("\n");
 }
+
+/** Block content types whose text takes no font size (§5). */
+const UNSIZED_BLOCKS = new Set(["heading", "codeBlock"]);
+
+/**
+ * The font sizes in the selection (`undefined` = default), or `null` when it touches a heading or code
+ * block. An empty selection gives the size typing would use.
+ */
+export function selectionFontSizes(state: EditorState): (string | undefined)[] | null {
+  const type = state.schema.marks.fontSize;
+  if (!type) return null;
+  const { from, to, empty, $from } = state.selection;
+  let unsized = false;
+  state.doc.nodesBetween(from, to, (node) => {
+    if (node.isTextblock && UNSIZED_BLOCKS.has(node.type.name)) unsized = true;
+    return !unsized;
+  });
+  if (unsized || ($from.parent.isTextblock && UNSIZED_BLOCKS.has($from.parent.type.name))) return null;
+  const sizeOf = (marks: readonly { type: unknown; attrs: Record<string, unknown> }[]) => {
+    const value = marks.find((m) => m.type === type)?.attrs.stringValue;
+    return isFontSize(value) ? value : undefined;
+  };
+  if (empty) return [sizeOf(state.storedMarks ?? $from.marks())];
+  const sizes = new Set<string | undefined>();
+  state.doc.nodesBetween(from, to, (node) => {
+    if (node.isText) sizes.add(sizeOf(node.marks));
+  });
+  return sizes.size ? [...sizes] : [undefined];
+}
+
+/** Sets (or, for the default, removes) the font size on the selection. */
+export function setFontSize(state: EditorState, size: string | undefined): Transaction | null {
+  const type = state.schema.marks.fontSize;
+  if (!type || selectionFontSizes(state) === null) return null;
+  const { from, to, empty } = state.selection;
+  const tr = state.tr;
+  if (empty) {
+    tr.removeStoredMark(type);
+    if (size) tr.addStoredMark(type.create({ stringValue: size }));
+    return tr;
+  }
+  tr.removeMark(from, to, type);
+  if (size) tr.addMark(from, to, type.create({ stringValue: size }));
+  return tr;
+}
+
+const fontSizeKeysKey = new PluginKey("genesisFontSizeKeys");
+
+/** `Mod+Shift+.` / `Mod+Shift+,` step the selection's size up and down (§5). */
+export const fontSizeKeysExtension = createExtension({
+  key: "genesisFontSizeKeys",
+  prosemirrorPlugins: [
+    new Plugin({
+      key: fontSizeKeysKey,
+      props: {
+        handleKeyDown(view, event) {
+          if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.altKey) return false;
+          const direction = event.code === "Period" ? 1 : event.code === "Comma" ? -1 : 0;
+          if (!direction) return false;
+          const sizes = selectionFontSizes(view.state);
+          if (!sizes) return false;
+          const tr = setFontSize(view.state, stepFontSize(sizes[0], direction));
+          if (!tr) return false;
+          view.dispatch(tr);
+          event.preventDefault();
+          return true;
+        },
+      },
+    }),
+  ],
+});
 
 function sizedSpan(value: string | undefined, external: boolean) {
   const span = document.createElement("span");

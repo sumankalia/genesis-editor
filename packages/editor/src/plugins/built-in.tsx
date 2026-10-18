@@ -19,10 +19,11 @@ import {
 import { useMemo } from "react";
 
 import { ColorPickerButton } from "../components/color-picker";
+import { FontSizeSelect } from "../components/font-size-select";
 import { resolveColorConfig } from "../parser/colors";
 import { embedSlashItem, embedSpec } from "./embed";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
-import { backgroundColorSpec, blockHexColorsExtension, fontSizeSpec, textColorSpec } from "./text-styles";
+import { backgroundColorSpec, blockHexColorsExtension, fontSizeKeysExtension, fontSizeSpec, textColorSpec } from "./text-styles";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
 
@@ -140,5 +141,11 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       toolbarItems: { colors: () => <ColorPickerButton config={config} /> },
     });
   },
-  fontSize: () => definePlugin({ name: "fontSize", styles: { fontSize: fontSizeSpec } }),
+  fontSize: () =>
+    definePlugin({
+      name: "fontSize",
+      styles: { fontSize: fontSizeSpec },
+      extensions: [fontSizeKeysExtension],
+      toolbarItems: { fontSize: FontSizeSelect },
+    }),
 };
