@@ -55,6 +55,7 @@ export type HtmlBlock = {
 export type ParseMode = "clean" | "strict";
 
 export type ParseOptions = {
+  /** `"strict"` also snaps custom colors to the palette, keeps only text inside unknown elements, and drops media whose tool is off instead of linking it. Defaults to `"clean"`. */
   mode?: ParseMode;
   /** The editor's `tools`. Content for disabled tools is downgraded so the result is always editable. */
   tools?: ToolSelection;

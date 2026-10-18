@@ -33,6 +33,8 @@ const examples = {
   "tools-minimal-toolbar": load(() => import("./tools-minimal-toolbar")),
   "tools-fixed-toolbar": load(() => import("./tools-fixed-toolbar")),
   "plugin-callout": load(() => import("./plugin-callout")),
+  "html-value": load(() => import("./html-value")),
+  "html-paste": load(() => import("./html-paste")),
 };
 
 export type ExampleName = keyof typeof examples;

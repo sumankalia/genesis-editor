@@ -8,7 +8,7 @@
     "start": "next start -p 4317",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "e2e": "node e2e/editor.mjs && node e2e/uploads.mjs && node e2e/docs.mjs && node e2e/tools.mjs"
+    "e2e": "node e2e/editor.mjs && node e2e/uploads.mjs && node e2e/docs.mjs && node e2e/tools.mjs && node e2e/html.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

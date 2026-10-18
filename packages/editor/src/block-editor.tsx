@@ -103,7 +103,7 @@ export type HtmlFormatProps = {
 
 export type BlockEditorProps = UploadConfig &
   (BlocksFormatProps | HtmlFormatProps) & {
-  /** How pasted and loaded HTML is cleaned: `"clean"` keeps custom colors, `"strict"` snaps them to the palette. Defaults to `"clean"`. */
+  /** How pasted and loaded HTML is cleaned: `"strict"` also snaps custom colors to the palette and drops what the editor can't show exactly. Defaults to `"clean"`. */
   htmlMode?: ParseMode;
   /** Resolves relative links and image sources in pasted and loaded HTML. */
   baseUrl?: string;
