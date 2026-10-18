@@ -1,4 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
+
+import type { EmbedProvider } from "../parser/embeds";
 /* eslint-disable @typescript-eslint/no-explicit-any -- plugins extend the schema, so editor and spec types are open here */
 import type {
   BlockNoteEditor,
@@ -69,6 +71,8 @@ export type GenesisPlugin = {
   markdownShortcuts?: MarkdownShortcut[];
   /** Keyboard shortcuts in ProseMirror notation (`"Mod-Shift-c"`). Return `true` when handled. */
   keyboardShortcuts?: Record<string, (editor: AnyEditor) => boolean>;
+  /** Embed providers (`defineEmbedProvider`), tried before the built-ins. */
+  embeds?: EmbedProvider[];
   /** Lower-level BlockNote extensions (`createExtension(...)`), for ProseMirror plugins and more. */
   extensions?: ExtensionFactoryInstance[];
 };

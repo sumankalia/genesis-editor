@@ -8,6 +8,7 @@ import {
 import type { DefaultReactSuggestionItem } from "@blocknote/react";
 import { Plugin, PluginKey } from "prosemirror-state";
 
+import type { EmbedProvider } from "../parser/embeds";
 import { builtInTools, corePlugin } from "./built-in";
 import { metaExtension, withMeta } from "./meta";
 import {
@@ -42,6 +43,8 @@ export type EditorSetup = {
   toolbarItems: Map<string, ToolbarItem>;
   /** Toolbar item names in default order: built-ins, then plugin items. */
   defaultToolbar: string[];
+  /** Embed providers from plugins, in plugin order. */
+  embedProviders: EmbedProvider[];
 };
 
 function isEnabled(tools: ToolSelection | undefined, name: string) {
@@ -161,6 +164,7 @@ export function resolveEditorSetup(
     extensions,
     toolbarItems,
     defaultToolbar,
+    embedProviders: plugins.flatMap((plugin) => plugin.embeds ?? []),
   };
 }
 

@@ -1,10 +1,13 @@
 import type { Block, BlockNoteEditor, BlockNoteEditorOptions, PartialBlock } from "@blocknote/core";
 import { TextSelection } from "prosemirror-state";
 
+import { embedForUrl, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { metaFromProps } from "./parser/meta";
 import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
+import { escapeAttr, escapeText } from "./parser/serialize-inline";
 import type { CleanOptions, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
+import { convertBareEmbedLinks, embedRegistryOf } from "./plugins/embed";
 import type { ToolSelection } from "./plugins/resolve";
 
 export type HtmlImportOptions = {
@@ -14,6 +17,8 @@ export type HtmlImportOptions = {
   clean?: CleanOptions;
   trackProvenance?: boolean;
   maxDataImageBytes?: number;
+  embeds?: EmbedOptions;
+  embedProviders?: readonly EmbedProvider[];
 };
 
 export type HtmlImport = { blocks: PartialBlock[]; report: FidelityReport };
@@ -27,8 +32,8 @@ export function importHTML(
   return { blocks: sanitize(blocks as PartialBlock[]), report };
 }
 
-export function exportHTML(editor: BlockNoteEditor): string {
-  return toHTML(metaFromProps(editor.document) as unknown as HtmlBlock[]);
+export function exportHTML(editor: BlockNoteEditor, embedProviders?: readonly EmbedProvider[]): string {
+  return toHTML(metaFromProps(editor.document) as unknown as HtmlBlock[], { embedProviders });
 }
 
 function isEmptyParagraph(block: { type: string; content?: unknown; children: unknown[] }) {
@@ -143,15 +148,23 @@ export function createPasteHandler(
   return ({ event, editor, defaultPasteHandler }) => {
     const data = event.clipboardData;
     const types = data ? Array.from(data.types) : [];
-    if (!data || !types.includes("text/html") || types.includes("blocknote/html") || types.includes("vscode-editor-data")) {
-      return defaultPasteHandler();
+    if (!data || types.includes("blocknote/html") || types.includes("vscode-editor-data")) return defaultPasteHandler();
+    let html = types.includes("text/html") ? data.getData("text/html") : "";
+    if (!html) {
+      // A provider URL copied from the address bar arrives as plain text; it goes in as a link first.
+      const url = types.includes("text/plain") ? data.getData("text/plain").trim() : "";
+      const embeds = "embed" in editor.schema.blockSchema;
+      if (!embeds || !/^https?:\/\/\S+$/.test(url) || !embedForUrl(url, embedRegistryOf(editor))) return defaultPasteHandler();
+      html = `<p><a href="${escapeAttr(url)}">${escapeText(url)}</a></p>`;
     }
     const inCode = editor.transact((tr) => Boolean(tr.selection.$from.parent.type.spec.code));
     if (inCode) return defaultPasteHandler();
-    const html = data.getData("text/html");
     const result = importHTML(html, getOptions(), sanitize);
     if (!result.blocks.length) return defaultPasteHandler({ prioritizeMarkdownOverHTML: false });
-    const inserted = insertBlocks(editor as unknown as BlockNoteEditor, result.blocks);
+    const target = editor as unknown as BlockNoteEditor;
+    const inserted = insertBlocks(target, result.blocks);
+    const converted = convertBareEmbedLinks(target, [...inserted, target.getTextCursorPosition().block]);
+    result.report.embeds.provider += converted.length;
     onImport(result, html, inserted);
     return true;
   };

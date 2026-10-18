@@ -2,6 +2,17 @@ import { deltaE2000, editorColor, isPaletteName, parseColor } from "./colors";
 import { parseStyle, toPx, type Declarations } from "./css";
 import { defaultDom, ELEMENT_NODE, TEXT_NODE } from "./dom";
 import {
+  cleanAspectRatio,
+  embedForElement,
+  embedForIframe,
+  embedForUrl,
+  embedBlockProps,
+  embedRegistry,
+  type EmbedExtras,
+  type EmbedRegistry,
+  type ResolvedEmbed,
+} from "./embeds";
+import {
   finalizeRuns,
   inlineText,
   inlineToRuns,
@@ -66,6 +77,7 @@ type State = {
   report: ReportBuilder;
   maxDepth: number;
   maxDataImageBytes?: number;
+  embeds: EmbedRegistry;
   /** Characters of body text per font size, to find the source's body size. */
   sizes: Map<number, number>;
   /** Paragraphs that may be styled headings, checked once the body size is known. */
@@ -122,6 +134,7 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
     report,
     maxDepth: options.maxDepth ?? 512,
     maxDataImageBytes: options.maxDataImageBytes,
+    embeds: embedRegistry(options.embeds, options.embedProviders, { strict: mode === "strict" }),
     sizes: new Map(),
     candidates: new WeakMap(),
   };
@@ -666,6 +679,7 @@ function block(el: Element, tag: string, decl: Declarations, ctx: Ctx, sink: Sin
     case "li":
       return list(el, "ul", decl, ctx, sink, state, [el]);
     case "blockquote":
+      if (siteEmbed(el, sink, state)) return;
       return quote(el, decl, ctx, sink, state);
     case "pre":
       return code(el, ctx, sink, state);
@@ -1194,20 +1208,80 @@ function linkParagraph(url: string, label: string, state: State): HtmlBlock {
   return { type: "paragraph", content };
 }
 
+const positiveInt = (value: string | null | undefined) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 && n <= 10000 ? n : undefined;
+};
+
+/** An embed block, or a link paragraph when the `embed` tool is off or the policy refuses the iframe. */
+function pushEmbed(tag: string, resolved: ResolvedEmbed | null, fallbackUrl: string, extras: EmbedExtras, sink: Sink, state: State) {
+  sink.flush();
+  if (resolved && state.tools.has("embed")) {
+    state.report.mapped++;
+    state.report.embeds[resolved.provider ? "provider" : "generic"]++;
+    return sink.push({ type: "embed", props: embedBlockProps(resolved, extras) });
+  }
+  if (!resolved) state.report.embeds.blocked++;
+  state.report.downgrade(tag, "link paragraph");
+  const url = resolved?.url ?? fallbackUrl;
+  sink.push(linkParagraph(url, extras.title || url, state));
+  if (extras.caption) sink.push({ type: "paragraph", content: [{ type: "text", text: extras.caption, styles: {} }] });
+}
+
 function iframe(el: Element, ctx: Ctx, sink: Sink, state: State) {
   const src = el.getAttribute("src");
   const url = src ? resolveUrl(src, state.base).url : undefined;
-  if (!url || !/^https:/i.test(url) || isTrackerUrl(url)) {
+  const resolved = url && !isTrackerUrl(url) ? embedForIframe(url, state.embeds) : null;
+  if (!url || (!resolved && (!/^https:/i.test(url) || isTrackerUrl(url)))) {
     state.report.drop("iframe", url && isTrackerUrl(url) ? "tracking" : "embed", url);
     return;
   }
-  sink.flush();
-  state.report.downgrade("iframe", "link paragraph");
-  const title = el.getAttribute("title")?.trim();
-  sink.push(linkParagraph(url, title || url, state));
+  const width = positiveInt(el.getAttribute("width"));
+  const height = positiveInt(el.getAttribute("height"));
+  const extras: EmbedExtras = { title: el.getAttribute("title")?.trim() || undefined };
+  // Pasted sizes only shape generic embeds; providers know their own.
+  if (resolved && !resolved.provider) extras.aspectRatio = width && height ? `${width}/${height}` : "16/9";
+  pushEmbed("iframe", resolved, url, extras, sink, state);
+}
+
+/** `<blockquote class="twitter-tweet">` and friends; their `<script>` is already gone. Off with the `embed` tool, they stay quotes. */
+function siteEmbed(el: Element, sink: Sink, state: State) {
+  if (!state.tools.has("embed")) return false;
+  const resolved = embedForElement(el, state.embeds);
+  if (!resolved) return false;
+  pushEmbed("blockquote", resolved, resolved.url, {}, sink, state);
+  return true;
+}
+
+/** Our own export (`toHTML`), in either form. The provider is matched again from `data-url`, never trusted. */
+function embedFigure(el: Element, sink: Sink, state: State) {
+  const url = el.getAttribute("data-url")?.trim() ?? "";
+  const provider = el.getAttribute("data-provider") ?? "";
+  const frame = el.querySelector("iframe");
+  const src = frame?.getAttribute("src") ?? "";
+  const resolved =
+    (provider && url ? embedForUrl(url, state.embeds, provider) : null) ??
+    (url ? embedForUrl(url, state.embeds) : null) ??
+    (url || src ? embedForIframe(url || src, state.embeds) : null);
+  const caption = elementChildren(el).find((c) => lower(c) === "figcaption");
+  pushEmbed(
+    "figure",
+    resolved,
+    url || src,
+    {
+      title: el.getAttribute("data-title")?.trim() || undefined,
+      caption: caption?.textContent?.replace(/\s+/g, " ").trim() || undefined,
+      aspectRatio: cleanAspectRatio(el.getAttribute("data-aspect-ratio")),
+      height: positiveInt(el.getAttribute("data-height")),
+      previewWidth: positiveInt(el.getAttribute("data-preview-width")),
+    },
+    sink,
+    state,
+  );
 }
 
 function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: State) {
+  if (el.hasAttribute("data-genesis-embed")) return embedFigure(el, sink, state);
   sink.flush();
   reportStyles(el, decl, state);
   const isCaption = (c: Element) => lower(c) === "figcaption" || classes(c).some((x) => FIGCAPTION_CLASSES.has(x));

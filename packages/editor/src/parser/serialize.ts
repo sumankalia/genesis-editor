@@ -1,5 +1,7 @@
 import { isSafeUrl } from "./sanitize";
 import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, type Props } from "./serialize-inline";
+import { embedRegistry, type EmbedRegistry } from "./embeds";
+import { serializeEmbed } from "./serialize-embed";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
 import type { HtmlBlock, HtmlTableContent, ToHTMLOptions } from "./types";
 
@@ -15,8 +17,17 @@ const LIST_TAGS: Record<string, "ul" | "ol"> = {
  * Children of blocks that have no HTML nesting go in a `<div data-genesis-children>` after the block.
  */
 export function toHTML(blocks: readonly HtmlBlock[], options: ToHTMLOptions = {}): string {
-  return serializeBlocks(blocks, options.separator ?? "\n");
+  const previous = env;
+  // No origin: the exporting app's origin isn't known, and generic frames are sandboxed without `allow-same-origin`.
+  env = { embeds: options.embeds ?? "iframe", registry: embedRegistry({}, options.embedProviders, { origin: "" }) };
+  try {
+    return serializeBlocks(blocks, options.separator ?? "\n");
+  } finally {
+    env = previous;
+  }
 }
+
+let env: { embeds: "iframe" | "link"; registry: EmbedRegistry } = { embeds: "iframe", registry: embedRegistry({}, [], { origin: "" }) };
 
 function serializeBlocks(blocks: readonly HtmlBlock[], separator = ""): string {
   const out: string[] = [];
@@ -86,6 +97,8 @@ function serializeBlock(block: HtmlBlock): string {
       return serializeMedia(block.type, props, attrs) + nested;
     case "file":
       return serializeFile(props, attrs) + nested;
+    case "embed":
+      return serializeEmbed(props, attrs, env.embeds, env.registry) + nested;
     default:
       return `<p${attrs}>${inline(block.content)}</p>${nested}`;
   }

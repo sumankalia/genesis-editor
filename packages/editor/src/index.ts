@@ -11,6 +11,9 @@ export type {
 } from "./block-editor";
 export type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
 export { META_VERSION, migrateMeta, stripMeta } from "./parser/meta";
+export { defineEmbedProvider, getEmbedFrameSrc, GENERIC_SANDBOX, PROVIDER_ALLOW, PROVIDER_SANDBOX } from "./parser/embeds";
+export type { EmbedFrame, EmbedOptions, EmbedProvider } from "./parser/embeds";
+export { BUILT_IN_EMBED_PROVIDERS } from "./parser/embed-providers";
 export type { GenesisMeta, MetaOptions, MetaPolicy } from "./parser/meta";
 export {
   DEFAULT_PERSIST_KEY,

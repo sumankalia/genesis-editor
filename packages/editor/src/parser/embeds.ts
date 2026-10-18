@@ -181,6 +181,21 @@ export function getEmbedFrameSrc(options: EmbedOptions = {}, extra: readonly Emb
   return [...origins];
 }
 
+export type EmbedExtras = { title?: string; caption?: string; aspectRatio?: string; height?: number; previewWidth?: number };
+
+/** The `embed` block props for a resolved embed. A fixed height wins over an aspect ratio. */
+export function embedBlockProps(resolved: ResolvedEmbed, extras: EmbedExtras = {}) {
+  const props: Record<string, string | number> = { provider: resolved.provider, url: resolved.url, embedUrl: resolved.frame.src };
+  const height = extras.height ?? resolved.frame.height;
+  const aspectRatio = extras.aspectRatio ?? resolved.frame.aspectRatio;
+  if (height) props.height = height;
+  else if (aspectRatio) props.aspectRatio = aspectRatio;
+  if (extras.title) props.title = extras.title;
+  if (extras.caption) props.caption = extras.caption;
+  if (extras.previewWidth) props.previewWidth = extras.previewWidth;
+  return props;
+}
+
 /** A stored aspect ratio such as `"16/9"` or `"1.5/1"`, or `undefined` when it isn't one. */
 export function cleanAspectRatio(value: string | null | undefined) {
   const match = value?.trim().match(/^(\d{1,5}(?:\.\d{1,3})?)\s*\/\s*(\d{1,5}(?:\.\d{1,3})?)$/);

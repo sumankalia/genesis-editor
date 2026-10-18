@@ -24,6 +24,7 @@ export const BLOCK_TOOLS = [
   "video",
   "audio",
   "file",
+  "embed",
 ] as const;
 
 export const INLINE_TOOLS = ["bold", "italic", "underline", "strike", "code", "link", "color"] as const;

@@ -91,8 +91,8 @@ describe("media", () => {
     ]);
   });
 
-  it("turns iframes into link paragraphs and drops non-https ones", () => {
-    expect(blocks('<iframe src="https://www.youtube.com/embed/x" title="Video"></iframe>')).toEqual([{ type: "paragraph", content: [{ type: "link", href: "https://www.youtube.com/embed/x", content: [t("Video")] }] }]);
+  it("turns iframes into link paragraphs when the embed tool is off, and drops non-https ones", () => {
+    expect(blocks('<iframe src="https://www.youtube.com/embed/x" title="Video"></iframe>', { tools: ["link"] })).toEqual([{ type: "paragraph", content: [{ type: "link", href: "https://www.youtube.com/embed/x", content: [t("Video")] }] }]);
     expect(parse('<iframe src="http://x.com/"></iframe>').report.dropped[0]).toMatchObject({ tag: "iframe", reason: "embed" });
   });
 

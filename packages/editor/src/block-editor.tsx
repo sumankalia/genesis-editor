@@ -35,6 +35,7 @@ import {
   type HtmlImport,
   type HtmlImportOptions,
 } from "./html";
+import { embedRegistry, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { metaFromProps, stripMeta, type GenesisMeta, type MetaOptions } from "./parser/meta";
 import { toHTML } from "./parser/serialize";
 import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
@@ -55,6 +56,7 @@ import { MAX_INLINE_DATA_IMAGE_BYTES, RehostQueue, fileNameFromUrl } from "./lib
 import { UploadStatusStore } from "./lib/upload-status";
 import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig } from "./lib/uploads";
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
+import { registerEmbedRegistry } from "./plugins/embed";
 import { acceptsFile } from "./plugins/files";
 import { REHOST_META, registerRehostQueue } from "./plugins/specs";
 import {
@@ -143,6 +145,13 @@ export type BlockEditorProps = UploadConfig &
    * it out of the schema; changing between `"off"` and the other policies mounts a new editor.
    */
   meta?: MetaOptions;
+  /**
+   * Which embeds may show (§8): `"open"` (the default) allows providers plus sandboxed generic iframes;
+   * `"allowlist"` allows providers only, which is recommended for user-generated content. Read once.
+   */
+  embeds?: EmbedOptions;
+  /** Extra embed providers (`defineEmbedProvider`), tried before the built-ins. Read once. */
+  embedProviders?: EmbedProvider[];
   /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
@@ -286,6 +295,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     toolbar,
     plugins,
     meta,
+    embeds,
+    embedProviders,
     latestDocument,
   },
   ref,
@@ -298,6 +309,13 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const trackProvenance = meta?.trackProvenance;
   const [setup] = useState(() => resolveEditorSetup(tools, plugins, metaPolicy !== "off"));
   const [support] = useState(() => schemaSupport(setup.schema));
+  const [embedOptions] = useState(() => ({ embeds, embedProviders: [...(embedProviders ?? []), ...setup.embedProviders] }));
+  const [embedSetup] = useState(() =>
+    embedRegistry(embedOptions.embeds, embedOptions.embedProviders, {
+      strict: htmlMode === "strict",
+      origin: typeof window !== "undefined" ? window.location.origin : undefined,
+    }),
+  );
   const isHtml = format === "html";
   const htmlValue = isHtml && typeof value === "string" ? value : undefined;
   const blocksValue = isHtml ? undefined : (value as EditorContent | undefined);
@@ -310,7 +328,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     let imported: HtmlImport | null = null;
     const parse = (html: string | undefined) => {
       if (!html?.trim()) return undefined;
-      imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance }), sanitize);
+      imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, ...embedOptions }), sanitize);
       return nonEmpty(imported.blocks);
     };
     const content =
@@ -332,12 +350,12 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const uploadConfig = useRef<UploadConfig>({});
   const uploadMode = getUploadMode({ uploadFile, uploadUrl });
   const pasteImageLimit = uploadMode === "local" ? MAX_INLINE_DATA_IMAGE_BYTES : undefined;
-  const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit });
+  const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit, ...embedOptions });
   const editableRef = useRef(editable);
   useLayoutEffect(() => {
     callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
     uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse, uploadFromUrl, uploadRemote, uploadHeaders, rehostImages, trustedHosts, uploadConcurrency };
-    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit };
+    htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit, ...embedOptions };
     editableRef.current = editable;
   });
 
@@ -427,6 +445,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     uploadFile: (file, blockId) => rehost.track(upload(file, blockId)),
   }) as unknown as BlockNoteEditor;
   registerRehostQueue(editor, rehost);
+  registerEmbedRegistry(editor, embedSetup);
   const colorScheme = useColorScheme(theme);
 
   function markHosted(blockId: string, url: string) {
@@ -482,7 +501,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     () => (metaPolicy === "keep" ? documentBlocks() : stripMeta(documentBlocks())),
     [documentBlocks, metaPolicy],
   );
-  const exportedHtml = useCallback(() => toHTML(exportedBlocks() as unknown as HtmlBlock[]), [exportedBlocks]);
+  const exportedHtml = useCallback(
+    () => toHTML(exportedBlocks() as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders }),
+    [exportedBlocks, embedOptions],
+  );
 
   const uploadToBlock = useCallback(
     async (file: File, blockId: string) => {
@@ -600,11 +622,11 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     if (htmlTimer.current) clearTimeout(htmlTimer.current);
     htmlTimer.current = null;
     const blocks = exportedBlocks();
-    const html = toHTML(blocks as unknown as HtmlBlock[]);
+    const html = toHTML(blocks as unknown as HtmlBlock[], { embedProviders: embedOptions.embedProviders });
     lastHtml.current = html;
     const emit = callbacks.current.onChange as HtmlFormatProps["onChange"];
     emit?.(html, { blocks, report: lastReport.current, editor });
-  }, [editor, exportedBlocks]);
+  }, [editor, exportedBlocks, embedOptions]);
 
   const applyHtml = useCallback(
     (html: string, asEdit: boolean) => {

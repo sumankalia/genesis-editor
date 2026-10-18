@@ -19,6 +19,7 @@ import {
 } from "@blocknote/react";
 import { useMemo } from "react";
 
+import { embedSlashItem, embedSpec } from "./embed";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
@@ -116,6 +117,7 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
   video: () => blockTool("video", "video"),
   audio: () => blockTool("audio", "audio"),
   file: () => blockTool("file", "file"),
+  embed: () => definePlugin({ name: "embed", blocks: { embed: embedSpec }, slashItems: [embedSlashItem] }),
   bold: () => styleTool("bold"),
   italic: () => styleTool("italic"),
   underline: () => styleTool("underline"),

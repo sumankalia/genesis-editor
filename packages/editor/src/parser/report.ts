@@ -11,6 +11,7 @@ export class ReportBuilder {
   private styledElements = new Set<object>();
   private downgrades = new Map<string, { from: string; to: string; count: number }>();
   readonly images = { total: 0, resolved: 0, unresolved: 0, failed: 0, rehosted: 0, rehostFailed: 0 };
+  readonly embeds = { provider: 0, generic: 0, blocked: 0 };
   private warnings: string[] = [];
   /** Source elements mapped to an editor block or mark. */
   mapped = 0;
@@ -69,6 +70,7 @@ export class ReportBuilder {
       colors: { ...this.colors },
       headings: { ...this.headings },
       images: { ...this.images },
+      embeds: { ...this.embeds },
       cleanup: { ...this.cleanup, labels: [...this.cleanup.labels] },
       warnings: [...this.warnings],
     };

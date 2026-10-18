@@ -213,3 +213,133 @@
     --level: 1.6em;
   }
 }
+
+/* Embeds: the frame at the column's width (or the embed's own), then a caption bar with "Open ↗". */
+.genesis-editor .genesis-embed {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+
+.genesis-editor .genesis-embed-frame {
+  width: 100%;
+}
+
+.genesis-editor .genesis-embed-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--background);
+}
+
+.genesis-editor .genesis-embed-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.625rem;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  user-select: none;
+}
+
+.genesis-editor .genesis-embed-host {
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.genesis-editor .genesis-embed-caption {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genesis-editor .genesis-embed-spacer {
+  flex: 1;
+}
+
+.genesis-editor .genesis-embed-open,
+.genesis-editor .genesis-embed-to-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.genesis-editor .genesis-embed-open:hover,
+.genesis-editor .genesis-embed-to-link:hover {
+  color: var(--foreground);
+}
+
+.genesis-editor .genesis-embed--blocked .genesis-embed-blocked {
+  margin: 0;
+  padding: 1rem 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.genesis-editor .genesis-embed--empty {
+  border-style: dashed;
+}
+
+.genesis-editor .genesis-embed-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.genesis-editor .genesis-embed-input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.genesis-editor .genesis-embed-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.genesis-editor .genesis-embed-submit {
+  height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.genesis-editor .genesis-embed-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--destructive);
+  font-size: 0.8125rem;
+}
+
+.genesis-editor .genesis-embed-error:empty {
+  display: none;
+}

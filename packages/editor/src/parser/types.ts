@@ -1,5 +1,6 @@
 import type { ToolSelection } from "../plugins/tool-names";
 import type { DomAdapter } from "./dom";
+import type { EmbedOptions, EmbedProvider } from "./embeds";
 import type { GenesisMeta } from "./meta";
 
 /** Inline styles in BlockNote's shape: toggles are `true`, colors are a palette name or `#rrggbb`. */
@@ -97,6 +98,10 @@ export type ParseOptions = {
   trackProvenance?: boolean;
   /** `data:` images larger than this many bytes are removed and counted in `images.failed`. Defaults to no limit. */
   maxDataImageBytes?: number;
+  /** Which iframes become embeds (§8). Defaults to the `"open"` policy. Unknown iframes become links under `"allowlist"`. */
+  embeds?: EmbedOptions;
+  /** Extra embed providers, tried before the built-ins. A provider named like a built-in replaces it. */
+  embedProviders?: readonly EmbedProvider[];
   /** Longer input is truncated, with a warning. Defaults to 10 MB. */
   maxLength?: number;
   /** Deeper elements are ignored, with a warning. Defaults to 512. */
@@ -134,6 +139,8 @@ export type FidelityReport = {
     /** Images whose re-upload failed; they keep their original URL. */
     rehostFailed: number;
   };
+  /** Embeds created: from a provider, generic (sandboxed) iframes, and iframes the policy turned into links. */
+  embeds: { provider: number; generic: number; blocked: number };
   /** What noise removal took out. Undo it by parsing again with `clean: { noise: false }`. */
   cleanup: CleanupSummary;
   warnings: string[];
@@ -144,4 +151,8 @@ export type ParseResult = { blocks: HtmlBlock[]; report: FidelityReport };
 export type ToHTMLOptions = {
   /** Separator between top-level blocks. Defaults to `"\n"`. */
   separator?: string;
+  /** `"link"` writes embeds as link cards (for email and RSS) instead of iframes. Both read back to the same block. */
+  embeds?: "iframe" | "link";
+  /** Custom providers, so their embeds are rebuilt on export. Without them, those embeds are written as sandboxed generic iframes. */
+  embedProviders?: readonly EmbedProvider[];
 };
