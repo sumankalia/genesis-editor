@@ -38,8 +38,11 @@ describe("sanitizer", () => {
   });
 
   it("keeps base64 raster images", () => {
-    const src = "data:image/png;base64,iVBORw0KGgo=";
+    const src = `data:image/png;base64,iVBORw0KGgo${"A".repeat(400)}=`;
     expect(parse(`<img src="${src}">`).blocks[0].props?.url).toBe(src);
+    const placeholder = parse('<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">');
+    expect(placeholder.blocks).toEqual([]);
+    expect(placeholder.report.images.failed).toBe(1);
   });
 
   it("caps depth and length", () => {
