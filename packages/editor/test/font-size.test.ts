@@ -106,6 +106,16 @@ describe("paste mapping", () => {
     expect(report.fontSizes.clamped).toBe(0);
   });
 
+  it("drops the Google Docs guid wrapper and Arial, keeps heading size", () => {
+    const html = `<b style="font-weight:normal;" id="docs-internal-guid-1a2b3c"><h1><span style="font-size:20pt;font-family:Arial,sans-serif;color:#000000;font-weight:400;">Quarterly plan</span></h1><p><span style="font-size:11pt;font-family:Arial,sans-serif;">${BODY}</span></p></b>`;
+    const { blocks } = parse(html);
+    const out = toHTML(blocks);
+    expect(out).not.toMatch(/docs-internal-guid|Arial/i);
+    expect(blocks[0]).toMatchObject({ type: "heading", props: { level: 1 } });
+    expect(texts(blocks[0])[0].styles.fontSize).toBeTruthy();
+    expect(out).toMatch(/font-size:/);
+  });
+
   it("keeps sizes in table cells", () => {
     const { blocks } = parse(`<p>${BODY}</p><table><tr><th>Name</th><th>Size</th></tr><tr><td><span style="font-size:12px">cell</span></td><td>16</td></tr></table>`);
     const table = blocks[1].content as { rows: { cells: { content: HtmlText[] }[] }[] };

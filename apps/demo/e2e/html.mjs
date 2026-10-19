@@ -81,7 +81,10 @@ check("Docs bold span becomes bold", (await pasteEditor.locator("strong").first(
 const lossless = await pasteEditor.locator("em", { hasText: "lossless" }).evaluate((el) => !!el.closest("[data-style-type='textColor'][data-value='red'], [data-text-color='red']") || !!el.querySelector("[data-style-type='textColor'][data-value='red']")).catch(() => false);
 check("Docs color and italic survive", lossless);
 check("Docs list items pasted", (await pasteEditor.locator("[data-content-type='bulletListItem']").count()) === 2);
-check("Docs wrapper and fonts are gone", !/docs-internal-guid|Arial|font-size/.test(await pasteEditor.innerHTML()));
+// Arial and the Docs guid wrapper are dropped. Font-size is kept (6–72 ladder).
+const docsHtml = await pasteEditor.innerHTML();
+check("Docs wrapper and fonts are gone", !/docs-internal-guid/i.test(docsHtml) && !/Arial/i.test(docsHtml));
+check("Docs heading size is kept", (await pasteEditor.locator("[data-style-type='fontSize']").count()) > 0);
 const report = demo.getByTestId("paste-report");
 check("paste report is shown", /\d+%/.test(await demo.getByTestId("paste-score").innerText()) && (await report.innerText()).includes("wrapper"));
 
