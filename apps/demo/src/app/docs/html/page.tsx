@@ -98,8 +98,10 @@ export default function HtmlPage() {
       <H2>Preview</H2>
       <p>
         The playground and <Link href="/paste">paste landing</Link> can show{" "}
-        <strong>Edit | Preview</strong>. Preview renders <code>getHTML()</code> with article CSS and
-        no editor chrome — the same markup a host would store, not a pixel match of Google Docs.
+        <strong>Edit | Preview</strong>. Preview renders <code>getHTML()</code> with{" "}
+        <code>genesis-editor/article.css</code> on a <code>.genesis-article</code> wrapper and no
+        editor chrome — the same markup a host would store, with the editor&apos;s block gaps, links,
+        and code, not a pixel match of Google Docs.
       </p>
 
       <H2>Pasting</H2>

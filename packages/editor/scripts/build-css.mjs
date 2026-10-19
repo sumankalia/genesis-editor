@@ -115,3 +115,7 @@ const output = [
 await mkdir(join(root, "dist"), { recursive: true });
 await writeFile(join(root, "dist/style.css"), output);
 console.log(`dist/style.css ${(Buffer.byteLength(output) / 1024).toFixed(1)} kB`);
+
+const article = await readFile(join(root, "src/styles/article.css"), "utf8");
+await writeFile(join(root, "dist/article.css"), article);
+console.log(`dist/article.css ${(Buffer.byteLength(article) / 1024).toFixed(1)} kB`);

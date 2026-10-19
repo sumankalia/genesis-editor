@@ -69,6 +69,7 @@
       }
     },
     "./style.css": "./dist/style.css",
+    "./article.css": "./dist/article.css",
     "./package.json": "./package.json"
   },
   "files": [

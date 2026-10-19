@@ -226,76 +226,8 @@
   font-family: var(--font-mono);
 }
 
-/* Host-like article CSS for Preview: the same HTML `toHTML()` / `getHTML()` emit. */
+/* Host column measure only. Block rhythm, links, and code live in genesis-editor/article.css. */
 .genesis-article {
   max-width: 42rem;
   margin-inline: auto;
-  font-size: 1.0625rem;
-  line-height: 1.7;
-  color: var(--foreground);
-}
-.genesis-article > * + * {
-  margin-top: 0.9em;
-}
-.genesis-article h1,
-.genesis-article h2,
-.genesis-article h3,
-.genesis-article h4 {
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-  margin-top: 1.4em;
-}
-.genesis-article h1 { font-size: 2rem; }
-.genesis-article h2 { font-size: 1.5rem; }
-.genesis-article h3 { font-size: 1.2rem; }
-.genesis-article p { margin: 0; }
-.genesis-article a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.genesis-article ul,
-.genesis-article ol {
-  padding-left: 1.35rem;
-}
-.genesis-article ul { list-style: disc; }
-.genesis-article ol { list-style: decimal; }
-.genesis-article img,
-.genesis-article video {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-}
-.genesis-article table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95em;
-}
-.genesis-article th,
-.genesis-article td {
-  border: 1px solid var(--border);
-  padding: 0.4em 0.6em;
-  text-align: left;
-}
-.genesis-article pre,
-.genesis-article code {
-  font-family: var(--font-mono);
-  font-size: 0.88em;
-}
-.genesis-article pre {
-  overflow-x: auto;
-  padding: 0.9rem 1rem;
-  border-radius: 0.5rem;
-  background: var(--muted);
-}
-.genesis-article blockquote {
-  margin-inline: 0;
-  padding-inline: 1rem;
-  border-inline-start: 3px solid var(--border);
-  color: var(--muted-foreground);
-}
-.genesis-article .byline {
-  font-size: 0.9rem;
-  color: var(--muted-foreground);
 }

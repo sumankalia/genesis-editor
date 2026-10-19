@@ -177,7 +177,7 @@ export function llmsIndex(pages: DocsPage[]) {
     "",
     `> ${site.description} React 18 and 19; the HTML parser also runs on Node 18+ with linkedom or jsdom.`,
     "",
-    `Install with \`${site.installCommand}\` and import \`genesis-editor/style.css\` once. Each page below is the Markdown version of the docs page at the same path without \`.md\`.`,
+    `Install with \`${site.installCommand}\` and import \`genesis-editor/style.css\` once. Published HTML from getHTML() uses \`genesis-editor/article.css\` on \`.genesis-article\`. Each page below is the Markdown version of the docs page at the same path without \`.md\`.`,
     ...sections.flatMap((section) => [
       "",
       `## ${section === "Guide" ? "Docs" : section}`,

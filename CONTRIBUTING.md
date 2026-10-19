@@ -63,7 +63,9 @@ release and after changing the build or dependencies.
 - Styles in `packages/editor` are compiled into `dist/style.css` and scoped to
   `.genesis-editor`. Tailwind classes used in the package's components are
   picked up automatically; plain CSS goes in `src/styles/editor.css` and must
-  be scoped by hand.
+  be scoped by hand. Published-article CSS is `src/styles/article.css` →
+  `dist/article.css` (`genesis-editor/article.css`), scoped to `.genesis-article`,
+  not the editor.
 - Public API changes need a README update and a `CHANGELOG.md` entry under an
   "Unreleased" heading.
 - Use small, focused commits with messages that say what changed and why.

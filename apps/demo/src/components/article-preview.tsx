@@ -1,4 +1,4 @@
-/** Published-article view of `toHTML()` / `getHTML()`. No editor chrome. */
+/** Published-article view of `toHTML()` / `getHTML()`. No editor chrome. Styles: `genesis-editor/article.css`. */
 
 export function ArticlePreview({
   html,

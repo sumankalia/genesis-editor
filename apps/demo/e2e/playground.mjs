@@ -31,6 +31,41 @@ await preview.waitFor({ timeout: 5000 });
 check("Preview shows published HTML", (await preview.locator("h1").innerText()).includes("Welcome to Genesis"));
 check("Preview has no editor chrome", (await page.locator(".playground-editor .bn-editor").count()) === 0 || !(await page.locator(".playground-editor .bn-editor").isVisible()));
 check("Preview has no slash menu", (await page.locator(".bn-suggestion-menu").count()) === 0);
+const articleLook = await preview.evaluate((el) => {
+  const p = el.querySelector("p");
+  const h1 = el.querySelector("h1");
+  const pre = el.querySelector("pre");
+  const code = el.querySelector("p code");
+  const cs = (n) => (n ? getComputedStyle(n) : null);
+  const pStyle = cs(p);
+  const h1Style = cs(h1);
+  const preStyle = cs(pre);
+  const codeStyle = cs(code);
+  const gap = (s) => (s ? Number.parseFloat(s.paddingTop) + Number.parseFloat(s.marginTop) : 0);
+  return {
+    pGap: gap(pStyle),
+    h1Gap: gap(h1Style),
+    preFont: preStyle?.fontFamily ?? "",
+    preBg: preStyle?.backgroundColor ?? "",
+    prePad: preStyle ? Number.parseFloat(preStyle.paddingTop) : 0,
+    codeFont: codeStyle?.fontFamily ?? "",
+    codeBg: codeStyle?.backgroundColor ?? "",
+    pFont: pStyle?.fontFamily ?? "",
+    pBg: pStyle?.backgroundColor ?? "",
+  };
+});
+check("Preview paragraphs have block padding", articleLook.pGap >= 3, JSON.stringify(articleLook));
+check("Preview headings have block padding", articleLook.h1Gap >= 18, String(articleLook.h1Gap));
+check(
+  "Preview code blocks are monospace on a block background",
+  /mono|menlo|consolas|courier/i.test(articleLook.preFont) && articleLook.prePad >= 16 && articleLook.preBg !== "rgba(0, 0, 0, 0)" && articleLook.preBg !== articleLook.pBg,
+  JSON.stringify({ preFont: articleLook.preFont, preBg: articleLook.preBg, prePad: articleLook.prePad, pBg: articleLook.pBg }),
+);
+check(
+  "Preview inline code is distinct from body",
+  /mono|menlo|consolas|courier/i.test(articleLook.codeFont) && articleLook.codeBg !== articleLook.pBg && articleLook.codeBg !== "rgba(0, 0, 0, 0)",
+  JSON.stringify({ codeFont: articleLook.codeFont, codeBg: articleLook.codeBg, pBg: articleLook.pBg }),
+);
 await page.screenshot({ path: `${SHOTS}/playground-preview.png` });
 await page.getByTestId("playground-edit").click();
 await editor.waitFor({ timeout: 5000 });

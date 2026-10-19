@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "genesis-editor/style.css";
+import "genesis-editor/article.css";
 import "./globals.css";
 
 const geistSans = Geist({

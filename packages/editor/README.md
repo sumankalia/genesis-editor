@@ -490,6 +490,18 @@ scoped to `.genesis-editor` (the root element and BlockNote's menus), and it use
 no cascade layers, so it doesn't restyle the rest of your page and your page's
 layered styles don't override the editor.
 
+Published HTML from `getHTML()` / `toHTML()` has no editor chrome. Import
+`genesis-editor/article.css` and wrap that markup in `.genesis-article` for the
+same block gaps as the editor, plus link color/underline and monospace code.
+It does not set a body font (the page's font is kept) and does not reconstruct
+Google Docs layout.
+
+```tsx
+import "genesis-editor/article.css";
+
+<article className="genesis-article" dangerouslySetInnerHTML={{ __html: editor.getHTML() }} />
+```
+
 The editor uses your page's font. To theme it, set these variables on a class you
 pass as `className` (or on `.genesis-editor` for every editor), and on
 `.your-class[data-color-scheme="dark"]` for dark mode: `--background`,

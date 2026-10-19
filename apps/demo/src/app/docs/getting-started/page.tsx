@@ -36,6 +36,18 @@ export default function GettingStartedPage() {
         Tailwind or shadcn/ui, and it won&apos;t restyle the rest of your page.
       </p>
       <CodeBlock lang="tsx" code={`import "genesis-editor/style.css";`} />
+      <p>
+        To show <code>getHTML()</code> / <code>toHTML()</code> as a published article (Preview, a
+        public page), also import <code>genesis-editor/article.css</code> and wrap the HTML in{" "}
+        <code>.genesis-article</code>. That stylesheet is the block gaps, links, and code — not
+        another copy of the editor.
+      </p>
+      <CodeBlock
+        lang="tsx"
+        code={`import "genesis-editor/article.css";
+
+<article className="genesis-article" dangerouslySetInnerHTML={{ __html: html }} />`}
+      />
 
       <H2>Render the editor</H2>
       <p>
