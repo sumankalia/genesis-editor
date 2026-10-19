@@ -130,7 +130,13 @@ await page.waitForTimeout(150);
 check("Remove image deletes it", (await cellImages(editor).count()) === 5);
 
 // 5. Insert from the slash menu, into a cell.
-await editor.locator("table td").last().click();
+const lastCell = editor.locator("table td").last();
+await lastCell.locator("p").click({ force: true });
+await page.waitForFunction(() => {
+  const node = window.getSelection()?.anchorNode;
+  const el = node instanceof Element ? node : node?.parentElement;
+  return Boolean(el?.closest("[data-example='image-rehost'] table tr:last-child td:last-child"));
+});
 await page.keyboard.type("/inline");
 const slashItem = page.getByRole("option", { name: /Inline image/ });
 await slashItem.waitFor({ timeout: 5000 });
