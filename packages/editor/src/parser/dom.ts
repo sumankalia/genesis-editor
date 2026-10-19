@@ -25,13 +25,13 @@ export function toDomAdapter(dom: DomOption | undefined): DomAdapter {
   if (typeof dom === "function") {
     if (isParserClass(dom)) {
       const parser = new dom();
-      return { parse: (html) => parser.parseFromString(html, "text/html") };
+      return { parse: (html) => parser.parseFromString(asDocument(html), "text/html") };
     }
     return { parse: (html) => dom(asDocument(html)) };
   }
   if ("parse" in dom && typeof dom.parse === "function") return dom;
   if ("parseFromString" in dom && typeof dom.parseFromString === "function") {
-    return { parse: (html) => dom.parseFromString(html, "text/html") };
+    return { parse: (html) => dom.parseFromString(asDocument(html), "text/html") };
   }
   throw new TypeError("genesis-editor/parser: `dom` must be an adapter ({ parse }), a function returning a Document, or a DOMParser.");
 }

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { JSDOM } from "jsdom";
-import { parseHTML as linkedom } from "linkedom";
+import { DOMParser as LinkedomParser, parseHTML as linkedom } from "linkedom";
 import { describe, expect, it } from "vitest";
 
 import { browserDom, parseHTML, toDomAdapter, type DomOption } from "../src/parser";
@@ -53,6 +53,7 @@ describe("dom option", () => {
   it("takes an adapter, a document factory, or a DOMParser instance or class, with the same result", () => {
     const window = new JSDOM("").window;
     const options: DomOption[] = [jsdomDom, (source) => linkedom(source).document as unknown as Document, new window.DOMParser(), window.DOMParser, browserDom];
+    options.push(LinkedomParser as unknown as DomOption, new LinkedomParser() as unknown as DomOption);
     for (const dom of options) expect(parseHTML(html, { dom }).blocks).toEqual(expected);
     expect(expected.map((b) => b.type)).toEqual(["heading", "paragraph", "bulletListItem"]);
   });
