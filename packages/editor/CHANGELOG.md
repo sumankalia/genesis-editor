@@ -2,6 +2,12 @@
 
 All notable changes to `genesis-editor`.
 
+## Unreleased
+
+- **Link preview cards.** New `linkPreview` tool and block: a URL pasted on its own line (or added with `/Link preview`, or the toolbar's card button on a line that is only a link) becomes a card with the page's title, description, image, site name and favicon. Configure `linkPreview={{ endpoint }}` (`GET ?url=` or JSON `POST { url }`, with `headers`) or `linkPreview={{ resolve }}`; without either, URLs stay links as before. Metadata is cleaned and stored in the block, so saved documents draw without fetching. Cards show a loading state, fall back to a link when the lookup fails, and convert to a link and back. HTML export is an `<a data-genesis-link-preview data-title …>` that `parseHTML` reads back losslessly; with the tool off it imports as a link paragraph. `LinkPreviewConfig` and `LinkPreviewMeta` are exported.
+- **Links on images** from the image toolbar: add, edit or remove a link, with "Open in a new tab" (new `openInNewTab` prop). Exported as `<a href target="_blank" rel="noopener noreferrer"><img></a>`; pasted `target="_blank"` is read back. Linked images show where they point in the editor. Unsafe schemes are refused.
+- New toolbar items `imageLink` and `linkPreview` in `DEFAULT_TOOLBAR`.
+
 ## 0.1.0 (2026-10-19)
 
 First release. Everything below is new in it; the "breaking" notes concern documents and handlers written against earlier unreleased builds. See the README's [Known limitations](README.md#known-limitations).

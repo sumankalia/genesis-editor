@@ -226,6 +226,33 @@ With neither prop, files are embedded in the document as `data:` URLs, limited
 to 2 MB each. The Upload tab tells the user so. This is meant for prototypes;
 configure a destination for real use.
 
+## Link previews
+
+A URL pasted on its own line (or added with `/Link preview`) becomes a card with
+the page's title, description, image and site name, once you say where the
+metadata comes from. Without `linkPreview`, URLs stay links.
+
+```tsx
+// GET /api/link-preview?url=… → { title, description, image, siteName, favicon }
+<BlockEditor linkPreview={{ endpoint: "/api/link-preview" }} />
+
+// Or your own lookup; resolve to null for "no preview".
+<BlockEditor linkPreview={{ resolve: async (url, { signal }) => unfurl(url, { signal }) }} />
+```
+
+The metadata is cleaned (plain text with length caps, absolute `http(s)` image
+and favicon) and stored in the block, so saved documents draw without fetching.
+A card shows a loading state while it fetches and turns back into a link when
+the lookup fails; one undo after a paste also gives the link back, and each card
+has _Convert to link_. `getHTML()` writes `<a href data-genesis-link-preview
+data-title …>` that reads as a link elsewhere and back to the same card in
+`parseHTML`. Your endpoint fetches user-supplied URLs: guard it against SSRF.
+
+Images can carry a link too: select one and use the link button in its toolbar
+(URL and "Open in a new tab"). It's exported as `<a href target="_blank"
+rel="noopener noreferrer"><img></a>`; `javascript:` and other unsafe schemes are
+refused.
+
 ## Tools and plugins
 
 By default every built-in tool is on. Pass `tools` to choose which ones the
@@ -243,7 +270,7 @@ menu, Markdown shortcuts, the formatting toolbar, the mobile toolbar, and paste
 
 Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
 `toggleList`, `quote`, `codeBlock`, `divider`, `table`, `image`, `video`,
-`audio`, `file`, `embed`. Inline tools: `bold`, `italic`, `underline`, `strike`,
+`audio`, `file`, `embed`, `linkPreview`. Inline tools: `bold`, `italic`, `underline`, `strike`,
 `code`, `link`, `colors`, `fontSize`. They're exported as `BLOCK_TOOLS`,
 `INLINE_TOOLS`, and `BUILT_IN_TOOLS`, so "everything except tables" is
 `BUILT_IN_TOOLS.filter((tool) => tool !== "table")`.
@@ -345,6 +372,7 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
 | `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). Read once.         |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
+| `linkPreview`           | `LinkPreviewConfig`                                       | —          | Link preview cards: `{ endpoint, method?, headers? }` (answers `{ title, description, image, siteName, favicon }`) or `{ resolve(url, { signal }) }`. Without it URLs stay links. See [Link previews](#link-previews). |
 | `colorContrast`         | `"auto" \| "off"`                                         | `"off"`    | `"auto"` adjusts hex text below 3:1 contrast with the theme, at render time only.                     |
 | `persist`               | `boolean \| { key?: string; debounceMs?: number }`        | `false`    | Autosave to `localStorage`. Default key `"genesis-editor:document"`, default delay 400 ms.          |
 | `onPersistStatusChange` | `(status: PersistStatus) => void`                         | —          | Autosave progress: `idle`, `saving`, `saved` (with `savedAt`), or `error`.                          |
