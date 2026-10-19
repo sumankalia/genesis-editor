@@ -55,7 +55,13 @@ check("slash Columns inserts two columns", (await play.locator("[data-content-ty
 check("inserted list has two column blocks", (await play.locator("[data-content-type='column']").count()) >= 4);
 
 const tabs = page.getByTestId("output-tabs");
-await play.locator("[data-content-type='column']").last().locator(".bn-inline-content").first().click();
+await play
+  .locator("[data-content-type='columnList']")
+  .last()
+  .locator("xpath=ancestor::*[contains(@class,'bn-block')][1]")
+  .locator(".bn-inline-content")
+  .last()
+  .click();
 await page.keyboard.press("Enter");
 await page.keyboard.type("Full width after");
 await tabs.getByRole("tab", { name: "JSON", exact: true }).click();
@@ -80,6 +86,33 @@ check(
   /data-genesis-columns[\s\S]*<\/table>[\s\S]*<p>Full width after<\/p>/.test(afterHtml),
   afterHtml.slice(-240),
 );
+
+page.once("dialog", (dialog) => dialog.accept());
+await page.getByRole("button", { name: "Reset" }).click();
+await page.waitForTimeout(300);
+await play.locator(".bn-block-content").filter({ hasText: "A product image beside its copy" }).click();
+await page.keyboard.press("End");
+await page.keyboard.press("Enter");
+await page.keyboard.type("/");
+await menu.waitFor({ state: "visible", timeout: 5000 });
+await menu.getByRole("option", { name: /^Columns\b/ }).click();
+await page.waitForTimeout(300);
+await tabs.getByRole("tab", { name: "JSON", exact: true }).click();
+await page.waitForFunction(() => ((document.querySelector('[data-testid="output-json"]')?.innerText ?? "").match(/columnList/g) || []).length >= 2);
+const midJson = await page.getByTestId("output-json").locator("pre").innerText().catch(async () => page.getByTestId("output-json").innerText());
+let midOk = false;
+let midTypes = [];
+try {
+  const doc = JSON.parse(midJson.replace(/^```(?:json)?\n?|\n?```$/g, "").trim());
+  const blocks = Array.isArray(doc) ? doc : doc.blocks ?? [];
+  midTypes = blocks.map((b) => b.type);
+  const first = midTypes.indexOf("columnList");
+  const second = midTypes.lastIndexOf("columnList");
+  midOk = first >= 0 && second > first && midTypes.slice(first + 1, second).some((type) => type !== "column" && type !== "columnList");
+} catch {
+  midOk = false;
+}
+check("inserting columns does not swallow the rest of the article", midOk, midTypes.join(",") || midJson.slice(0, 120));
 
 await tabs.getByRole("tab", { name: "HTML", exact: true }).click();
 const htmlText = await page.getByTestId("output-html").innerText();
