@@ -33,8 +33,9 @@ check("image toolbar has Edit caption", await toolbar.getByRole("button", { name
 check("image toolbar has align center", await toolbar.locator('[data-test="alignTextCenter"]').isVisible());
 
 await toolbar.locator('[data-test="altText"]').click();
-const altInput = page.locator('input[name="image-alt"]');
-await altInput.waitFor({ timeout: 3000 });
+const altPopover = page.getByTestId("image-alt-popover");
+await altPopover.waitFor({ timeout: 5000 });
+const altInput = altPopover.locator("input");
 await altInput.fill("A tabby cat");
 await page.keyboard.press("Enter");
 await page.waitForTimeout(200);

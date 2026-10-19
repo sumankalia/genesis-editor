@@ -7,22 +7,29 @@ export function AltTextButton() {
   const Components = useComponentsContext()!;
   const portalElement = usePortalElement();
   const editor = useBlockNoteEditor();
-  const block = useEditorState({
+  const selected = useEditorState({
     editor,
     selector: ({ editor: current }) => {
       if (!current.isEditable) return undefined;
-      const selected = current.getSelection()?.blocks ?? [current.getTextCursorPosition().block];
-      if (selected.length !== 1 || selected[0].type !== "image") return undefined;
-      return selected[0];
+      try {
+        const blocks = current.getSelection()?.blocks ?? [current.getTextCursorPosition().block];
+        if (blocks.length !== 1 || blocks[0].type !== "image") return undefined;
+        return blocks[0];
+      } catch {
+        return undefined;
+      }
     },
   });
   const [open, setOpenState] = useState(false);
+  const [held, setHeld] = useState(selected);
+  const block = selected ?? (open ? held : undefined);
   const setOpen = useCallback(
     (next: boolean) => {
+      if (next && selected) setHeld(selected);
       if (!next) editor.focus();
       setOpenState(next);
     },
-    [editor],
+    [editor, selected],
   );
   const onChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -44,20 +51,21 @@ export function AltTextButton() {
           mainTooltip="Alt text"
           icon={<ImageIcon size={16} />}
           isSelected={alt.length > 0}
-          onClick={() => setOpen(!open)}
         />
       </Components.Generic.Popover.Trigger>
       <Components.Generic.Popover.Content className="bn-popover-content bn-form-popover" variant="form-popover">
-        <Components.Generic.Form.Root onSubmit={() => setOpen(false)} submitButton="none">
-          <Components.Generic.Form.TextInput
-            name="image-alt"
-            icon={<ImageIcon size={16} />}
-            value={alt}
-            autoFocus={true}
-            placeholder="Describe the image"
-            onChange={onChange}
-          />
-        </Components.Generic.Form.Root>
+        <div data-testid="image-alt-popover">
+          <Components.Generic.Form.Root onSubmit={() => setOpen(false)} submitButton="none">
+            <Components.Generic.Form.TextInput
+              name="image-alt"
+              icon={<ImageIcon size={16} />}
+              value={alt}
+              autoFocus={true}
+              placeholder="Describe the image"
+              onChange={onChange}
+            />
+          </Components.Generic.Form.Root>
+        </div>
       </Components.Generic.Popover.Content>
     </Components.Generic.Popover.Root>
   );
