@@ -1,6 +1,6 @@
 import { deltaE2000, editorColor, isPaletteName, parseColor } from "./colors";
 import { parseStyle, toPx, type Declarations } from "./css";
-import { defaultDom, ELEMENT_NODE, TEXT_NODE } from "./dom";
+import { ELEMENT_NODE, TEXT_NODE, toDomAdapter } from "./dom";
 import { isFontSize, snapFontSize } from "./font-size";
 import {
   cleanAspectRatio,
@@ -139,7 +139,7 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
     html = html.slice(0, maxLength);
     report.warn(`Input longer than ${maxLength} characters was truncated.`);
   }
-  const document = (options.dom ?? defaultDom()).parse(html);
+  const document = toDomAdapter(options.dom).parse(html);
   const baseHref = document.querySelector?.("base[href]")?.getAttribute("href") ?? undefined;
   const state: State = {
     mode,

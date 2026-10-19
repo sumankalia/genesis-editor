@@ -1,6 +1,12 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { JSDOM } from "jsdom";
+import { parseHTML as linkedom } from "linkedom";
 import { describe, expect, it } from "vitest";
+
+import { browserDom, parseHTML, toDomAdapter, type DomOption } from "../src/parser";
+import { jsdomDom } from "../src/parser/jsdom";
+import { linkedomDom } from "../src/parser/linkedom";
 
 const parserDir = resolve(__dirname, "../src/parser");
 
@@ -34,8 +40,30 @@ describe("parser entry", () => {
     expect(outside.map((p) => p.slice(p.indexOf("src/"))).sort()).toEqual(["src/lib/rehost.ts", "src/lib/uploads.ts", "src/plugins/tool-names.ts"]);
   });
 
-  it("keeps linkedom out of the main parser entry", () => {
-    const files = readdirSync(parserDir).filter((f) => f.endsWith(".ts") && f !== "linkedom.ts");
-    for (const f of files) expect(readFileSync(join(parserDir, f), "utf8")).not.toMatch(/from "linkedom"/);
+  it("keeps linkedom and jsdom out of the main parser entry", () => {
+    const files = readdirSync(parserDir).filter((f) => f.endsWith(".ts") && f !== "linkedom.ts" && f !== "jsdom.ts");
+    for (const f of files) expect(readFileSync(join(parserDir, f), "utf8")).not.toMatch(/from "(linkedom|jsdom)"/);
+  });
+});
+
+describe("dom option", () => {
+  const html = '<h2>Title</h2>Loose <b>text</b><ul><li>one</li></ul>';
+  const expected = parseHTML(html, { dom: linkedomDom }).blocks;
+
+  it("takes an adapter, a document factory, or a DOMParser instance or class, with the same result", () => {
+    const window = new JSDOM("").window;
+    const options: DomOption[] = [jsdomDom, (source) => linkedom(source).document as unknown as Document, new window.DOMParser(), window.DOMParser, browserDom];
+    for (const dom of options) expect(parseHTML(html, { dom }).blocks).toEqual(expected);
+    expect(expected.map((b) => b.type)).toEqual(["heading", "paragraph", "bulletListItem"]);
+  });
+
+  it("wraps fragments for document factories, so loose top-level text isn't lost", () => {
+    const seen: string[] = [];
+    parseHTML("hi", { dom: (source) => (seen.push(source), linkedom(source).document as unknown as Document) });
+    expect(seen[0]).toMatch(/^<!doctype html><html><head><\/head><body>hi<\/body><\/html>$/);
+  });
+
+  it("rejects anything else with a clear error", () => {
+    expect(() => toDomAdapter({} as DomOption)).toThrow(/`dom` must be/);
   });
 });

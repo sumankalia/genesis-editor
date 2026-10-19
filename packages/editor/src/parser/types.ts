@@ -1,6 +1,6 @@
 import type { ToolSelection } from "../plugins/tool-names";
 import type { ColorSwatch } from "./colors";
-import type { DomAdapter } from "./dom";
+import type { DomOption } from "./dom";
 import type { EmbedOptions, EmbedProvider } from "./embeds";
 import type { GenesisMeta } from "./meta";
 
@@ -93,8 +93,11 @@ export type ParseOptions = {
   tools?: ToolSelection;
   /** Resolves relative `src`/`href`. Falls back to the document's `<base href>`. */
   baseUrl?: string;
-  /** DOM to parse with. Defaults to the browser's `DOMParser`; use `linkedomDom` from `genesis-editor/parser/linkedom` on servers. */
-  dom?: DomAdapter;
+  /**
+   * DOM to parse with. Defaults to the browser's `DOMParser`. On servers use `linkedomDom` from `genesis-editor/parser/linkedom`,
+   * `jsdomDom` from `genesis-editor/parser/jsdom`, or pass a `(html) => Document` factory or a `DOMParser` instance or class.
+   */
+  dom?: DomOption;
   /** Page-furniture removal (§9 layers 3–5). */
   clean?: CleanOptions;
   /** Stamp top-level blocks with `meta.import` (`at`, `engine`, and `baseUrl` as `origin`). Defaults to `false`. */
