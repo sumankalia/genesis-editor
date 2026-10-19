@@ -31,7 +31,9 @@ npm install genesis-editor
 # or: pnpm add genesis-editor / yarn add genesis-editor
 ```
 
-Requires React 18 or 19. BlockNote is installed as a dependency.
+Requires React 18 or 19 and, on servers, Node 18 or newer. BlockNote is
+installed as a dependency. Every entry point loads with both `import` and
+`require`.
 
 > npm may print a peer warning about `tailwindcss`, which `@blocknote/shadcn`
 > declares. genesis-editor ships compiled CSS, so your app doesn't need Tailwind.
@@ -67,8 +69,12 @@ read changes from `onChange`.
 
 ### Next.js and other SSR frameworks
 
-The editor needs the DOM, so render it on the client only. The package is marked
-`"use client"`; in the Next.js App Router, load it without SSR:
+The package is marked `"use client"` and is safe to import and render on the
+server. Server rendering and hydration draw an empty
+`<div class="genesis-editor" data-genesis-pending>` (with your `className`), and
+the editor mounts in the browser right after hydration. Reserve its height with
+CSS if the jump matters. Loading it with `next/dynamic` and `ssr: false` still
+works if you'd rather not ship it in the server bundle:
 
 ```tsx
 "use client";
@@ -111,15 +117,32 @@ Pasted HTML, the HTML `value` and `setHTML` go through `genesis-editor/parser`.
 It maps what the editor can show, sanitizes the rest, removes page furniture
 from pastes (with an "Undo cleanup" toast), and reports what changed through
 `onImportReport`. `htmlMode="strict"` also snaps custom colours to the palette.
-On a server, parse with `linkedom`:
+On a server, pass a DOM with `dom`. The `linkedom` and `jsdom` adapters work
+from both `import` and `require` (install the library you pick):
 
 ```ts
 import { parseHTML, toHTML } from "genesis-editor/parser";
 import { linkedomDom } from "genesis-editor/parser/linkedom";
+// or: import { jsdomDom } from "genesis-editor/parser/jsdom";
 
 const { blocks, report } = parseHTML(html, { dom: linkedomDom });
 const back = toHTML(blocks); // reads back to the same blocks
 ```
+
+`dom` also takes a function that turns an HTML string into a `Document`, or a
+`DOMParser` instance or class, so any DOM library works:
+
+```ts
+import { DOMParser } from "linkedom";
+import { JSDOM } from "jsdom";
+
+parseHTML(html, { dom: DOMParser }); // a DOMParser class or instance
+parseHTML(html, { dom: (doc) => new JSDOM(doc).window.document }); // a factory
+```
+
+A factory receives a complete document (`<!doctype html><html>…<body>…`).
+`toDomAdapter(dom)` normalizes any of these forms into `{ parse(html) }`. In the
+browser, `dom` defaults to the page's `DOMParser`.
 
 - Whitespace follows HTML's rules, and `&nbsp;` padding next to other spaces
   collapses too (`Land,&nbsp; some` reads as one space). `toHTML` keeps
@@ -369,8 +392,10 @@ rebuilds the editor: the document is kept, the undo history isn't.
 - From `genesis-editor/parser` (no React): `parseHTML`, `parseHTMLAsync`,
   `toHTML`, `decodeEscapedHTML`, `defineEmbedProvider`, `BUILT_IN_EMBED_PROVIDERS`,
   `getEmbedFrameSrc`/`getEmbedScriptSrc` (CSP lists), `stripMeta`, colour and
-  font-size helpers. `genesis-editor/parser/linkedom` exports `linkedomDom` for
-  servers (install `linkedom`).
+  font-size helpers, `toDomAdapter`, `browserDom`, and the `DomOption`,
+  `DomAdapter`, `DocumentFactory` and `DOMParserLike` types.
+  `genesis-editor/parser/linkedom` exports `linkedomDom` (install `linkedom`)
+  and `genesis-editor/parser/jsdom` exports `jsdomDom` (install `jsdom`).
 - Types: `BlockEditorProps`, `BlockEditorHandle`, `UploadConfig`,
   `UploadErrorEvent`, `UploadMode`, `UploadResponseMapper`, `PersistOptions`,
   `PersistStatus`, `StoredDocument`, `EditorTheme`, `EditorContent`,
@@ -433,8 +458,15 @@ HTML import and export:
   is parsed as it is.
 - Multi-line plain-text pastes use BlockNote's own handling, so a provider URL
   on one of their lines stays a link.
-- `genesis-editor/parser/linkedom` needs ESM (`import`) on Node versions before
-  22.12, because linkedom's CommonJS build can't `require` its dependencies.
+
+Packaging:
+
+- The CommonJS build (`require("genesis-editor")`) bundles BlockNote and its
+  other dependencies except React, because their CommonJS builds don't load on
+  Node. The ES module build uses your installed copies. An app that loads the
+  editor both ways gets two copies of BlockNote, so keep to one.
+  `genesis-editor/parser/linkedom` bundles linkedom in its CommonJS build for
+  the same reason.
 
 Embeds:
 

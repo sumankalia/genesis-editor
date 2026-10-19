@@ -41,6 +41,12 @@ Playwright's Chromium (`pnpm --filter demo exec playwright-core install chromium
 or an installed Chrome with `E2E_CHANNEL=chrome`. Point them at another server
 with `E2E_BASE_URL`. Screenshots go to `apps/demo/e2e/screenshots/`.
 
+`pnpm --filter genesis-editor test:node` packs the package, installs the tarball
+into a scratch app for each Node 18, 20 and 22 it finds under `~/.nvm` (or the
+binaries you pass with `--node <path>`), and checks `require` and `import` of
+every entry point, server parsing, SSR and a jsdom client render. Run it before a
+release and after changing the build or dependencies.
+
 ## Guidelines
 
 - Keep the package free of framework and app code: no Next.js, no app-specific
@@ -58,5 +64,6 @@ with `E2E_BASE_URL`. Screenshots go to `apps/demo/e2e/screenshots/`.
 
 1. Update the version in `packages/editor/package.json` and move the changelog
    entries under the new version.
-2. From `packages/editor`, run `npm pack --dry-run` and check the file list.
+2. From `packages/editor`, run `npm pack --dry-run` and check the file list,
+   and run `pnpm test:node`.
 3. Publish with `pnpm publish --access public` from `packages/editor`.

@@ -74,9 +74,20 @@ First release. Everything below is new in it; the "breaking" notes concern docum
 - `format="html"` with `defaultValue`/`value`/`onChange(html, info)`, `htmlMode`, `baseUrl`, `onImportReport`, and `getHTML`/`setHTML`/`lastReport` on the ref.
 - External HTML pastes go through `genesis-editor/parser` in both formats: one undo step, leading-paragraph merge, and split at the cursor.
 - Page-furniture removal for pastes (`clean`, `CleanOptions`) with an "Undo cleanup" toast (`cleanupToast`); empty paragraphs collapsed in pastes.
-- `genesis-editor/parser`: `parseHTML`, `toHTML`, and the `linkedom` adapter for servers.
+- `genesis-editor/parser`: `parseHTML`, `toHTML`, and the `linkedom` and `jsdom` adapters for servers.
 - **JSON-encoded HTML is decoded** instead of showing `\n`, `\t` and `\"` as text and breaking attributes: a quoted JSON string, JSON holding HTML strings (`[{ "HTML": "…" }]`), or the inside of a JSON string when its escapes are structural (escaped attribute quotes, `<\/`, `\u003c`, or newlines only between tags and never inside code). Applies to `parseHTML`, `value`/`setHTML` and pastes, including JSON copied as plain text. The report gets a warning; `ParseOptions.decodeEscaped: false` turns it off. New export `decodeEscapedHTML`.
 - **`&nbsp;` padding collapses.** An `&nbsp;` next to other whitespace, or at a line's start or end, collapses like a space, so `Land,&nbsp; some` and `seasons.&nbsp;&nbsp; &nbsp;</p>` no longer leave double or trailing spaces. A lone `&nbsp;` between words is still a space. `toHTML` writes intentional double and edge spaces as `<span style="white-space:pre-wrap">` instead of `&nbsp;`, so they still read back exactly.
+
+### Node and server rendering
+
+- **Node 18 and newer** (`engines: ">=18"`). Every entry point (`genesis-editor`, `/parser`, `/parser/linkedom`, `/parser/jsdom`) loads with both `import` and `require` on Node 18, 20 and 22.
+  - The CommonJS build of the main entry bundles BlockNote and its other dependencies except React: their CommonJS builds require ESM-only packages (`lib0`) before Node 22.12 and fail to initialize after it. The ES module build still uses the installed copies.
+  - The CommonJS build of `genesis-editor/parser/linkedom` bundles linkedom, whose own CommonJS build requires ESM-only `css-select`.
+- **Pluggable DOM.** `ParseOptions.dom` takes an adapter (`{ parse(html) }`), a function returning a `Document`, or a `DOMParser` instance or class. Every form receives fragments wrapped in a full document. New exports `toDomAdapter` and the `DomOption`, `DocumentFactory` and `DOMParserLike` types.
+- **`genesis-editor/parser/jsdom`** exports `jsdomDom`. `jsdom` is an optional peer dependency.
+- **SSR-safe `BlockEditor`.** Rendering on the server no longer crashes: server rendering and hydration draw an empty `<div class="genesis-editor" data-genesis-pending>`, and the editor mounts on the client. `next/dynamic` with `ssr: false` is no longer needed.
+- The `system` theme falls back to light where `matchMedia` is missing (jsdom), so the editor mounts in Jest and Vitest tests.
+- `pnpm test:node` (`scripts/node-matrix.mjs`) installs the packed tarball on each Node version found and checks every entry point.
 
 ### Fixed
 
