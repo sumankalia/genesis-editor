@@ -12,6 +12,9 @@ function remoteOrigin() {
   return `${protocol}//${other}${port ? `:${port}` : ""}`;
 }
 
+// A deployed site has no second host, and "auto" skips the page's own origin: name the samples. // hide
+const copySamples = (url: string) => new URL(url).pathname.startsWith("/examples/"); // hide
+
 function articleHtml(origin: string) {
   return `<h3>Field notes</h3>
 <p>Two photos from another site:</p>
@@ -38,6 +41,7 @@ export default function ImageRehostExample() {
   const [failing, setFailing] = useState(false);
   const [pending, setPending] = useState(0);
   const [saved, setSaved] = useState<string | null>(null);
+  const [rehostImages] = useState(() => (remoteOrigin() === window.location.origin ? copySamples : ("auto" as const))); // hide
 
   // `pendingUploads` isn't reactive; poll it for the counter.
   useEffect(() => {
@@ -77,6 +81,7 @@ export default function ImageRehostExample() {
         ref={editor}
         uploadUrl="/api/mock-upload"
         uploadFromUrl={`/api/mock-upload-from-url?delay=1500${failing ? "&fail=1" : ""}`}
+        rehostImages={rehostImages} // hide
       />
       {saved !== null && (
         <pre className="mx-15 max-h-48 overflow-auto rounded-md border bg-muted/30 p-3 text-xs whitespace-pre-wrap" data-testid="rehost-saved">
