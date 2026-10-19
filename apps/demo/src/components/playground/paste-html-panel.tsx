@@ -5,6 +5,7 @@ import type { BlockEditorHandle, FidelityReport } from "genesis-editor";
 import { EraserIcon, FileInputIcon } from "lucide-react";
 
 import { pasteSamples, type PasteSample } from "@/components/examples/paste-samples";
+import { ImportReport } from "@/components/import-report";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -122,48 +123,8 @@ export function PasteHtmlPanel({ editorRef }: { editorRef: RefObject<BlockEditor
             Couldn&apos;t load this HTML: {status.message}
           </p>
         )}
-        {status.kind === "loaded" && <ImportReport report={status.report} />}
+        {status.kind === "loaded" && <ImportReport report={status.report} testId="paste-html" />}
       </div>
-    </div>
-  );
-}
-
-function ImportReport({ report }: { report: FidelityReport }) {
-  const removed = report.dropped.map((d) => `${d.count}× <${d.tag}> (${d.reason})`);
-  const unwrapped = report.unwrapped.map((u) => `${u.count}× <${u.tag}>`);
-  const cleanup = report.cleanup.sections
-    ? `${report.cleanup.sections} sections (${report.cleanup.labels.join(", ")})`
-    : report.cleanup.skipped === "small"
-      ? "skipped (small paste)"
-      : report.cleanup.skipped === "off"
-        ? "off"
-        : "nothing removed";
-  return (
-    <div className="grid gap-3" data-testid="paste-html-report">
-      {report.blocks === 0 && (
-        <p className="text-destructive">No blocks came out of this HTML. Is it only scripts, styles or comments?</p>
-      )}
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 [&_dd]:break-words">
-        <dt className="text-muted-foreground">Fidelity</dt>
-        <dd data-testid="paste-html-score">{Math.round(report.score * 100)}%</dd>
-        <dt className="text-muted-foreground">Mode</dt>
-        <dd>{report.mode}</dd>
-        <dt className="text-muted-foreground">Blocks</dt>
-        <dd data-testid="paste-html-blocks">{report.blocks}</dd>
-        <dt className="text-muted-foreground">Removed</dt>
-        <dd data-testid="paste-html-removed">{removed.length ? removed.join(", ") : "nothing"}</dd>
-        <dt className="text-muted-foreground">Unwrapped</dt>
-        <dd>{unwrapped.length ? unwrapped.join(", ") : "nothing"}</dd>
-        <dt className="text-muted-foreground">Cleanup</dt>
-        <dd data-testid="paste-html-cleanup">{cleanup}</dd>
-      </dl>
-      {report.warnings.length > 0 && (
-        <ul className="grid list-disc gap-1 pl-4 text-amber-700 dark:text-amber-400" data-testid="paste-html-warnings">
-          {report.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

@@ -2,6 +2,10 @@
 
 All notable changes to `genesis-editor`.
 
+## Unreleased
+
+- **Document import.** `ref.importFile(file)` and **Import document** in the slash menu (`/import`) load Word (`.docx`), OpenDocument (`.odt`), RTF, HTML, Markdown, and plain text through the genesis HTML engine. Apple Pages is detected and refused with a request to export as Word. Optional `googleDrive: { pickFile }` adds a Drive slash item; genesis does not do OAuth. Conversion libraries are lazy-loaded: mammoth (BSD-2-Clause) for Word, marked (MIT) for Markdown, fflate (MIT) for OpenDocument zip.
+
 ## 0.1.0 (2026-10-19)
 
 First release. Everything below is new in it; the "breaking" notes concern documents and handlers written against earlier unreleased builds. See the README's [Known limitations](README.md#known-limitations).

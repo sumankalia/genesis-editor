@@ -62,6 +62,13 @@ import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig }
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
 import { resolveColorConfig } from "./parser/colors";
 import { registerEmbedRegistry } from "./plugins/embed";
+import {
+  DOCUMENT_IMPORT_ACCEPT,
+  DocumentImportError,
+  importFileSource,
+  registerDocumentImport,
+  type GoogleDriveImport,
+} from "./plugins/import-file";
 import { swatchCss } from "./plugins/text-styles";
 import { acceptsFile } from "./plugins/files";
 import { REHOST_META, registerRehostQueue } from "./plugins/specs";
@@ -195,6 +202,13 @@ export type BlockEditorProps = UploadConfig &
   toolbar?: ToolbarConfig | false;
   /** Plugins from `definePlugin`, adding blocks, menu items, toolbar items, and shortcuts. */
   plugins?: readonly GenesisPlugin[];
+  /**
+   * Optional hook for "Import from Google Drive" in the slash menu. genesis does not talk to Google;
+   * `pickFile` should return a `File` your app already obtained.
+   */
+  googleDrive?: GoogleDriveImport;
+  /** Called when `importFile` or the slash Import document picker cannot read a file (Pages, unknown type, empty). */
+  onImportError?: (error: DocumentImportError) => void;
 };
 
 export type BlockEditorHandle = {
@@ -215,6 +229,11 @@ export type BlockEditorHandle = {
   getHTML: (options?: HtmlExportOptions) => string;
   /** Replaces the whole document with parsed HTML and returns the import report. Counts as an edit. */
   setHTML: (html: string) => FidelityReport;
+  /**
+   * Replaces the whole document from a Word, OpenDocument, RTF, HTML, Markdown, or text file.
+   * Conversion is lazy-loaded. Apple Pages is refused with a request to export as Word.
+   */
+  importFile: (file: File) => Promise<FidelityReport>;
   /** The report from the most recent HTML import, or `null` if nothing was imported yet. */
   readonly lastReport: FidelityReport | null;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
@@ -320,6 +339,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     embeds,
     embedProviders,
     colorContrast = "off",
+    googleDrive,
+    onImportError,
     latestDocument,
   },
   ref,
@@ -675,6 +696,35 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [editor, sanitize, scheduleRehost],
   );
 
+  const fileInput = useRef<HTMLInputElement>(null);
+  const importFile = useCallback(
+    async (file: File) => {
+      try {
+        const loaded = await importFileSource(file, documentOptions(htmlOptions.current));
+        const result = { blocks: sanitize(loaded.blocks as PartialBlock[]), report: loaded.report };
+        editor.replaceBlocks(editor.document, result.blocks.length ? result.blocks : [{ type: "paragraph" }]);
+        recordImport.current(result);
+        scheduleRehost(editor.document, "value", result.report);
+        return result.report;
+      } catch (error) {
+        const wrapped =
+          error instanceof DocumentImportError ? error : new DocumentImportError(error instanceof Error ? error.message : String(error), "unsupported");
+        onImportError?.(wrapped);
+        throw wrapped;
+      }
+    },
+    [editor, sanitize, scheduleRehost, onImportError],
+  );
+
+  useLayoutEffect(() => {
+    registerDocumentImport(editor, {
+      openPicker: () => fileInput.current?.click(),
+      importFile,
+      googleDrive,
+    });
+    return () => registerDocumentImport(editor, null);
+  }, [editor, importFile, googleDrive]);
+
   useEffect(() => {
     if (htmlValue === undefined || htmlValue === lastHtml.current) return;
     lastHtml.current = htmlValue;
@@ -720,6 +770,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
       getHTML: exportedHtml,
       setHTML: (html) => applyHtml(html, true),
+      importFile,
       get lastReport() {
         return lastReport.current;
       },
@@ -733,7 +784,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       },
       uploadsSettled: () => rehost.settled(),
     }),
-    [editor, initial.key, sanitize, applyHtml, exportedBlocks, exportedHtml, rehost, scheduleRehost],
+    [editor, initial.key, sanitize, applyHtml, importFile, exportedBlocks, exportedHtml, rehost, scheduleRehost],
   );
 
   // Links
@@ -899,6 +950,18 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
           initialUrl={linkInitialUrl}
           onClose={closeLinkDialog}
           onSubmit={applyLink}
+        />
+        <input
+          ref={fileInput}
+          type="file"
+          accept={DOCUMENT_IMPORT_ACCEPT}
+          hidden
+          data-testid="document-import-input"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void importFile(file);
+          }}
         />
       </div>
     </UploadContext.Provider>

@@ -57,6 +57,7 @@ const REFERENCED_TYPES = [
   "EmbedFrame",
   "ColorToolOptions",
   "ColorSwatch",
+  "GoogleDriveImport",
 ];
 
 const ENTRY = join(process.cwd(), "../../packages/editor/src/index.ts");

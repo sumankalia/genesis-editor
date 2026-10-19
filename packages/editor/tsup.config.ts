@@ -6,7 +6,8 @@ const shared = {
   target: "es2020",
 };
 
-const editorExternal = ["react", "react-dom", /^@blocknote\//, "lucide-react", "prosemirror-state", "prosemirror-history", "prosemirror-view", "prosemirror-model"];
+const lazyDocumentImport = ["mammoth", "marked", "fflate"];
+const editorExternal = ["react", "react-dom", /^@blocknote\//, "lucide-react", "prosemirror-state", "prosemirror-history", "prosemirror-view", "prosemirror-model", ...lazyDocumentImport];
 // The editor relies on hooks and browser APIs, so it must be a client component in React Server Components apps.
 const editorBanner = { js: '"use client";' };
 // The parser is pure and also runs on servers, so it gets no "use client" banner.
@@ -34,8 +35,10 @@ export default defineConfig([
     clean: false,
     // A bundled BlockNote's source map would be ~18 MB.
     sourcemap: false,
-    external: ["react", "react-dom"],
-    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/)/],
+    // Keep mammoth/marked/fflate out of the CJS bundle; load them with import() on first use.
+    // marked is ESM-only, so CJS must keep `await import("marked")` (Node 18 cannot require() it).
+    external: ["react", "react-dom", ...lazyDocumentImport],
+    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/|mammoth$|marked$|fflate$)/],
     banner: editorBanner,
   },
   {
@@ -43,7 +46,7 @@ export default defineConfig([
     format: ["esm"],
     entry: parserEntries,
     clean: false,
-    external: ["linkedom", "jsdom"],
+    external: ["linkedom", "jsdom", ...lazyDocumentImport],
   },
   {
     ...shared,
@@ -52,7 +55,7 @@ export default defineConfig([
     entry: parserEntries,
     clean: false,
     sourcemap: false,
-    external: ["jsdom", "canvas"],
+    external: ["jsdom", "canvas", ...lazyDocumentImport],
     noExternal: ["linkedom", /^css-select/, /^css-what/, /^nth-check/, /^boolbase/, /^domutils/, /^domhandler/, /^dom-serializer/, /^domelementtype/, /^entities/, /^htmlparser2/, "cssom", "html-escaper", "uhyphen"],
   },
 ]);

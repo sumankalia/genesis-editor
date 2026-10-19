@@ -9,6 +9,9 @@ export const metadata: Metadata = { title: "API reference" };
 
 const parserExports: [string, string][] = [
   ["parseHTML(html, options?)", "Parses HTML into blocks. Returns { blocks, report }."],
+  ["importDocument(source, options?)", "Converts a Word, OpenDocument, RTF, HTML, Markdown, or text file to HTML, then parseHTML. Throws DocumentImportError for Pages, empty, or unknown types."],
+  ["detectDocumentFormat(source)", "Sniffs the file name, MIME type, and magic bytes. Returns html, markdown, txt, docx, odt, rtf, pages, or unknown."],
+  ["DocumentImportError", "Thrown by importDocument. code is pages, unsupported, or empty."],
   ["parseHTMLAsync(html, options?)", "parseHTML, then copies remote images with uploadRemote or an absolute uploadFromUrl before returning. For bulk imports on a server."],
   ["toHTML(blocks, options?)", "Serializes blocks to HTML that parseHTML reads back to the same blocks. embeds: \"auto\" (default) | \"iframe\" | \"link\"; embedScripts adds each site's official script once."],
   ["stripMeta(blocks)", "Removes meta from blocks and their children, for exports that shouldn't carry it."],

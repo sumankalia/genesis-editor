@@ -21,6 +21,7 @@ Tailwind or shadcn/ui in your app.
   with optional re-hosting of pasted images
 - HTML in and out (`format="html"`, `getHTML`/`setHTML`), and pastes from Google
   Docs, Word, WordPress and web pages cleaned into blocks
+- Import a Word, OpenDocument, HTML, Markdown, or text file (`importFile`, `/import`)
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
   or a site's embed code, always in sandboxed frames
 - Text and background colours, font sizes
@@ -117,7 +118,7 @@ With `format="html"`, `value`, `defaultValue` and `onChange` carry HTML strings:
 <BlockEditor format="html" defaultValue={savedHtml} onChange={(html) => save(html)} />
 ```
 
-Pasted HTML, the HTML `value` and `setHTML` go through `genesis-editor/parser`.
+Pasted HTML, the HTML `value`, `setHTML`, and `importFile` go through `genesis-editor/parser`.
 It maps what the editor can show, sanitizes the rest, removes page furniture
 from pastes (with an "Undo cleanup" toast), and reports what changed through
 `onImportReport`. `htmlMode="strict"` also snaps custom colours to the palette.
@@ -341,7 +342,9 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `baseUrl`               | `string`                                                  | —          | Resolves relative links and image sources in pasted and loaded HTML.                                 |
 | `clean`                 | `CleanOptions`                                            | —          | Page-furniture removal for pastes: `{ noise: false }`, `keepSelectors`, `dropSelectors`.             |
 | `cleanupToast`          | `boolean`                                                 | `true`     | Show "Removed N sections · Undo cleanup" after a paste that removed furniture.                       |
-| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML is imported (value, `setHTML`, or paste).                                          |
+| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML is imported (value, `setHTML`, paste, or `importFile`).                            |
+| `googleDrive`           | `{ pickFile: () => Promise<File \| null> }`               | —          | Slash item that asks your app for a Drive file. No OAuth in genesis.                                |
+| `onImportError`         | `(error: DocumentImportError) => void`                    | —          | Pages files and unknown types.                                                                      |
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
 | `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). Read once.         |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
@@ -378,6 +381,7 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `getMarkdown()`     | Lossy Markdown export of the document.                              |
 | `getHTML(options?)` | The document as HTML that `parseHTML` reads back losslessly. Options: `embeds`, `embedScripts`. |
 | `setHTML(html)`     | Replaces the document with parsed HTML and returns the import report. |
+| `importFile(file)`  | Replaces the document from a Word, OpenDocument, RTF, HTML, Markdown, or text file. |
 | `lastReport`        | The report from the most recent HTML import, or `null`.             |
 | `pendingUploads`    | File uploads and image re-uploads still running.                    |
 | `uploadsSettled()`  | Resolves once nothing is uploading.                                 |
@@ -394,7 +398,8 @@ rebuilds the editor: the document is kept, the undo history isn't.
   BlockNote's `createReactBlockSpec`.
 - `BLOCK_TOOLS`, `INLINE_TOOLS`, `BUILT_IN_TOOLS`, `DEFAULT_TOOLBAR`.
 - From `genesis-editor/parser` (no React): `parseHTML`, `parseHTMLAsync`,
-  `toHTML`, `decodeEscapedHTML`, `defineEmbedProvider`, `BUILT_IN_EMBED_PROVIDERS`,
+  `toHTML`, `decodeEscapedHTML`, `importDocument`, `detectDocumentFormat`,
+  `DocumentImportError`, `defineEmbedProvider`, `BUILT_IN_EMBED_PROVIDERS`,
   `getEmbedFrameSrc`/`getEmbedScriptSrc` (CSP lists), `stripMeta`, colour and
   font-size helpers, `toDomAdapter`, `browserDom`, and the `DomOption`,
   `DomAdapter`, `DocumentFactory` and `DOMParserLike` types.
@@ -406,7 +411,8 @@ rebuilds the editor: the document is kept, the undo history isn't.
   `ToolSelection`, `ToolOptions`, `ToolbarConfig`, `ToolbarItemName`,
   `BuiltInToolName`, `BlockToolName`, `InlineToolName`, `BuiltInToolbarItem`,
   `HeadingLevel`, `GenesisPlugin`, `SlashMenuItem`, `MarkdownShortcut`,
-  `ToolbarItem`, `ToolbarButtonProps`, `AnyEditor`, `AnyPartialBlock`, and BlockNote's `Block`,
+  `ToolbarItem`, `ToolbarButtonProps`, `AnyEditor`, `AnyPartialBlock`,
+  `DocumentImportError`, `DocumentFormat`, `GoogleDriveImport`, and BlockNote's `Block`,
   `PartialBlock`, `BlockNoteEditor`.
 
 ## Styling

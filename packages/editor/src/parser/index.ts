@@ -15,6 +15,8 @@ export {
   type PaletteName,
 } from "./colors";
 export { FONT_SIZES, isFontSize, snapFontSize } from "./font-size";
+export { detectDocumentFormat, importDocument, DocumentImportError } from "./document-import";
+export type { DocumentFormat, DocumentSource } from "./document-import";
 export { META_VERSION, migrateMeta, stripMeta } from "./meta";
 export {
   defineEmbedProvider,
