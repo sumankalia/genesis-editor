@@ -42,6 +42,7 @@ import {
   UNSUPPORTED_MARKS,
 } from "./rules/tags";
 import { isSafeUrl, sanitizeTree } from "./sanitize";
+import { storedCodeLanguage } from "./code-languages";
 import { nearestLevel, resolveTools, type ParserTools } from "./tools";
 import type {
   HtmlBlock,
@@ -990,11 +991,11 @@ function codeLanguage(el: Element): string | undefined {
 function code(el: Element, ctx: Ctx, sink: Sink, state: State) {
   sink.flush();
   const text = preText(el).replace(/\u00a0/g, " ").replace(/\n+$/, "");
-  const language = codeLanguage(el);
+  const language = storedCodeLanguage(codeLanguage(el));
   if (state.tools.has("codeBlock")) {
     state.report.mapped++;
     const block: HtmlBlock = { type: "codeBlock", content: text ? [{ type: "text", text, styles: {} }] : [] };
-    if (language && language !== "text" && /^[a-z0-9+#._-]{1,30}$/.test(language)) block.props = { language };
+    if (language) block.props = { language };
     return sink.push(block);
   }
   state.report.downgrade("pre", "code paragraph");
