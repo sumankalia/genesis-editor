@@ -37,6 +37,7 @@ function pasteMarkdown(editor: BlockEditorHandle, markdown: string) {
   editor.focus();
   const data = new DataTransfer();
   data.setData("text/plain", markdown);
+  data.setData("text/html", `<pre>${markdown.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>`);
   editor.editor.domElement?.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
 }
 

@@ -223,6 +223,23 @@ describe("paste handler", () => {
     expect(onImport).toHaveBeenCalledTimes(1);
   });
 
+  it("reads clipboard getData even when types is empty", () => {
+    const { editor, sanitize } = mounted();
+    const onImport = vi.fn();
+    const handler = createPasteHandler(() => ({}), sanitize, onImport);
+    const defaultPasteHandler = vi.fn(() => true);
+    handler({
+      event: {
+        clipboardData: { types: [], getData: (type: string) => (type === "text/plain" ? "# From types-less paste" : "") },
+      } as unknown as ClipboardEvent,
+      editor,
+      defaultPasteHandler,
+    });
+    expect(defaultPasteHandler).not.toHaveBeenCalled();
+    expect(editor.document[0].type).toBe("heading");
+    expect(onImport).toHaveBeenCalledTimes(1);
+  });
+
   it("imports Markdown wrapped in a trivial HTML pre/div", () => {
     const { editor, defaultPasteHandler, paste } = setup();
     const md = "# Wrapped\n\n- one\n- two";

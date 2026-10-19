@@ -179,8 +179,9 @@ export function createPasteHandler(
     const data = event.clipboardData;
     const types = data ? Array.from(data.types) : [];
     if (!data || types.includes("blocknote/html") || types.includes("vscode-editor-data")) return defaultPasteHandler();
-    let html = types.includes("text/html") ? data.getData("text/html") : "";
-    const plain = types.includes("text/plain") ? data.getData("text/plain") : "";
+    // Read the data even when `types` is incomplete (some synthetic pastes list nothing).
+    let html = data.getData("text/html") || "";
+    const plain = data.getData("text/plain") || "";
     const embeds = "embed" in editor.schema.blockSchema;
     // HTML copied as JSON text (an API response, DevTools, a .json file): import the HTML it encodes.
     const decoded = plain ? decodeEscapedHTML(plain) : null;

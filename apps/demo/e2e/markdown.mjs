@@ -56,7 +56,7 @@ const demo = page.locator("[data-example='markdown-paste']");
 const pasteEditor = demo.locator(".bn-editor");
 await pasteEditor.waitFor({ timeout: 15000 });
 await demo.getByRole("button", { name: "Paste GitHub" }).click();
-await page.waitForTimeout(300);
+await demo.getByTestId("markdown-paste-report").waitFor({ timeout: 5000 });
 check("pasted GitHub heading", (await pasteEditor.locator("h1").innerText().catch(() => "")) === "Quarterly plan");
 check("pasted GitHub link", (await pasteEditor.locator("a[href='https://example.com/changelog']").count()) === 1);
 check("paste report is shown", /Fidelity \d+%/.test(await demo.getByTestId("markdown-paste-score").innerText().catch(() => "")));
