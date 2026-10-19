@@ -4,7 +4,9 @@ import { useState, type RefObject } from "react";
 import type { BlockEditorHandle, FidelityReport } from "genesis-editor";
 import { EraserIcon, FileInputIcon } from "lucide-react";
 
+import { devtoSample } from "@/components/examples/devto-sample";
 import { pasteSamples, type PasteSample } from "@/components/examples/paste-samples";
+import { ImportReport } from "@/components/import-report";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Synthetic samples only: the docs' paste samples plus HTML as it arrives from a JSON API. */
+/** Synthetic samples only: the docs' paste samples, HTML as it arrives from a JSON API, and a copied dev.to article. */
 const SAMPLES: PasteSample[] = [
   ...pasteSamples,
   {
@@ -24,7 +26,10 @@ const SAMPLES: PasteSample[] = [
       '<h2 class="title">Release notes</h2>\n<p>Copied from an API response, so quotes and newlines arrive <em>escaped</em>.</p>\n<ul>\n  <li>Decoded before parsing</li>\n  <li>Reported as a warning</li>\n</ul>',
     ),
   },
+  { name: "dev.to images in a table", html: "" },
 ];
+
+const sampleHtml = (sample: PasteSample) => (sample.name === "dev.to images in a table" ? devtoSample(window.location.origin) : sample.html);
 
 type Status =
   | { kind: "idle" }
@@ -54,8 +59,9 @@ export function PasteHtmlPanel({ editorRef }: { editorRef: RefObject<BlockEditor
 
   const loadSample = () => {
     const chosen = SAMPLES.find((s) => s.name === sample) ?? SAMPLES[0];
-    setHtml(chosen.html);
-    load(chosen.html);
+    const source = sampleHtml(chosen);
+    setHtml(source);
+    load(source);
   };
 
   const clear = () => {
@@ -122,48 +128,8 @@ export function PasteHtmlPanel({ editorRef }: { editorRef: RefObject<BlockEditor
             Couldn&apos;t load this HTML: {status.message}
           </p>
         )}
-        {status.kind === "loaded" && <ImportReport report={status.report} />}
+        {status.kind === "loaded" && <ImportReport report={status.report} testId="paste-html" />}
       </div>
-    </div>
-  );
-}
-
-function ImportReport({ report }: { report: FidelityReport }) {
-  const removed = report.dropped.map((d) => `${d.count}× <${d.tag}> (${d.reason})`);
-  const unwrapped = report.unwrapped.map((u) => `${u.count}× <${u.tag}>`);
-  const cleanup = report.cleanup.sections
-    ? `${report.cleanup.sections} sections (${report.cleanup.labels.join(", ")})`
-    : report.cleanup.skipped === "small"
-      ? "skipped (small paste)"
-      : report.cleanup.skipped === "off"
-        ? "off"
-        : "nothing removed";
-  return (
-    <div className="grid gap-3" data-testid="paste-html-report">
-      {report.blocks === 0 && (
-        <p className="text-destructive">No blocks came out of this HTML. Is it only scripts, styles or comments?</p>
-      )}
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 [&_dd]:break-words">
-        <dt className="text-muted-foreground">Fidelity</dt>
-        <dd data-testid="paste-html-score">{Math.round(report.score * 100)}%</dd>
-        <dt className="text-muted-foreground">Mode</dt>
-        <dd>{report.mode}</dd>
-        <dt className="text-muted-foreground">Blocks</dt>
-        <dd data-testid="paste-html-blocks">{report.blocks}</dd>
-        <dt className="text-muted-foreground">Removed</dt>
-        <dd data-testid="paste-html-removed">{removed.length ? removed.join(", ") : "nothing"}</dd>
-        <dt className="text-muted-foreground">Unwrapped</dt>
-        <dd>{unwrapped.length ? unwrapped.join(", ") : "nothing"}</dd>
-        <dt className="text-muted-foreground">Cleanup</dt>
-        <dd data-testid="paste-html-cleanup">{cleanup}</dd>
-      </dl>
-      {report.warnings.length > 0 && (
-        <ul className="grid list-disc gap-1 pl-4 text-amber-700 dark:text-amber-400" data-testid="paste-html-warnings">
-          {report.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

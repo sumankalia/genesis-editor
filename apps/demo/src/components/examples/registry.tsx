@@ -35,13 +35,17 @@ const examples = {
   "plugin-callout": load(() => import("./plugin-callout")),
   "html-value": load(() => import("./html-value")),
   "html-paste": load(() => import("./html-paste")),
+  "markdown-value": load(() => import("./markdown-value")),
+  "markdown-paste": load(() => import("./markdown-paste")),
   "block-meta": load(() => import("./block-meta")),
   "image-rehost": load(() => import("./image-rehost")),
   embeds: load(() => import("./embeds")),
   "embed-code": load(() => import("./embed-code")),
+  "link-previews": load(() => import("./link-previews")),
   colors: load(() => import("./colors")),
   "font-size": load(() => import("./font-size")),
   "code-blocks": load(() => import("./code-blocks")),
+  "document-import": load(() => import("./document-import")),
 };
 
 export type ExampleName = keyof typeof examples;

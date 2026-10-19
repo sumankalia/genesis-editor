@@ -2,6 +2,7 @@ import { createExtension, defaultBlockSpecs } from "@blocknote/core";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 
 import type { RehostQueue, RehostStatus } from "../lib/rehost";
+import { isSafeUrl } from "../parser/sanitize";
 import type { AnyBlockSpec } from "./types";
 
 type PropSpec = { default: string | number | boolean } | { default: undefined; type: "string" | "number" | "boolean" };
@@ -21,7 +22,7 @@ export const quoteSpec = extendProps(defaultBlockSpecs.quote, {
   cite: { default: "" },
 });
 
-type ImageProps = { alt?: string; srcset?: string; sizes?: string; originalUrl?: string; url?: string };
+type ImageProps = { alt?: string; srcset?: string; sizes?: string; originalUrl?: string; url?: string; href?: string; openInNewTab?: boolean };
 type ImageBlock = { id: string; props: ImageProps };
 type Rendered = { dom: HTMLElement; destroy?: () => void };
 type RenderFn = (this: unknown, block: ImageBlock, ...rest: unknown[]) => Rendered;
@@ -36,6 +37,30 @@ function decorateImage(rendered: Rendered, props: ImageProps) {
     img.srcset = props.srcset;
     if (props.sizes) img.sizes = props.sizes;
   }
+  return rendered;
+}
+
+/** Shows where a linked image points. The editor never navigates on click; the badge opens the link. */
+function withLinkBadge(rendered: Rendered, props: ImageProps) {
+  if (!props.href || !props.url || !isSafeUrl(props.href)) return rendered;
+  const host = rendered.dom.querySelector<HTMLElement>(".bn-visual-media-wrapper") ?? rendered.dom;
+  const badge = document.createElement("a");
+  badge.className = "genesis-image-link-badge";
+  badge.contentEditable = "false";
+  badge.dataset.testid = "image-link-badge";
+  badge.href = props.href;
+  badge.target = "_blank";
+  badge.rel = "noopener noreferrer";
+  let label = props.href;
+  try {
+    label = new URL(props.href, window.location.href).host || props.href;
+  } catch {
+    // Shown as written.
+  }
+  badge.textContent = `Link · ${label}${props.openInNewTab ? " ↗" : ""}`;
+  badge.title = props.href;
+  badge.addEventListener("mousedown", (event) => event.stopPropagation());
+  host.appendChild(badge);
   return rendered;
 }
 
@@ -120,7 +145,8 @@ export const imageSpec = extendProps(
     implementation: {
       ...baseImage.implementation,
       render(this: unknown, block: ImageBlock, ...rest: unknown[]) {
-        return withRehostBadge(decorateImage(imageImplementation.render.call(this, block, ...rest), block.props), block, rest[0]);
+        const rendered = decorateImage(imageImplementation.render.call(this, block, ...rest), block.props);
+        return withRehostBadge(withLinkBadge(rendered, block.props), block, rest[0]);
       },
       toExternalHTML(this: unknown, block: ImageBlock, ...rest: unknown[]) {
         return decorateImage(imageImplementation.toExternalHTML!.call(this, block, ...rest), block.props);
@@ -135,6 +161,7 @@ export const imageSpec = extendProps(
     height: { default: undefined, type: "number" },
     captionRich: { default: "" },
     href: { default: "" },
+    openInNewTab: { default: false },
     originalUrl: { default: "" },
     hosted: { default: false },
   },

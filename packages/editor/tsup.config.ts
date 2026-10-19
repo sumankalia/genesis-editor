@@ -1,3 +1,5 @@
+import { readFile, writeFile } from "node:fs/promises";
+
 import { defineConfig } from "tsup";
 
 const shared = {
@@ -6,6 +8,7 @@ const shared = {
   target: "es2020",
 };
 
+const lazyDocumentImport = ["mammoth", "fflate"];
 const editorExternal = [
   "react",
   "react-dom",
@@ -17,24 +20,43 @@ const editorExternal = [
   "prosemirror-model",
   "shiki",
   /^@shikijs\//,
+  ...lazyDocumentImport,
 ];
 // The editor relies on hooks and browser APIs, so it must be a client component in React Server Components apps.
 const editorBanner = { js: '"use client";' };
-// The parser is pure and also runs on servers, so it gets no "use client" banner.
 const parserEntries = {
   "parser/index": "src/parser/index.ts",
   "parser/linkedom": "src/parser/linkedom.ts",
   "parser/jsdom": "src/parser/jsdom.ts",
 };
 
+/**
+ * The parser is pure and also runs on servers, so only the editor entry gets the "use client" directive. (A tsup
+ * banner would go on every file of the shared ESM build, chunks included.) The source map shifts by the added line.
+ */
+async function markClientEntry() {
+  const file = "dist/index.js";
+  const code = await readFile(file, "utf8");
+  if (code.startsWith('"use client";')) return;
+  await writeFile(file, `"use client";\n${code}`);
+  const map = JSON.parse(await readFile(`${file}.map`, "utf8")) as { mappings: string };
+  map.mappings = `;${map.mappings}`;
+  await writeFile(`${file}.map`, JSON.stringify(map));
+}
+
 export default defineConfig([
   {
     ...shared,
+    // One ESM build with code splitting, so the editor and `genesis-editor/parser` share chunks: an app that
+    // uses both gets the HTML engine once.
     format: ["esm"],
-    entry: ["src/index.ts"],
+    entry: { index: "src/index.ts", ...parserEntries },
+    splitting: true,
     clean: true,
-    external: editorExternal,
-    banner: editorBanner,
+    external: [...editorExternal, "linkedom", "jsdom"],
+    // marked is ESM-only; bundling it keeps the published package self-contained (Node < 22.12 cannot require() it).
+    noExternal: ["marked"],
+    onSuccess: markClientEntry,
   },
   {
     ...shared,
@@ -45,26 +67,21 @@ export default defineConfig([
     clean: false,
     // A bundled BlockNote's source map would be ~18 MB.
     sourcemap: false,
-    // Keep shiki out of the CJS bundle (it's ESM-only and large); load it with import() when highlighting.
-    external: ["react", "react-dom", "shiki", /^@shikijs\//],
-    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/|shiki$|@shikijs\/)/],
+    // Keep shiki/mammoth/fflate out of the CJS bundle; load them with import() on first use.
+    // marked stays bundled (Node < 22.12 cannot require() it).
+    external: ["react", "react-dom", "shiki", /^@shikijs\//, ...lazyDocumentImport],
+    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/|shiki$|@shikijs\/|mammoth$|fflate$)/],
     banner: editorBanner,
   },
   {
     ...shared,
-    format: ["esm"],
-    entry: parserEntries,
-    clean: false,
-    external: ["linkedom", "jsdom"],
-  },
-  {
-    ...shared,
     // linkedom's CommonJS build `require`s ESM-only css-select, so the CommonJS adapter bundles linkedom.
+    // marked is ESM-only too, so the parser CJS build bundles it (Node < 22.12 cannot require() it).
     format: ["cjs"],
     entry: parserEntries,
     clean: false,
     sourcemap: false,
-    external: ["jsdom", "canvas"],
-    noExternal: ["linkedom", /^css-select/, /^css-what/, /^nth-check/, /^boolbase/, /^domutils/, /^domhandler/, /^dom-serializer/, /^domelementtype/, /^entities/, /^htmlparser2/, "cssom", "html-escaper", "uhyphen"],
+    external: ["jsdom", "canvas", ...lazyDocumentImport],
+    noExternal: ["marked", "linkedom", /^css-select/, /^css-what/, /^nth-check/, /^boolbase/, /^domutils/, /^domhandler/, /^dom-serializer/, /^domelementtype/, /^entities/, /^htmlparser2/, "cssom", "html-escaper", "uhyphen"],
   },
 ]);

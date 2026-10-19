@@ -65,6 +65,10 @@ export default function GettingStartedPage() {
           read-only mode.
         </li>
         <li>
+          <Link href="/docs/html">HTML &amp; paste</Link> and <Link href="/docs/markdown">Markdown</Link>:
+          load documents through the HTML engine.
+        </li>
+        <li>
           <Link href="/docs/image-uploads">Image uploads</Link>: send images to your server.
         </li>
         <li>

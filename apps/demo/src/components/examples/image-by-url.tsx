@@ -13,7 +13,13 @@ export default function ImageByUrlExample() {
       initialContent={[
         {
           type: "image",
-          props: { url: "/examples/gradient.svg", caption: "Added by URL", previewWidth: 420 },
+          props: {
+            url: "/examples/gradient.svg",
+            alt: "A soft gradient",
+            caption: "Added by URL",
+            previewWidth: 420,
+            textAlignment: "center",
+          },
         },
         { type: "paragraph", content: "Type /image to add another, then use the Link tab." },
       ]}

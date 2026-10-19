@@ -188,7 +188,7 @@ export function llmsIndex(pages: DocsPage[]) {
     "## Optional",
     "",
     link("Full docs", `${site.url}/llms-full.txt`, "every page above in one Markdown file"),
-    link("Playground", `${site.url}/playground`, "try the props live, load your own HTML and see the import report"),
+    link("Playground", `${site.url}/playground`, "try the props live, import a document or load HTML and see the import report"),
     link("npm package", site.npmUrl, "README, changelog and versions"),
     link("Source on GitHub", site.repoUrl, "issues, CONTRIBUTING and the changelog"),
     "",

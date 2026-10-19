@@ -33,10 +33,12 @@ import { GenesisFilePanel } from "./components/file-panel";
 import {
   createPasteHandler,
   importHTML,
+  importMarkdown,
   pasteWithoutCleanup,
   type HtmlImport,
   type HtmlImportOptions,
 } from "./html";
+import { markdownToHTML } from "./parser/markdown";
 import { embedRegistry, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { metaFromProps, stripMeta, type GenesisMeta, type MetaOptions } from "./parser/meta";
 import { toHTML } from "./parser/serialize";
@@ -44,6 +46,16 @@ import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode
 
 export type HtmlExportOptions = Pick<ToHTMLOptions, "embeds" | "embedScripts">;
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
+import { ImageLinkContext, ImageLinkDialog, type ImageLinkTarget } from "./components/image-link-dialog";
+import { InlineImageDialog } from "./components/inline-image-dialog";
+import {
+  hasInlineImage,
+  inlineImageJobKey,
+  isInlineImageJob,
+  registerInlineImages,
+  swapInlineImageUrl,
+  type InlineImageRequest,
+} from "./plugins/inline-image";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
 import { UploadContext, type UploadContextValue } from "./components/upload-context";
@@ -56,12 +68,20 @@ import {
   type PersistOptions,
   type PersistStatus,
 } from "./lib/persistence";
+import { LinkPreviewController, registerLinkPreviews, type LinkPreviewConfig } from "./lib/link-preview";
 import { MAX_INLINE_DATA_IMAGE_BYTES, RehostQueue, fileNameFromUrl } from "./lib/rehost";
 import { UploadStatusStore } from "./lib/upload-status";
 import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig } from "./lib/uploads";
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
 import { resolveColorConfig } from "./parser/colors";
 import { registerEmbedRegistry } from "./plugins/embed";
+import {
+  DOCUMENT_IMPORT_ACCEPT,
+  DocumentImportError,
+  importFileSource,
+  registerDocumentImport,
+  type GoogleDriveImport,
+} from "./plugins/import-file";
 import { swatchCss } from "./plugins/text-styles";
 import { acceptsFile } from "./plugins/files";
 import { REHOST_META, registerRehostQueue } from "./plugins/specs";
@@ -108,7 +128,7 @@ export type UploadErrorEvent =
 export type HtmlChangeInfo = {
   /** The document the HTML was serialized from. */
   blocks: GenesisBlock[];
-  /** The report from the most recent HTML import (initial value, `setHTML`, or paste), if any. */
+  /** The report from the most recent HTML or Markdown import (initial value, `setHTML`/`setMarkdown`, or paste), if any. */
   report: FidelityReport | null;
   editor: BlockNoteEditor;
 };
@@ -137,8 +157,20 @@ export type HtmlFormatProps = {
   initialContent?: never;
 };
 
+export type MarkdownFormatProps = {
+  /** `value`, `defaultValue`, and `onChange` carry Markdown strings, converted through the HTML engine. Export is lossy. */
+  format: "markdown";
+  /** Markdown for the first render (uncontrolled). Ignored when `value` is set or a persisted document is found. */
+  defaultValue?: string;
+  /** Controlled Markdown. Parsed only when it differs from the Markdown the editor last emitted, so echoing it back is free. */
+  value?: string;
+  /** Called with the lossy Markdown export of the document, at most every 150 ms while typing. */
+  onChange?: (markdown: string, info: HtmlChangeInfo) => void;
+  initialContent?: never;
+};
+
 export type BlockEditorProps = UploadConfig &
-  (BlocksFormatProps | HtmlFormatProps) & {
+  (BlocksFormatProps | HtmlFormatProps | MarkdownFormatProps) & {
   /** How pasted and loaded HTML is cleaned: `"strict"` also snaps custom colors to the palette and drops what the editor can't show exactly. Defaults to `"clean"`. */
   htmlMode?: ParseMode;
   /** Resolves relative links and image sources in pasted and loaded HTML. */
@@ -154,17 +186,23 @@ export type BlockEditorProps = UploadConfig &
   meta?: MetaOptions;
   /**
    * Which embeds may show (§8): `"open"` (the default) allows providers plus sandboxed generic iframes;
-   * `"allowlist"` allows providers only, which is recommended for user-generated content. Read once.
+   * `"allowlist"` allows providers only, which is recommended for user-generated content. `clickToLoad`
+   * (default `true`) waits for a click before loading the iframe. Read once.
    */
   embeds?: EmbedOptions;
   /** Extra embed providers (`defineEmbedProvider`), tried before the built-ins. Read once. */
   embedProviders?: EmbedProvider[];
   /**
+   * Where link preview cards get their metadata: `{ endpoint }` or `{ resolve }`. With it, a URL pasted on its
+   * own line (or added with "/Link preview") becomes a card; without it, URLs stay links.
+   */
+  linkPreview?: LinkPreviewConfig;
+  /**
    * `"auto"` lightens or darkens hex text that would have less than 3:1 contrast with the theme's
    * background. Only the rendering changes; the stored colour stays exact. Palette colours already adapt.
    */
   colorContrast?: "auto" | "off";
-  /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
+  /** Called after HTML, Markdown, or a document file is imported: the initial `value`, `setHTML`/`setMarkdown`/`importFile`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
   persist?: boolean | PersistOptions;
@@ -195,6 +233,13 @@ export type BlockEditorProps = UploadConfig &
   toolbar?: ToolbarConfig | false;
   /** Plugins from `definePlugin`, adding blocks, menu items, toolbar items, and shortcuts. */
   plugins?: readonly GenesisPlugin[];
+  /**
+   * Optional hook for "Import from Google Drive" in the slash menu. genesis does not talk to Google;
+   * `pickFile` should return a `File` your app already obtained.
+   */
+  googleDrive?: GoogleDriveImport;
+  /** Called when `importFile` or the slash Import document picker cannot read a file (Pages, unknown type, empty). */
+  onImportError?: (error: DocumentImportError) => void;
 };
 
 export type BlockEditorHandle = {
@@ -215,7 +260,14 @@ export type BlockEditorHandle = {
   getHTML: (options?: HtmlExportOptions) => string;
   /** Replaces the whole document with parsed HTML and returns the import report. Counts as an edit. */
   setHTML: (html: string) => FidelityReport;
-  /** The report from the most recent HTML import, or `null` if nothing was imported yet. */
+  /** Replaces the whole document with Markdown (via the HTML engine) and returns the import report. Counts as an edit. */
+  setMarkdown: (markdown: string) => FidelityReport;
+  /**
+   * Replaces the whole document from a Word, OpenDocument, RTF, HTML, Markdown, or text file.
+   * Conversion is lazy-loaded. Apple Pages is refused with a request to export as Word.
+   */
+  importFile: (file: File) => Promise<FidelityReport>;
+  /** The report from the most recent HTML, Markdown, or document import, or `null` if nothing was imported yet. */
   readonly lastReport: FidelityReport | null;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
   clearPersisted: () => void;
@@ -244,7 +296,7 @@ function rerenderEmptyFileBlock(editor: BlockNoteEditor, blockId: string, name: 
 }
 
 /**
- * A whole document (`value`, `defaultValue`, `setHTML`) keeps its blank lines and its inline images;
+ * A whole document (`value`, `defaultValue`, `setHTML`, `setMarkdown`) keeps its blank lines and its inline images;
  * pastes collapse blank lines and drop large inline images when there's nowhere to upload them.
  */
 function documentOptions(options: HtmlImportOptions): HtmlImportOptions {
@@ -319,7 +371,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     meta,
     embeds,
     embedProviders,
+    linkPreview,
     colorContrast = "off",
+    googleDrive,
+    onImportError,
     latestDocument,
   },
   ref,
@@ -342,8 +397,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     }),
   );
   const isHtml = format === "html";
+  const isMarkdown = format === "markdown";
   const htmlValue = isHtml && typeof value === "string" ? value : undefined;
-  const blocksValue = isHtml ? undefined : (value as EditorContent | undefined);
+  const markdownValue = isMarkdown && typeof value === "string" ? value : undefined;
+  const blocksValue = isHtml || isMarkdown ? undefined : (value as EditorContent | undefined);
   const sanitize = useCallback(
     (blocks: EditorContent) => toEditorBlocks(blocks, support) as PartialBlock[],
     [support],
@@ -356,11 +413,16 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, ...embedOptions }), sanitize);
       return nonEmpty(imported.blocks);
     };
+    const parseMd = (markdown: string | undefined) => {
+      if (!markdown?.trim()) return undefined;
+      imported = importMarkdown(markdown, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, ...embedOptions }), sanitize);
+      return nonEmpty(imported.blocks);
+    };
     const content =
-      (isHtml ? parse(htmlValue) : nonEmpty(blocksValue)) ??
+      (isHtml ? parse(htmlValue) : isMarkdown ? parseMd(markdownValue) : nonEmpty(blocksValue)) ??
       nonEmpty(latestDocument.current ?? undefined) ??
       stored?.blocks ??
-      (isHtml ? parse(defaultValue) : nonEmpty(initialContent));
+      (isHtml ? parse(defaultValue) : isMarkdown ? parseMd(defaultValue) : nonEmpty(initialContent));
     const sanitized = content ? sanitize(content) : undefined;
     return {
       key: persistKey,
@@ -373,6 +435,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
   const uploadConfig = useRef<UploadConfig>({});
+  const linkPreviewConfig = useRef(linkPreview);
+  const [linkPreviews] = useState(() => new LinkPreviewController(() => linkPreviewConfig.current));
   const uploadMode = getUploadMode({ uploadFile, uploadUrl });
   const pasteImageLimit = uploadMode === "local" ? MAX_INLINE_DATA_IMAGE_BYTES : undefined;
   const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit, ...embedOptions });
@@ -380,6 +444,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   useLayoutEffect(() => {
     callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
     uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse, uploadFromUrl, uploadRemote, uploadHeaders, rehostImages, trustedHosts, uploadConcurrency };
+    linkPreviewConfig.current = linkPreview;
     htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit, ...embedOptions };
     editableRef.current = editable;
   });
@@ -397,6 +462,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   }, [initial.report]);
 
   const [uploadStatuses] = useState(() => new UploadStatusStore());
+  const [inlineImageRequest, setInlineImageRequest] = useState<InlineImageRequest | null>(null);
   const editorRef = useRef<BlockNoteEditor | null>(null);
   const retryRef = useRef<(blockId: string) => Promise<void>>(async () => {});
 
@@ -408,6 +474,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         {
           onDone: (job, url) => {
             const current = editorRef.current;
+            if (current && isInlineImageJob(job.blockId)) {
+              if (swapInlineImageUrl(current as unknown as AnyEditor, job.url, url) && job.report) job.report.images.rehosted++;
+              return;
+            }
             const block = current?.getBlock(job.blockId);
             if (!current || (block?.props as { url?: string } | undefined)?.url !== job.url) return;
             const props = /^https?:/i.test(job.url) ? { url, originalUrl: job.url, hosted: true } : { url, hosted: true };
@@ -441,11 +511,25 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   /** Queues the images in `blocks` (and their children) that `rehostImages` calls for. Read-only views leave them be. */
   const [scheduleRehost] = useState(() => (blocks: Block[], source: RehostSource, report: FidelityReport | null) => {
     if (!editableRef.current) return;
+    const inline = (content: unknown[]) => {
+      for (const node of content as { type?: string; props?: { url?: string; alt?: string; originalUrl?: string; hosted?: boolean } }[]) {
+        const props = node.type === "inlineImage" ? node.props : undefined;
+        if (!props?.url || props.originalUrl || props.hosted || !rehost.shouldRehost(props.url)) continue;
+        rehost.enqueue({ blockId: inlineImageJobKey(props.url), url: props.url, alt: props.alt || undefined, filename: fileNameFromUrl(props.url), source, report });
+      }
+    };
     const visit = (list: Block[]) => {
       for (const block of list) {
         const props = block.props as { url?: string; originalUrl?: string; hosted?: boolean; alt?: string; name?: string };
         if (block.type === "image" && props.url && !props.originalUrl && !props.hosted && rehost.shouldRehost(props.url)) {
           rehost.enqueue({ blockId: block.id, url: props.url, alt: props.alt || props.name || undefined, filename: fileNameFromUrl(props.url), source, report });
+        }
+        const content = block.content as unknown;
+        if (Array.isArray(content)) inline(content);
+        else if ((content as { type?: string } | undefined)?.type === "tableContent") {
+          for (const row of (content as { rows: { cells: unknown[] }[] }).rows) {
+            for (const cell of row.cells) inline(Array.isArray(cell) ? cell : ((cell as { content?: unknown[] }).content ?? []));
+          }
         }
         visit(block.children as Block[]);
       }
@@ -462,7 +546,9 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       sanitize,
       (result, html, inserted) => {
         recordImport.current(result, html);
-        scheduleRehost(inserted, "paste", result.report);
+        // An inline paste inserts no blocks; its images are in the block at the cursor.
+        const cursor = editorRef.current?.getTextCursorPosition().block;
+        scheduleRehost(cursor ? [...inserted, cursor] : inserted, "paste", result.report);
       },
     ),
     // Never rejects: paste/drop uploads would surface as unhandled rejections, so
@@ -470,7 +556,9 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     uploadFile: (file, blockId) => rehost.track(upload(file, blockId)),
   }) as unknown as BlockNoteEditor;
   registerRehostQueue(editor, rehost);
+  registerInlineImages(editor, { open: setInlineImageRequest, queue: rehost });
   registerEmbedRegistry(editor, embedSetup);
+  registerLinkPreviews(editor, linkPreviews);
   const colorScheme = useColorScheme(theme);
 
   function markHosted(blockId: string, url: string) {
@@ -648,6 +736,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   // HTML value: the last HTML received or emitted. Anything else is parsed and replaces the document.
   const lastHtml = useRef<string | null>(htmlValue ?? null);
   const htmlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMarkdown = useRef<string | null>(markdownValue ?? null);
+  const markdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const emitHtml = useCallback(() => {
     if (htmlTimer.current) clearTimeout(htmlTimer.current);
@@ -675,6 +765,50 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [editor, sanitize, scheduleRehost],
   );
 
+  const emitMarkdown = useCallback(() => {
+    if (markdownTimer.current) clearTimeout(markdownTimer.current);
+    markdownTimer.current = null;
+    const blocks = exportedBlocks();
+    const markdown = editor.blocksToMarkdownLossy(editor.document);
+    lastMarkdown.current = markdown;
+    const emit = callbacks.current.onChange as MarkdownFormatProps["onChange"];
+    emit?.(markdown, { blocks, report: lastReport.current, editor });
+  }, [editor, exportedBlocks]);
+
+  const applyMarkdown = useCallback(
+    (markdown: string, asEdit: boolean) => applyHtml(markdownToHTML(markdown), asEdit),
+    [applyHtml],
+  );
+
+  const fileInput = useRef<HTMLInputElement>(null);
+  const importFile = useCallback(
+    async (file: File) => {
+      try {
+        const loaded = await importFileSource(file, documentOptions(htmlOptions.current));
+        const result = { blocks: sanitize(loaded.blocks as PartialBlock[]), report: loaded.report };
+        editor.replaceBlocks(editor.document, result.blocks.length ? result.blocks : [{ type: "paragraph" }]);
+        recordImport.current(result);
+        scheduleRehost(editor.document, "value", result.report);
+        return result.report;
+      } catch (error) {
+        const wrapped =
+          error instanceof DocumentImportError ? error : new DocumentImportError(error instanceof Error ? error.message : String(error), "unsupported");
+        onImportError?.(wrapped);
+        throw wrapped;
+      }
+    },
+    [editor, sanitize, scheduleRehost, onImportError],
+  );
+
+  useLayoutEffect(() => {
+    registerDocumentImport(editor, {
+      openPicker: () => fileInput.current?.click(),
+      importFile,
+      googleDrive,
+    });
+    return () => registerDocumentImport(editor, null);
+  }, [editor, importFile, googleDrive]);
+
   useEffect(() => {
     if (htmlValue === undefined || htmlValue === lastHtml.current) return;
     lastHtml.current = htmlValue;
@@ -683,15 +817,28 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     applyHtml(htmlValue, false);
   }, [htmlValue, applyHtml]);
 
+  useEffect(() => {
+    if (markdownValue === undefined || markdownValue === lastMarkdown.current) return;
+    lastMarkdown.current = markdownValue;
+    if (markdownTimer.current) clearTimeout(markdownTimer.current);
+    markdownTimer.current = null;
+    applyMarkdown(markdownValue, false);
+  }, [markdownValue, applyMarkdown]);
+
   useEffect(
     () => () => {
       if (htmlTimer.current) emitHtml();
+      if (markdownTimer.current) emitMarkdown();
     },
-    [emitHtml],
+    [emitHtml, emitMarkdown],
   );
 
   const handleChange = useCallback(() => {
-    rehost.prune((job) => (editor.getBlock(job.blockId)?.props as { url?: string } | undefined)?.url === job.url);
+    rehost.prune((job) =>
+      isInlineImageJob(job.blockId)
+        ? hasInlineImage(editor as unknown as AnyEditor, job.url)
+        : (editor.getBlock(job.blockId)?.props as { url?: string } | undefined)?.url === job.url,
+    );
     setCleanup(null);
     scheduleSave();
     if (applyingValue.current) return;
@@ -701,11 +848,16 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       htmlTimer.current = setTimeout(emitHtml, 150);
       return;
     }
+    if (isMarkdown) {
+      if (markdownTimer.current) clearTimeout(markdownTimer.current);
+      markdownTimer.current = setTimeout(emitMarkdown, 150);
+      return;
+    }
     const blocks = exportedBlocks();
     lastEmitted.current = blocks;
     const emit = callbacks.current.onChange as BlocksFormatProps["onChange"];
     emit?.(blocks, editor);
-  }, [editor, rehost, scheduleSave, latestDocument, isHtml, emitHtml, documentBlocks, exportedBlocks]);
+  }, [editor, rehost, scheduleSave, latestDocument, isHtml, isMarkdown, emitHtml, emitMarkdown, documentBlocks, exportedBlocks]);
 
   useImperativeHandle(
     ref,
@@ -720,6 +872,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
       getHTML: exportedHtml,
       setHTML: (html) => applyHtml(html, true),
+      setMarkdown: (markdown) => applyMarkdown(markdown, true),
+      importFile,
       get lastReport() {
         return lastReport.current;
       },
@@ -733,7 +887,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       },
       uploadsSettled: () => rehost.settled(),
     }),
-    [editor, initial.key, sanitize, applyHtml, exportedBlocks, exportedHtml, rehost, scheduleRehost],
+    [editor, initial.key, sanitize, applyHtml, applyMarkdown, importFile, exportedBlocks, exportedHtml, rehost, scheduleRehost],
   );
 
   // Links
@@ -763,6 +917,45 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   );
 
   const linksEnabled = support.links;
+
+  const [imageLinkTarget, setImageLinkTarget] = useState<ImageLinkTarget | null>(null);
+  const closeImageLink = useCallback(() => {
+    setImageLinkTarget(null);
+    editor.focus();
+  }, [editor]);
+  const applyImageLink = useCallback(
+    ({ blockId, href, openInNewTab }: ImageLinkTarget) => {
+      setImageLinkTarget(null);
+      if (editor.getBlock(blockId)?.type === "image") editor.updateBlock(blockId, { props: { href, openInNewTab } } as never);
+      editor.focus();
+    },
+    [editor],
+  );
+
+  const closeInlineImage = useCallback(() => {
+    setInlineImageRequest(null);
+    editor.focus();
+  }, [editor]);
+  const inlineImageDialogRequest = useMemo<InlineImageRequest | null>(
+    () =>
+      inlineImageRequest && {
+        ...inlineImageRequest,
+        apply: (props) => {
+          inlineImageRequest.apply(props);
+          // A typed URL is copied like a pasted one; uploads are already on the app's storage.
+          scheduleRehost(editor.document, "value", null);
+        },
+      },
+    [inlineImageRequest, editor, scheduleRehost],
+  );
+  const uploadInlineImage = useCallback(
+    async (file: File) => {
+      const url = await uploadWithConfig(uploadConfig.current, file, { signal: new AbortController().signal, onProgress: () => {}, source: "upload" });
+      rehost.rememberHost(url);
+      return url;
+    },
+    [rehost],
+  );
 
   // BlockNote has no link shortcut; its toolbar link button needs a selection.
   const handleKeyDownCapture = useCallback(
@@ -857,6 +1050,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       >
         {swatches.length > 0 && <style>{swatchCss(scopeId, swatches)}</style>}
         <ToolbarItemsContext.Provider value={toolbarItems}>
+          <ImageLinkContext.Provider value={setImageLinkTarget}>
           <BlockNoteView
             editor={editor}
             // Also applied to BlockNote's portal roots (menus, toolbars), which the stylesheet is scoped to.
@@ -882,6 +1076,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
               <FilePanelController filePanel={GenesisFilePanel} />
             </BlockNoteViewEditor>
           </BlockNoteView>
+          </ImageLinkContext.Provider>
         </ToolbarItemsContext.Provider>
         {editable && mobileToolbar && (
           <MobileBlockToolbar
@@ -899,6 +1094,20 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
           initialUrl={linkInitialUrl}
           onClose={closeLinkDialog}
           onSubmit={applyLink}
+        />
+        <ImageLinkDialog target={imageLinkTarget} onClose={closeImageLink} onSubmit={applyImageLink} />
+        <InlineImageDialog request={inlineImageDialogRequest} onClose={closeInlineImage} upload={uploadInlineImage} />
+        <input
+          ref={fileInput}
+          type="file"
+          accept={DOCUMENT_IMPORT_ACCEPT}
+          hidden
+          data-testid="document-import-input"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void importFile(file);
+          }}
         />
       </div>
     </UploadContext.Provider>

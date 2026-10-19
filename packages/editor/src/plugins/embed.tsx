@@ -18,7 +18,7 @@ import {
 } from "../parser/embeds";
 import type { AnyEditor } from "./types";
 
-type LooseBlock = { id: string; type: string; props: Record<string, unknown>; content: unknown; children: unknown[] };
+export type LooseBlock = { id: string; type: string; props: Record<string, unknown>; content: unknown; children: unknown[] };
 
 const registries = new WeakMap<object, EmbedRegistry>();
 
@@ -42,7 +42,7 @@ type EmbedBlockProps = {
   snippet: boolean;
 };
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
+export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
   const node = document.createElement(tag);
   node.className = className;
   if (text) node.textContent = text;
@@ -50,7 +50,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 }
 
 // ProseMirror listens on the editor root; controls inside the block keep their own keys and clicks.
-function isolate(node: HTMLElement) {
+export function isolate(node: HTMLElement) {
   for (const type of ["keydown", "keypress", "beforeinput", "input", "mousedown", "paste", "drop"]) {
     node.addEventListener(type, (event) => event.stopPropagation());
   }
@@ -75,7 +75,7 @@ export function resolveEmbedInput(value: string, registry: EmbedRegistry): Embed
   return resolved ? { resolved, extras: { aspectRatio: resolved.provider ? undefined : "16/9" } } : null;
 }
 
-function linkBlock(editor: AnyEditor, url: string, label: string) {
+export function linkBlock(editor: AnyEditor, url: string, label: string) {
   const hasLink = "link" in (editor.schema.inlineContentSchema as object);
   return { type: "paragraph", content: hasLink ? [{ type: "link", href: url, content: label }] : label };
 }
@@ -149,12 +149,25 @@ function render(block: LooseBlock, editor: AnyEditor) {
       box.classList.add("genesis-embed-frame--fallback");
       iframe.addEventListener("load", () => box.classList.add("genesis-embed-frame--loaded"), { once: true });
     }
-    if (resolved.render === "widget") {
-      box.classList.add("genesis-embed-frame--widget");
-      iframe.srcdoc = widgetDocument(resolved, fallback, registry) ?? "";
-      destroy = followWidgetHeight(iframe, box);
-    } else iframe.src = resolved.frame.src;
-    box.append(iframe);
+    const loadFrame = () => {
+      if (!iframe.isConnected) box.append(iframe);
+      if (resolved.render === "widget") {
+        box.classList.add("genesis-embed-frame--widget");
+        iframe.srcdoc = widgetDocument(resolved, fallback, registry) ?? "";
+        destroy = followWidgetHeight(iframe, box);
+      } else iframe.src = resolved.frame.src;
+    };
+    if (registry.clickToLoad) {
+      const facade = el("button", "genesis-embed-load", `Load ${resolved.label} embed`);
+      facade.type = "button";
+      facade.dataset.testid = "embed-load";
+      isolate(facade);
+      facade.addEventListener("click", () => {
+        facade.remove();
+        loadFrame();
+      });
+      box.append(facade);
+    } else loadFrame();
     dom.append(box);
   } else {
     dom.classList.add("genesis-embed--blocked");
@@ -170,7 +183,25 @@ function render(block: LooseBlock, editor: AnyEditor) {
     // An unparsable stored URL still shows the bar, without a host.
   }
   bar.append(el("span", "genesis-embed-host", resolved?.provider ? resolved.label : host));
-  if (props.caption) bar.append(el("span", "genesis-embed-caption", props.caption));
+  const caption = el("span", "genesis-embed-caption");
+  caption.textContent = props.caption;
+  caption.dataset.testid = "embed-caption";
+  if (editor.isEditable) {
+    caption.contentEditable = "true";
+    caption.dataset.placeholder = "Caption";
+    caption.setAttribute("aria-label", "Embed caption");
+    caption.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        caption.blur();
+      }
+    });
+    caption.addEventListener("blur", () => {
+      const text = caption.textContent?.replace(/\n/g, " ").trim() ?? "";
+      if (text !== (props.caption || "")) editor.updateBlock(block.id, { props: { caption: text } } as never);
+    });
+  }
+  if (props.caption || editor.isEditable) bar.append(caption);
   bar.append(el("span", "genesis-embed-spacer"));
   if (/^https?:\/\//i.test(pageUrl)) {
     const open = el("a", "genesis-embed-open", "Open ↗");
@@ -187,7 +218,38 @@ function render(block: LooseBlock, editor: AnyEditor) {
   }
   isolate(bar);
   dom.append(bar);
+  if (editor.isEditable && resolved) attachResize(dom, block, editor);
   return { dom, destroy };
+}
+
+const RESIZE_MIN = 160;
+const RESIZE_MAX = 1200;
+
+function attachResize(dom: HTMLElement, block: LooseBlock, editor: AnyEditor) {
+  const handle = el("div", "genesis-embed-resize");
+  handle.title = "Resize";
+  handle.dataset.testid = "embed-resize";
+  isolate(handle);
+  handle.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = dom.getBoundingClientRect().width;
+    const apply = (x: number) => {
+      const next = Math.round(Math.min(RESIZE_MAX, Math.max(RESIZE_MIN, startWidth + (x - startX))));
+      dom.style.maxWidth = `${next}px`;
+      return next;
+    };
+    const onMove = (move: MouseEvent) => apply(move.clientX);
+    const onUp = (up: MouseEvent) => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      editor.updateBlock(block.id, { props: { previewWidth: apply(up.clientX) } } as never);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  });
+  dom.style.position = "relative";
+  dom.append(handle);
 }
 
 /** The snippet's text as a quote, so the content reads before (or without) the frame. */
@@ -280,9 +342,9 @@ export const embedSlashItem = {
 const linkText = (content: unknown) =>
   Array.isArray(content) ? content.map((part: { text?: string }) => part.text ?? "").join("") : "";
 
-/** The provider URL when the block is a paragraph holding only a link to it, written as the URL. */
-function bareProviderUrl(block: LooseBlock, registry: EmbedRegistry) {
-  if (block.type !== "paragraph" || block.children.length) return null;
+/** The URL when the block is a paragraph holding only that URL, as text or as a link written as the URL. */
+export function bareUrl(block: LooseBlock) {
+  if (block.type !== "paragraph" || block.children.length || !Array.isArray(block.content)) return null;
   const content = (block.content as unknown as { type: string; text?: string; href?: string; content?: unknown }[]).filter(
     (part) => part.type !== "text" || part.text?.trim(),
   );
@@ -295,7 +357,12 @@ function bareProviderUrl(block: LooseBlock, registry: EmbedRegistry) {
     const same = (a: string) => a.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
     if (same(text) !== same(url)) return null;
   }
-  return embedForUrl(url, registry);
+  return url;
+}
+
+function bareProviderUrl(block: LooseBlock, registry: EmbedRegistry) {
+  const url = bareUrl(block);
+  return url ? embedForUrl(url, registry) : null;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { isSafeUrl } from "./sanitize";
-import { blockAttrs, escapeAttr, escapeText, inline, plainText, type Props } from "./serialize-inline";
+import { blockAttrs, escapeAttr, escapeText, imageHtml, inline, plainText, type Props } from "./serialize-inline";
 import type { HtmlInline, HtmlTableCell, HtmlTableContent } from "./types";
 
 export function serializeTable(content: HtmlTableContent | undefined, attrs = "") {
@@ -44,26 +44,10 @@ function richCaption(json: Props["captionRich"], caption: string) {
 }
 
 const str = (value: Props[string]) => (typeof value === "string" ? value : "");
-const int = (value: Props[string]) => (typeof value === "number" && value > 0 ? Math.round(value) : undefined);
 
 function image(url: string, props: Props) {
-  const alt = str(props.alt) || str(props.name);
   const srcset = str(props.srcset) && !str(props.originalUrl) ? ` srcset="${escapeAttr(str(props.srcset))}"${str(props.sizes) ? ` sizes="${escapeAttr(str(props.sizes))}"` : ""}` : "";
-  const width = int(props.width);
-  const height = int(props.height);
-  const preview = int(props.previewWidth);
-  const size = (width ? ` width="${width}"` : "") + (height ? ` height="${height}"` : "");
-  // Display width as a style, so it isn't read back as the intrinsic width.
-  const display = preview && preview !== width ? ` style="width:${preview}px"` : "";
-  const href = str(props.href) && isSafeUrl(str(props.href)) ? str(props.href) : "";
-  // Read back on import, so an image that was already re-hosted isn't copied again.
-  const original = /^https?:\/\//i.test(str(props.originalUrl)) && isSafeUrl(str(props.originalUrl)) ? ` data-original-src="${escapeAttr(str(props.originalUrl))}"` : "";
-  // The image is on the app's own storage, so loading this HTML again never copies it.
-  const hosted = props.hosted === true ? " data-genesis-hosted" : "";
-  return (attrs: string) => {
-    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${srcset}${size}${display}${original}${hosted}>`;
-    return href ? `<a${attrs} href="${escapeAttr(href)}">${img}</a>` : img;
-  };
+  return imageHtml(url, props, srcset);
 }
 
 export function serializeMedia(type: "image" | "video" | "audio", props: Props, attrs = "") {

@@ -3,12 +3,15 @@ import { TextSelection } from "prosemirror-state";
 
 import { embedForMarkup, embedForUrl, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { decodeEscapedHTML } from "./parser/escaped";
+import { htmlIsMarkdownSource, looksLikeMarkdown, markdownToHTML } from "./parser/markdown";
 import { metaFromProps } from "./parser/meta";
 import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
 import { escapeAttr, escapeText } from "./parser/serialize-inline";
 import type { CleanOptions, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
+import { linkPreviewsOf } from "./lib/link-preview";
 import { convertBareEmbedLinks, embedRegistryOf } from "./plugins/embed";
+import { convertBareLinkPreviews } from "./plugins/link-preview";
 import type { ToolSelection } from "./plugins/resolve";
 
 export type HtmlImportOptions = {
@@ -31,6 +34,26 @@ export function importHTML(
 ): HtmlImport {
   const { blocks, report } = parseHTML(html, options);
   return { blocks: sanitize(blocks as PartialBlock[]), report };
+}
+
+/** Markdown → HTML → `importHTML`, so cleanup, sanitizing, and the report still apply. */
+export function importMarkdown(
+  markdown: string,
+  options: HtmlImportOptions,
+  sanitize: (blocks: PartialBlock[]) => PartialBlock[],
+): HtmlImport {
+  return importHTML(markdownToHTML(markdown), options, sanitize);
+}
+
+function markdownFromClipboard(html: string, plain: string): string | null {
+  if (!plain.trim()) return null;
+  if (html && !htmlIsMarkdownSource(html, plain)) return null;
+  if (!looksLikeMarkdown(plain)) return null;
+  try {
+    return markdownToHTML(plain) || null;
+  } catch {
+    return null;
+  }
 }
 
 export function exportHTML(editor: BlockNoteEditor, embedProviders?: readonly EmbedProvider[]): string {
@@ -145,8 +168,9 @@ function isEmbedCode(text: string, editor: object, anywhere = false) {
 type PasteHandler = NonNullable<BlockNoteEditorOptions<any, any, any>["pasteHandler"]>;
 
 /**
- * External `text/html` goes through the engine. BlockNote's own clipboard (`blocknote/html`),
- * VS Code snippets, plain text, files, and pastes into code blocks keep the default handling.
+ * External `text/html` and detected Markdown go through the engine. BlockNote's own clipboard
+ * (`blocknote/html`), VS Code snippets, ordinary plain text, files, and pastes into code blocks
+ * keep the default handling.
  */
 export function createPasteHandler(
   getOptions: () => HtmlImportOptions,
@@ -157,18 +181,24 @@ export function createPasteHandler(
     const data = event.clipboardData;
     const types = data ? Array.from(data.types) : [];
     if (!data || types.includes("blocknote/html") || types.includes("vscode-editor-data")) return defaultPasteHandler();
-    let html = types.includes("text/html") ? data.getData("text/html") : "";
-    const plain = types.includes("text/plain") ? data.getData("text/plain") : "";
+    // Read the data even when `types` is incomplete (some synthetic pastes list nothing).
+    let html = data.getData("text/html") || "";
+    const plain = data.getData("text/plain") || "";
     const embeds = "embed" in editor.schema.blockSchema;
     // HTML copied as JSON text (an API response, DevTools, a .json file): import the HTML it encodes.
     const decoded = plain ? decodeEscapedHTML(plain) : null;
     if (decoded) html = decoded;
     // Embed code copied as text (a site's "Copy code" button, or code shown highlighted): import the code itself.
     if (embeds && isEmbedCode(plain, editor) && !(html && isEmbedCode(html, editor, true))) html = plain;
+    // Markdown from ChatGPT, GitHub, Slack, or a .md file: convert, then the HTML engine.
+    const fromMarkdown = markdownFromClipboard(html, plain);
+    if (fromMarkdown) html = fromMarkdown;
     if (!html) {
-      // A provider URL copied from the address bar arrives as plain text; it goes in as a link first.
+      // A URL copied from the address bar arrives as plain text; an embed or a card goes in as a link first.
       const url = plain.trim();
-      if (!embeds || !/^https?:\/\/\S+$/.test(url) || !embedForUrl(url, embedRegistryOf(editor))) return defaultPasteHandler();
+      const embeddable = embeds && embedForUrl(url, embedRegistryOf(editor));
+      const previewable = "linkPreview" in editor.schema.blockSchema && linkPreviewsOf(editor)?.configured;
+      if (!/^https?:\/\/\S+$/.test(url) || !(embeddable || previewable)) return defaultPasteHandler();
       html = `<p><a href="${escapeAttr(url)}">${escapeText(url)}</a></p>`;
     }
     const inCode = editor.transact((tr) => Boolean(tr.selection.$from.parent.type.spec.code));
@@ -179,6 +209,7 @@ export function createPasteHandler(
     const inserted = insertBlocks(target, result.blocks);
     const converted = convertBareEmbedLinks(target, [...inserted, target.getTextCursorPosition().block]);
     result.report.embeds.provider += converted.length;
+    convertBareLinkPreviews(target, [...inserted, target.getTextCursorPosition().block]);
     onImport(result, html, inserted);
     return true;
   };

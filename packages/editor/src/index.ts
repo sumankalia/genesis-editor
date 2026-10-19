@@ -8,9 +8,14 @@ export type {
   HtmlChangeInfo,
   HtmlExportOptions,
   HtmlFormatProps,
+  MarkdownFormatProps,
   UploadErrorEvent,
 } from "./block-editor";
+export { htmlIsMarkdownSource, looksLikeMarkdown, markdownToHTML, parseMarkdown, parseMarkdownAsync } from "./parser/markdown";
 export type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
+export { DocumentImportError } from "./parser/document-import";
+export type { DocumentFormat } from "./parser/document-import";
+export type { GoogleDriveImport } from "./plugins/import-file";
 export { META_VERSION, migrateMeta, stripMeta } from "./parser/meta";
 export { defineEmbedProvider, getEmbedFrameSrc, getEmbedScriptSrc, GENERIC_SANDBOX, PROVIDER_ALLOW, PROVIDER_SANDBOX, WIDGET_SANDBOX } from "./parser/embeds";
 export type { EmbedFrame, EmbedOptions, EmbedProvider, EmbedScript, EmbedSnippet } from "./parser/embeds";
@@ -35,6 +40,7 @@ export type {
   UploadResponseMapper,
 } from "./lib/uploads";
 export type { RehostStatus } from "./lib/rehost";
+export type { LinkPreviewConfig, LinkPreviewMeta } from "./lib/link-preview";
 export type { EditorTheme } from "./lib/use-color-scheme";
 export type { Block, BlockNoteEditor, PartialBlock } from "@blocknote/core";
 export { definePlugin } from "./plugins/types";

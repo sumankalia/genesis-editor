@@ -18,12 +18,17 @@ import {
 } from "@blocknote/react";
 import { useMemo } from "react";
 
+import { AltTextButton } from "../components/alt-text-button";
 import { ColorPickerButton } from "../components/color-picker";
 import { FontSizeSelect } from "../components/font-size-select";
 import { CODE_LANGUAGES } from "../parser/code-languages";
 import { resolveColorConfig } from "../parser/colors";
+import { ImageLinkButton } from "../components/image-link-dialog";
 import { genesisSyntaxHighlighting } from "./code-highlight";
 import { embedSlashItem, embedSpec } from "./embed";
+import { importSlashItems } from "./import-file";
+import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
+import { LinkPreviewButton, linkPreviewSlashItems, linkPreviewSpec } from "./link-preview";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
 import { backgroundColorSpec, blockHexColorsExtension, fontSizeKeysExtension, fontSizeSpec, textColorSpec } from "./text-styles";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
@@ -57,6 +62,7 @@ function HeadingAwareBlockTypeSelect() {
 function FileButtons() {
   return (
     <>
+      <AltTextButton />
       <FileCaptionButton />
       <FileReplaceButton />
       <FileRenameButton />
@@ -76,6 +82,7 @@ const styleButton = (style: "bold" | "italic" | "underline" | "strike" | "code")
 export const corePlugin = definePlugin({
   name: "core",
   blocks: { paragraph: defaultBlockSpecs.paragraph },
+  slashItems: (editor) => importSlashItems(editor),
   toolbarItems: {
     blockType: HeadingAwareBlockTypeSelect,
     tableMerge: TableCellMergeButton,
@@ -129,11 +136,26 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
     }),
   divider: () => blockTool("divider", "divider"),
   table: () => blockTool("table", "table"),
-  image: () => definePlugin({ name: "image", blocks: { image: imageSpec }, extensions: [imageSourceExtension] }),
+  image: () =>
+    definePlugin({
+      name: "image",
+      blocks: { image: imageSpec },
+      inlineContent: { inlineImage: inlineImageSpec },
+      extensions: [imageSourceExtension],
+      slashItems: [inlineImageSlashItem],
+      toolbarItems: { imageLink: ImageLinkButton, inlineImage: InlineImageButton },
+    }),
   video: () => blockTool("video", "video"),
   audio: () => blockTool("audio", "audio"),
   file: () => blockTool("file", "file"),
   embed: () => definePlugin({ name: "embed", blocks: { embed: embedSpec }, slashItems: [embedSlashItem] }),
+  linkPreview: () =>
+    definePlugin({
+      name: "linkPreview",
+      blocks: { linkPreview: linkPreviewSpec },
+      slashItems: linkPreviewSlashItems,
+      toolbarItems: { linkPreview: LinkPreviewButton },
+    }),
   bold: () => styleTool("bold"),
   italic: () => styleTool("italic"),
   underline: () => styleTool("underline"),

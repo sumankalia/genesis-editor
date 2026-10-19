@@ -86,6 +86,14 @@ export default function ImageUploadsPage() {
       </p>
       <Example name="image-by-url" minHeight={320} />
 
+      <H2>Alt text, captions, and alignment</H2>
+      <p>
+        Select an image to open the formatting toolbar. <strong>Alt text</strong> edits{" "}
+        <code>props.alt</code> (kept apart from the file name). <strong>Edit caption</strong> edits
+        the figure caption. The alignment buttons set <code>textAlignment</code> so the image sits
+        left, center, or right in the column. All three round-trip through HTML.
+      </p>
+
       <H2>Upload to an endpoint</H2>
       <p>
         Set <code>uploadUrl</code>. The editor sends a <code>multipart/form-data</code>{" "}

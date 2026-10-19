@@ -3,18 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BlockEditor,
+  DocumentImportError,
   mapResponsePath,
   type Block,
   type BlockEditorHandle,
+  type FidelityReport,
   type PersistStatus,
   type UploadErrorEvent,
 } from "genesis-editor";
-import { ClipboardCopyIcon, RotateCcwIcon } from "lucide-react";
+import { ClipboardCopyIcon, FileUpIcon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { calloutPlugin } from "@/components/examples/callout-plugin";
+import { ImportReport } from "@/components/import-report";
 import { ClientCode } from "@/components/playground/client-code";
 import { PasteHtmlPanel } from "@/components/playground/paste-html-panel";
+import { PasteMarkdownPanel } from "@/components/playground/paste-markdown-panel";
 import {
   ALL_TOOLS,
   OptionsPanel,
@@ -33,6 +37,7 @@ import {
 import { useSiteTheme } from "@/lib/use-site-theme";
 
 const DOCUMENT_KEY = "genesis:document:v1";
+const MOCK_LINK_PREVIEW_URL = "/api/mock-link-preview";
 
 export default function Playground() {
   const editorRef = useRef<BlockEditorHandle>(null);
@@ -46,10 +51,16 @@ export default function Playground() {
     toolbarPlacement: "floating",
     htmlMode: "clean",
     cleanNoise: true,
+    linkPreviews: true,
   }));
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [markdown, setMarkdown] = useState("");
   const [html, setHtml] = useState("");
+  const [outputTab, setOutputTab] = useState("code");
+  const importInput = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<
+    { kind: "idle" } | { kind: "error"; message: string } | { kind: "loaded"; report: FidelityReport }
+  >({ kind: "idle" });
   const siteTheme = useSiteTheme();
 
   const { uploads } = options;
@@ -110,7 +121,23 @@ export default function Playground() {
   const resetDocument = () => {
     if (!window.confirm("Replace this document with the starter content?")) return;
     editorRef.current?.setBlocks(starterDocument);
+    setImportStatus({ kind: "idle" });
     toast.success("Document reset");
+  };
+
+  const importFile = async (file: File | undefined) => {
+    if (!file || !editorRef.current) return;
+    setOutputTab("import");
+    try {
+      const report = await editorRef.current.importFile(file);
+      setImportStatus({ kind: "loaded", report });
+      refreshOutput();
+      toast.success(`Imported ${file.name}`);
+    } catch (error) {
+      const message = error instanceof DocumentImportError ? error.message : String(error);
+      setImportStatus({ kind: "error", message });
+      toast.error("Couldn't import that file", { description: message });
+    }
   };
 
   const tools = useMemo(() => toolsProp(options), [options]);
@@ -120,6 +147,7 @@ export default function Playground() {
     [options.toolbarPlacement],
   );
   const clean = useMemo(() => (options.cleanNoise ? undefined : { noise: false }), [options.cleanNoise]);
+  const linkPreview = useMemo(() => (options.linkPreviews ? { endpoint: MOCK_LINK_PREVIEW_URL } : undefined), [options.linkPreviews]);
 
   const editorTheme = options.theme === "site" ? siteTheme : options.theme;
   const json = useMemo(() => JSON.stringify(blocks, shortenDataUrls, 2), [blocks]);
@@ -133,6 +161,22 @@ export default function Playground() {
           <div className="flex h-11 items-center justify-between gap-2 border-b px-3">
             <SaveIndicator state={saveState} />
             <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => importInput.current?.click()} data-testid="playground-import">
+                <FileUpIcon />
+                <span className="hidden sm:inline">Import</span>
+              </Button>
+              <input
+                ref={importInput}
+                type="file"
+                hidden
+                data-testid="playground-import-input"
+                accept=".docx,.odt,.rtf,.html,.htm,.md,.markdown,.txt,.pages"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  void importFile(file);
+                }}
+              />
               <Button variant="ghost" size="sm" onClick={copyMarkdown}>
                 <ClipboardCopyIcon />
                 <span className="hidden sm:inline">Copy Markdown</span>
@@ -157,6 +201,7 @@ export default function Playground() {
               plugins={plugins}
               htmlMode={options.htmlMode}
               clean={clean}
+              linkPreview={linkPreview}
               uploadFile={uploads.mode === "custom" ? demoUploadFile : undefined}
               uploadUrl={serverMode ? uploadUrl : undefined}
               mapUploadResponse={serverMode ? mapUploadResponse : undefined}
@@ -173,7 +218,7 @@ export default function Playground() {
       </div>
 
       <section aria-label="Output">
-        <Tabs defaultValue="code" className="gap-4">
+        <Tabs value={outputTab} onValueChange={setOutputTab} className="gap-4">
           <TabsList
             variant="line"
             data-testid="output-tabs"
@@ -184,6 +229,8 @@ export default function Playground() {
             <TabsTrigger value="markdown">Markdown</TabsTrigger>
             <TabsTrigger value="html">HTML</TabsTrigger>
             <TabsTrigger value="paste-html">Paste HTML</TabsTrigger>
+            <TabsTrigger value="paste-markdown">Paste Markdown</TabsTrigger>
+            <TabsTrigger value="import">Import</TabsTrigger>
           </TabsList>
           <TabsContent value="code" data-testid="output-code">
             <ClientCode code={code} lang="tsx" />
@@ -199,6 +246,24 @@ export default function Playground() {
           </TabsContent>
           <TabsContent value="paste-html" forceMount className="data-[state=inactive]:hidden">
             <PasteHtmlPanel editorRef={editorRef} />
+          </TabsContent>
+          <TabsContent value="paste-markdown" forceMount className="data-[state=inactive]:hidden">
+            <PasteMarkdownPanel editorRef={editorRef} />
+          </TabsContent>
+          <TabsContent value="import" forceMount className="data-[state=inactive]:hidden">
+            <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm" data-testid="playground-import-status" aria-live="polite">
+              <p className="text-muted-foreground">
+                Import a Word, OpenDocument, RTF, HTML, Markdown, or text file. It replaces the document through the
+                same HTML engine as paste. Apple Pages is refused.
+              </p>
+              {importStatus.kind === "idle" && <p className="text-muted-foreground">Choose a file with the Import button to see the fidelity report.</p>}
+              {importStatus.kind === "error" && (
+                <p className="text-destructive" data-testid="playground-import-error">
+                  {importStatus.message}
+                </p>
+              )}
+              {importStatus.kind === "loaded" && <ImportReport report={importStatus.report} testId="playground-import" />}
+            </div>
           </TabsContent>
         </Tabs>
       </section>
@@ -234,7 +299,7 @@ function arrayProp(name: string, values: readonly string[]) {
 }
 
 function generateCode(options: PlaygroundOptions) {
-  const { theme, editable, uploads, callout, toolbarPlacement, htmlMode, cleanNoise } = options;
+  const { theme, editable, uploads, callout, toolbarPlacement, htmlMode, cleanNoise, linkPreviews } = options;
   const props = [`persist={{ key: "my-document" }}`];
   if (theme === "site") props.push(`theme={resolvedTheme} // "light" | "dark" from your app`);
   else if (theme !== "system") props.push(`theme="${theme}"`);
@@ -246,6 +311,7 @@ function generateCode(options: PlaygroundOptions) {
   if (callout) props.push("plugins={[calloutPlugin]}");
   if (htmlMode === "strict") props.push(`htmlMode="strict"`);
   if (!cleanNoise) props.push("clean={{ noise: false }}");
+  if (linkPreviews) props.push(`linkPreview={{ endpoint: "/api/link-preview" }}`);
 
   const url = uploads.uploadUrl.trim();
   const path = uploads.responsePath.trim();

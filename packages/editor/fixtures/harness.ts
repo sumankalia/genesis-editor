@@ -122,7 +122,7 @@ export function wordDiff(a: string, b: string): DiffPart[] {
 export function headingOutline(blocks: HtmlBlock[], out: { level: number; text: string }[] = []) {
   for (const block of blocks) {
     if (block.type === "heading" && Array.isArray(block.content)) {
-      const text = block.content.map((n) => (n.type === "link" ? n.content.map((t) => t.text).join("") : n.text)).join("");
+      const text = block.content.map((n) => (n.type === "link" ? n.content.map((t) => t.text).join("") : n.type === "text" ? n.text : "")).join("");
       out.push({ level: Number(block.props?.level ?? 1), text });
     }
     if (block.children) headingOutline(block.children, out);

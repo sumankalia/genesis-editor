@@ -19,9 +19,13 @@ import {
   type ResolvedEmbed,
 } from "./embeds";
 import { decodeEscapedHTML } from "./escaped";
+import { linkPreviewProps } from "./link-preview";
 import {
   finalizeRuns,
+  hasInlineContent,
+  IMAGE_CHAR,
   inlineText,
+  inlineTexts,
   inlineToRuns,
   mapStyles,
   runsToInline,
@@ -47,6 +51,7 @@ import { nearestLevel, resolveTools, type ParserTools } from "./tools";
 import type {
   HtmlBlock,
   HtmlInline,
+  HtmlInlineImage,
   HtmlStyles,
   HtmlTableCell,
   HtmlTableContent,
@@ -69,6 +74,8 @@ type Ctx = {
   textColor?: string;
   backgroundColor?: string;
   link?: string;
+  /** The link has `target="_blank"`. */
+  linkNewTab?: boolean;
   pre: boolean;
   size: number;
   /** A `data-font-size` step, taken as is. */
@@ -204,7 +211,7 @@ class Sink {
       const runs = finalizeRuns(group);
       if (!runs) continue;
       for (const run of runs) {
-        if ((!run.pre || !run.fromBr) && !run.literalSize) {
+        if ((!run.pre || !run.fromBr) && !run.literalSize && !run.image) {
           const size = Math.round(run.size * 10) / 10;
           this.state.sizes.set(size, (this.state.sizes.get(size) ?? 0) + run.text.length);
         }
@@ -318,7 +325,9 @@ class CellSink extends Sink {
 
   protected accept(block: HtmlBlock) {
     const prefix = block.type === "bulletListItem" || block.type === "checkListItem" ? "• " : block.type === "numberedListItem" ? "1. " : "";
-    if (block.type === "image" || block.type === "video" || block.type === "audio") {
+    if (block.type === "image" && this.state.tools.has("image") && typeof block.props?.url === "string") {
+      this.lines.push([imageRun(inlineImageProps(block.props), 16)]);
+    } else if (block.type === "image" || block.type === "video" || block.type === "audio") {
       this.state.report.drop(block.type === "image" ? "img" : block.type, "unsupported", String(block.props?.url ?? ""));
     } else if (block.type === "table") {
       for (const row of (block.content as HtmlTableContent).rows) {
@@ -388,6 +397,7 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
   const cls = classes(el);
   if (cls.some((c) => FIGURE_CLASSES.has(c))) return withElementMeta(el, sink, () => figure(el, decl, next, sink, state));
   if (cls.includes("wp-block-file") && fileBlock(el, sink, state)) return;
+  if (tag === "a" && el.hasAttribute("data-genesis-link-preview") && ctx.container === "root" && linkPreview(el, sink, state)) return;
 
   const kind = TAG_CLASSES[tag] ?? (tag.includes(":") ? "inline" : undefined);
   switch (kind) {
@@ -671,6 +681,7 @@ function inline(el: Element, tag: string, decl: Declarations, ctx: Ctx, sink: Si
       const clean = cleanHref(href, state.base);
       if (clean) {
         next.link = clean;
+        next.linkNewTab = el.getAttribute("target")?.trim().toLowerCase() === "_blank";
         if (!state.tools.has("link")) state.report.downgrade("a", "text");
       }
     }
@@ -737,7 +748,7 @@ function block(el: Element, tag: string, decl: Declarations, ctx: Ctx, sink: Sin
     case "img":
       return image(el, decl, ctx, sink, state);
     case "picture":
-      sink.flush();
+      if (ctx.container !== "cell") sink.flush();
       flow(el, ctx, sink, state);
       return;
     case "video":
@@ -808,7 +819,7 @@ function heading(el: Element, level: number, decl: Declarations, ctx: Ctx, sink:
 
 /** A heading block, or a bold paragraph when headings are off. Whole-heading bold is dropped (§6). */
 function makeHeading(content: HtmlInline[], level: number, props: Record<string, string | number | boolean>, state: State, extra: Record<string, boolean> = {}): HtmlBlock[] {
-  const allBold = content.length > 0 && content.every((n) => (n.type === "link" ? n.content.every((t) => t.styles.bold) : n.styles.bold || !n.text.trim()));
+  const allBold = content.length > 0 && inlineTexts(content).length > 0 && content.every((n) => (n.type === "link" ? n.content.every((t) => t.styles.bold) : n.type !== "text" || n.styles.bold || !n.text.trim()));
   const plain = allBold ? mapStyles(content, (s) => omit(s, "bold")) : content;
   if (!state.tools.has("heading")) {
     state.report.downgrade(`h${level}`, "bold paragraph");
@@ -1022,6 +1033,12 @@ function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   reportStyles(el, decl, state);
   const rows = tableRows(el);
   const cellsOf = (tr: Element) => elementChildren(tr).filter((c) => lower(c) === "td" || lower(c) === "th");
+  // Markdown tables need a header row, so image grids (dev.to, GitHub) come with an empty one.
+  const blank = (cell: Element) => !(cell.textContent ?? "").trim() && !cell.querySelector("img, picture, video, audio, iframe");
+  while (rows.length > 1 && (rows[0].head || cellsOf(rows[0].tr).every((c) => lower(c) === "th")) && cellsOf(rows[0].tr).every(blank)) {
+    rows.shift();
+    state.report.drop("thead", "noise", "empty header row");
+  }
   const single = rows.length === 1 && cellsOf(rows[0].tr).length === 1;
   if (el.getAttribute("role") === "presentation" || single || rows.length === 0) {
     state.report.unwrap("table(layout)");
@@ -1086,7 +1103,7 @@ function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   if (!state.tools.has("table")) {
     state.report.downgrade("table", "paragraphs");
     const paragraphs = outRows
-      .filter((row) => row.cells.some((cell) => cell.content.some((node) => /\S/.test(node.type === "text" ? node.text : node.content.map((t) => t.text).join("")))))
+      .filter((row) => row.cells.some((cell) => hasInlineContent(cell.content)))
       .map((row) => ({
         type: "paragraph",
         content: runsToInline(row.cells.flatMap((cell, i) => [...(i ? inlineToRuns([{ type: "text", text: "\t", styles: {} }]) : []), ...inlineToRuns(cell.content)])),
@@ -1201,12 +1218,38 @@ function image(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   const original = el.getAttribute("data-original-src")?.trim();
   if (original && /^https?:\/\//i.test(original) && isSafeUrl(original)) props.originalUrl = original;
   if (el.hasAttribute("data-genesis-hosted")) props.hosted = true;
-  if (ctx.link) {
-    if (state.tools.has("link") && isSafeUrl(ctx.link)) props.href = ctx.link;
-    else state.report.downgrade("image link", "image");
+  const src = el.getAttribute("src");
+  const selfLink = !!ctx.link && [url, raw, src && resolveUrl(src, state.base).url].some((u) => u && (u === ctx.link || cleanHref(u, state.base) === ctx.link));
+  if (selfLink) state.report.drop("a", "noise", "link to the image itself");
+  if (ctx.link && !selfLink) {
+    if (state.tools.has("link") && isSafeUrl(ctx.link)) {
+      props.href = ctx.link;
+      if (ctx.linkNewTab) props.openInNewTab = true;
+    } else state.report.downgrade("image link", "image");
+  }
+  if (state.tools.has("image") && (ctx.container === "cell" || el.hasAttribute("data-genesis-inline"))) {
+    state.report.mapped++;
+    return sink.addRun(imageRun(inlineImageProps(props), ctx.size));
   }
   sink.flush();
   emitMedia({ type: "image", props }, "image", alt || url, ctx, sink, state);
+}
+
+/** Image block props reduced to what an inline image keeps. */
+function inlineImageProps(props: Record<string, string | number | boolean>): HtmlInlineImage["props"] {
+  const out: HtmlInlineImage["props"] = { url: String(props.url) };
+  const alt = props.alt || props.name;
+  if (typeof alt === "string" && alt) out.alt = alt;
+  for (const key of ["width", "height", "previewWidth"] as const) if (typeof props[key] === "number") out[key] = props[key] as number;
+  if (typeof props.href === "string") out.href = props.href;
+  if (props.openInNewTab === true) out.openInNewTab = true;
+  if (typeof props.originalUrl === "string") out.originalUrl = props.originalUrl;
+  if (props.hosted === true) out.hosted = true;
+  return out;
+}
+
+function imageRun(image: HtmlInlineImage["props"], size: number): Run {
+  return { text: IMAGE_CHAR, styles: {}, pre: true, size, sourceBold: false, image };
 }
 
 function media(el: Element, tag: "video" | "audio" | string, ctx: Ctx, sink: Sink, state: State) {
@@ -1366,6 +1409,34 @@ function embedFigure(el: Element, sink: Sink, state: State) {
   );
 }
 
+/**
+ * Our own link preview export: the metadata is read from the `data-*` attributes and cleaned again (absolute
+ * http(s) image and favicon, capped plain text). With the `linkPreview` tool off it's a link paragraph.
+ */
+function linkPreview(el: Element, sink: Sink, state: State) {
+  const href = el.getAttribute("href");
+  const data = (name: string) => el.getAttribute(`data-${name}`) ?? undefined;
+  const card = href
+    ? linkPreviewProps(resolveUrl(href, state.base).url, {
+        title: data("title") ?? el.querySelector("strong")?.textContent,
+        description: data("description"),
+        image: data("image"),
+        siteName: data("site-name"),
+        favicon: data("favicon"),
+      })
+    : null;
+  if (!card) return false;
+  sink.flush();
+  if (state.tools.has("linkPreview")) {
+    state.report.mapped++;
+    sink.push({ type: "linkPreview", props: { ...card } });
+    return true;
+  }
+  state.report.downgrade("link preview", "link paragraph");
+  sink.push(linkParagraph(card.url, card.title || card.url, state));
+  return true;
+}
+
 function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: State) {
   if (el.hasAttribute("data-genesis-embed")) return embedFigure(el, sink, state);
   sink.flush();
@@ -1422,7 +1493,7 @@ function richCaption(captions: Element[], ctx: Ctx, state: State): HtmlInline[] 
   const lines = sub.blocks.filter((b) => b.type === "paragraph" && Array.isArray(b.content) && inlineText(b.content as HtmlInline[]).trim());
   if (lines.length !== 1) return undefined;
   const content = mapStyles(lines[0].content as HtmlInline[], (styles) => omit(styles, "fontSize"));
-  const formatted = content.some((n) => n.type === "link" || Object.keys(n.styles).length);
+  const formatted = content.some((n) => n.type !== "text" || Object.keys(n.styles).length);
   return formatted ? content : undefined;
 }
 
@@ -1536,7 +1607,7 @@ function normalizeFontSizes(blocks: HtmlBlock[], state: State): HtmlBlock[] {
       return styles;
     }));
   const count = (content: HtmlInline[]) => {
-    for (const node of content) for (const text of node.type === "link" ? node.content : [node]) if (text.styles.fontSize) report.fontSizes.sized++;
+    for (const text of inlineTexts(content)) if (text.styles.fontSize) report.fontSizes.sized++;
     return content;
   };
   const walk = (list: HtmlBlock[]): HtmlBlock[] =>
@@ -1558,7 +1629,7 @@ function normalizeFontSizes(blocks: HtmlBlock[], state: State): HtmlBlock[] {
 
 /** Whitespace between two runs takes their size when they agree and none otherwise, so it never stands out. */
 function spacesFollowNeighbours(content: HtmlInline[]): HtmlInline[] {
-  const texts = content.flatMap((node) => (node.type === "link" ? node.content : [node]));
+  const texts = inlineTexts(content);
   if (!texts.some((t) => t.styles.fontSize)) return content;
   let changed = false;
   texts.forEach((text, i) => {
@@ -1587,8 +1658,7 @@ function emptyWhitespaceOnly(blocks: HtmlBlock[]): HtmlBlock[] {
     let next = block;
     const content = block.content;
     if (block.type !== "codeBlock" && Array.isArray(content) && content.length) {
-      const text = content.map((node) => (node.type === "text" ? node.text : node.content.map((t) => t.text).join(""))).join("");
-      if (!/\S/.test(text.replace(/\u00a0/g, " "))) next = { ...block, content: [] };
+      if (!hasInlineContent(content as HtmlInline[])) next = { ...block, content: [] };
     }
     return block.children?.length ? { ...next, children: emptyWhitespaceOnly(block.children) } : next;
   });

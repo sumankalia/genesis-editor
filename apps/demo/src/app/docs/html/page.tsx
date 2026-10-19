@@ -74,7 +74,9 @@ export default function HtmlPage() {
       <p>
         Set <code>format=&quot;html&quot;</code> and <code>value</code>, <code>defaultValue</code>,
         and <code>onChange</code> carry HTML strings. Incoming HTML is cleaned, sanitized, and mapped
-        to blocks; outgoing HTML is plain semantic markup that loads back to the same document.
+        to blocks; outgoing HTML is plain semantic markup that loads back to the same document.{" "}
+        <Link href="/docs/markdown">Markdown import</Link> uses the same engine after converting
+        CommonMark to HTML.
       </p>
       <CodeBlock code={htmlFormat} />
       <p>Edit either side: the editor and the HTML stay in sync.</p>
@@ -180,7 +182,14 @@ export default function HtmlPage() {
         with <code>srcset</code>/<code>sizes</code>, the intrinsic <code>width</code> and{" "}
         <code>height</code>, a surrounding link (<code>href</code>), and a formatted caption
         (<code>captionRich</code>, used on export until the caption is edited). Replacing an
-        image&apos;s file clears the old <code>srcset</code>.
+        image&apos;s file clears the old <code>srcset</code>. An <code>&lt;img&gt;</code> inside a
+        table cell (or a paragraph) is kept as an inline image: same URL, upload and re-hosting as
+        image blocks, resize capped to the cell, alt text, and an optional link. Export is{" "}
+        <code>&lt;td&gt;&lt;img data-genesis-inline&gt;</code>. Browser copies that wrap the
+        article (Chrome/Safari/Firefox), <code>&lt;picture&gt;</code>/<code>srcset</code>, and lazy{" "}
+        <code>data-src</code> are recovered. An empty header row of empty <code>&lt;th&gt;</code>s
+        is dropped as noise, an image that links to itself loses the link, and empty heading
+        anchors are dropped.
       </p>
 
       <H2>On the server</H2>

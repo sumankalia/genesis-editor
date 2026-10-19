@@ -18,11 +18,14 @@ Tailwind or shadcn/ui in your app.
 - Markdown shortcuts: `#` headings, `-` / `1.` / `[]` lists, `>` quotes,
   ```` ``` ```` code, `---` dividers
 - Images by URL or upload (picker, drop, paste) to your server or your own function,
-  with optional re-hosting of pasted images
-- HTML in and out (`format="html"`, `getHTML`/`setHTML`), and pastes from Google
-  Docs, Word, WordPress and web pages cleaned into blocks
+  with optional re-hosting of pasted images; alt text, captions, and alignment in the toolbar
+- HTML in and out (`format="html"`, `getHTML`/`setHTML`), Markdown in
+  (`format="markdown"`, `setMarkdown`, Markdown paste), and pastes from Google
+  Docs, Word, WordPress and web pages cleaned into blocks, including images inside
+  table cells
+- Import a Word, OpenDocument, HTML, Markdown, or text file (`importFile`, `/import`)
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
-  or a site's embed code, always in sandboxed frames
+  or a site's embed code, always in sandboxed frames; click-to-load, captions, and resize
 - Text and background colours, font sizes, code-block syntax highlighting
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
@@ -117,7 +120,24 @@ With `format="html"`, `value`, `defaultValue` and `onChange` carry HTML strings:
 <BlockEditor format="html" defaultValue={savedHtml} onChange={(html) => save(html)} />
 ```
 
-Pasted HTML, the HTML `value` and `setHTML` go through `genesis-editor/parser`.
+With `format="markdown"`, the same props carry Markdown. Incoming Markdown is
+converted to HTML and parsed by the engine; `onChange` emits a lossy Markdown
+export. `setMarkdown` does the same replacement as `setHTML`. Pasted Markdown
+plain text (a heading, list, quote, fence, table, or Markdown link/image) also
+goes through the engine; real HTML pastes still win.
+
+```tsx
+<BlockEditor format="markdown" defaultValue={savedMd} onChange={(md) => save(md)} />
+```
+
+```ts
+import { parseMarkdown, markdownToHTML } from "genesis-editor/parser";
+import { linkedomDom } from "genesis-editor/parser/linkedom";
+
+const { blocks, report } = parseMarkdown(md, { dom: linkedomDom });
+```
+
+Pasted HTML, the HTML `value`, `setHTML`, `setMarkdown`, and `importFile` go through `genesis-editor/parser`.
 It maps what the editor can show, sanitizes the rest, removes page furniture
 from pastes (with an "Undo cleanup" toast), and reports what changed through
 `onImportReport`. `htmlMode="strict"` also snaps custom colours to the palette.
@@ -158,6 +178,10 @@ browser, `dom` defaults to the page's `DOMParser`.
   `[{ "HTML": "…" }]`, and the inside of a JSON string when its escapes are
   clearly structural. The report gets a warning; `decodeEscaped: false` turns it
   off. `decodeEscapedHTML(text)` is exported for your own inputs.
+- `<img>` in a table cell (or a paragraph) is kept as an inline image, with the
+  same URL, upload and re-hosting as image blocks. Export is
+  `<td><img data-genesis-inline>`. Empty header rows of empty `<th>`s are
+  dropped; an image that links to itself loses the link.
 
 ## Image uploads
 
@@ -226,6 +250,33 @@ With neither prop, files are embedded in the document as `data:` URLs, limited
 to 2 MB each. The Upload tab tells the user so. This is meant for prototypes;
 configure a destination for real use.
 
+## Link previews
+
+A URL pasted on its own line (or added with `/Link preview`) becomes a card with
+the page's title, description, image and site name, once you say where the
+metadata comes from. Without `linkPreview`, URLs stay links.
+
+```tsx
+// GET /api/link-preview?url=… → { title, description, image, siteName, favicon }
+<BlockEditor linkPreview={{ endpoint: "/api/link-preview" }} />
+
+// Or your own lookup; resolve to null for "no preview".
+<BlockEditor linkPreview={{ resolve: async (url, { signal }) => unfurl(url, { signal }) }} />
+```
+
+The metadata is cleaned (plain text with length caps, absolute `http(s)` image
+and favicon) and stored in the block, so saved documents draw without fetching.
+A card shows a loading state while it fetches and turns back into a link when
+the lookup fails; one undo after a paste also gives the link back, and each card
+has _Convert to link_. `getHTML()` writes `<a href data-genesis-link-preview
+data-title …>` that reads as a link elsewhere and back to the same card in
+`parseHTML`. Your endpoint fetches user-supplied URLs: guard it against SSRF.
+
+Images can carry a link too: select one and use the link button in its toolbar
+(URL and "Open in a new tab"). It's exported as `<a href target="_blank"
+rel="noopener noreferrer"><img></a>`; `javascript:` and other unsafe schemes are
+refused.
+
 ## Tools and plugins
 
 By default every built-in tool is on. Pass `tools` to choose which ones the
@@ -243,7 +294,7 @@ menu, Markdown shortcuts, the formatting toolbar, the mobile toolbar, and paste
 
 Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
 `toggleList`, `quote`, `codeBlock`, `divider`, `table`, `image`, `video`,
-`audio`, `file`, `embed`. Inline tools: `bold`, `italic`, `underline`, `strike`,
+`audio`, `file`, `embed`, `linkPreview`. Inline tools: `bold`, `italic`, `underline`, `strike`,
 `code`, `link`, `colors`, `fontSize`. They're exported as `BLOCK_TOOLS`,
 `INLINE_TOOLS`, and `BUILT_IN_TOOLS`, so "everything except tables" is
 `BUILT_IN_TOOLS.filter((tool) => tool !== "table")`.
@@ -286,8 +337,9 @@ of showing it on selection, and `toolbar={false}` removes it.
 ```
 
 The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `file`,
-`bold`, `italic`, `underline`, `strike`, `code`, `alignLeft`, `alignCenter`,
-`alignRight`, `fontSize`, `colors`, `nest`, `unnest`, `link`, followed by plugin items.
+`imageLink`, `inlineImage`, `bold`, `italic`, `underline`, `strike`, `code`,
+`alignLeft`, `alignCenter`, `alignRight`, `fontSize`, `colors`, `nest`,
+`unnest`, `link`, `linkPreview`, followed by plugin items.
 
 ### Plugins
 
@@ -337,19 +389,22 @@ rebuilds the editor: the document is kept, the undo history isn't.
 
 | Prop                    | Type                                                      | Default    | Description                                                                                          |
 | ----------------------- | --------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------- |
-| `format`                | `"blocks" \| "html"`                                      | `"blocks"` | Shape of `value`, `initialContent`/`defaultValue` and `onChange`. See [HTML](#html).                 |
+| `format`                | `"blocks" \| "html" \| "markdown"`                        | `"blocks"` | Shape of `value`, `initialContent`/`defaultValue` and `onChange`. See [HTML](#html).                 |
 | `initialContent`        | `EditorContent`                                           | —          | Content for the first render. Ignored when `value` is set or a persisted document exists.            |
-| `defaultValue`          | `string`                                                  | —          | With `format="html"`: HTML for the first render.                                                     |
-| `value`                 | `EditorContent \| string`                                 | —          | Controlled content (HTML with `format="html"`). A new value that differs from the document replaces it. |
-| `onChange`              | `(blocks, editor) => void` / `(html, info) => void`       | —          | Called after every edit with the full document. Not called for changes made through `value`.         |
+| `defaultValue`          | `string`                                                  | —          | With `format="html"` or `"markdown"`: HTML or Markdown for the first render.                         |
+| `value`                 | `EditorContent \| string`                                 | —          | Controlled content (HTML or Markdown with those formats). A new value that differs from the document replaces it. |
+| `onChange`              | `(blocks, editor) => void` / `(html, info) => void` / `(markdown, info) => void` | — | Called after every edit with the full document. Not called for changes made through `value`. |
 | `htmlMode`              | `"clean" \| "strict"`                                     | `"clean"`  | How pasted and loaded HTML is cleaned.                                                               |
 | `baseUrl`               | `string`                                                  | —          | Resolves relative links and image sources in pasted and loaded HTML.                                 |
 | `clean`                 | `CleanOptions`                                            | —          | Page-furniture removal for pastes: `{ noise: false }`, `keepSelectors`, `dropSelectors`.             |
 | `cleanupToast`          | `boolean`                                                 | `true`     | Show "Removed N sections · Undo cleanup" after a paste that removed furniture.                       |
-| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML is imported (value, `setHTML`, or paste).                                          |
+| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML, Markdown, or a document file is imported (value, `setHTML`/`setMarkdown`/`importFile`, or paste). |
+| `googleDrive`           | `{ pickFile: () => Promise<File \| null> }`               | —          | Slash item that asks your app for a Drive file. No OAuth in genesis.                                |
+| `onImportError`         | `(error: DocumentImportError) => void`                    | —          | Pages files and unknown types.                                                                      |
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
-| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). Read once.         |
+| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). `clickToLoad` (default `true`) waits for a click before loading the iframe. Read once. |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
+| `linkPreview`           | `LinkPreviewConfig`                                       | —          | Link preview cards: `{ endpoint, method?, headers? }` (answers `{ title, description, image, siteName, favicon }`) or `{ resolve(url, { signal }) }`. Without it URLs stay links. See [Link previews](#link-previews). |
 | `colorContrast`         | `"auto" \| "off"`                                         | `"off"`    | `"auto"` adjusts hex text below 3:1 contrast with the theme, at render time only.                     |
 | `persist`               | `boolean \| { key?: string; debounceMs?: number }`        | `false`    | Autosave to `localStorage`. Default key `"genesis-editor:document"`, default delay 400 ms.          |
 | `onPersistStatusChange` | `(status: PersistStatus) => void`                         | —          | Autosave progress: `idle`, `saving`, `saved` (with `savedAt`), or `error`.                          |
@@ -383,7 +438,9 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `getMarkdown()`     | Lossy Markdown export of the document.                              |
 | `getHTML(options?)` | The document as HTML that `parseHTML` reads back losslessly. Options: `embeds`, `embedScripts`. |
 | `setHTML(html)`     | Replaces the document with parsed HTML and returns the import report. |
-| `lastReport`        | The report from the most recent HTML import, or `null`.             |
+| `setMarkdown(md)`   | Replaces the document with Markdown (via the HTML engine) and returns the import report. |
+| `importFile(file)`  | Replaces the document from a Word, OpenDocument, RTF, HTML, Markdown, or text file. |
+| `lastReport`        | The report from the most recent HTML, Markdown, or document import, or `null`. |
 | `pendingUploads`    | File uploads and image re-uploads still running.                    |
 | `uploadsSettled()`  | Resolves once nothing is uploading.                                 |
 | `clearPersisted()`  | Removes the saved copy from `localStorage`.                          |
@@ -399,19 +456,24 @@ rebuilds the editor: the document is kept, the undo history isn't.
   BlockNote's `createReactBlockSpec`.
 - `BLOCK_TOOLS`, `INLINE_TOOLS`, `BUILT_IN_TOOLS`, `DEFAULT_TOOLBAR`.
 - From `genesis-editor/parser` (no React): `parseHTML`, `parseHTMLAsync`,
+  `markdownToHTML`, `parseMarkdown`, `parseMarkdownAsync`, `looksLikeMarkdown`,
+  `htmlIsMarkdownSource`, `importDocument`, `detectDocumentFormat`,
+  `DocumentImportError`,
   `toHTML`, `decodeEscapedHTML`, `defineEmbedProvider`, `BUILT_IN_EMBED_PROVIDERS`,
   `getEmbedFrameSrc`/`getEmbedScriptSrc` (CSP lists), `stripMeta`, colour and
   font-size helpers, `toDomAdapter`, `browserDom`, and the `DomOption`,
   `DomAdapter`, `DocumentFactory` and `DOMParserLike` types.
   `genesis-editor/parser/linkedom` exports `linkedomDom` (install `linkedom`)
   and `genesis-editor/parser/jsdom` exports `jsdomDom` (install `jsdom`).
-- Types: `BlockEditorProps`, `BlockEditorHandle`, `UploadConfig`,
+- Types: `BlockEditorProps`, `BlockEditorHandle`, `BlocksFormatProps`, `HtmlFormatProps`,
+  `MarkdownFormatProps`, `UploadConfig`,
   `UploadErrorEvent`, `UploadMode`, `UploadResponseMapper`, `PersistOptions`,
   `PersistStatus`, `StoredDocument`, `EditorTheme`, `EditorContent`,
   `ToolSelection`, `ToolOptions`, `ToolbarConfig`, `ToolbarItemName`,
   `BuiltInToolName`, `BlockToolName`, `InlineToolName`, `BuiltInToolbarItem`,
   `HeadingLevel`, `GenesisPlugin`, `SlashMenuItem`, `MarkdownShortcut`,
-  `ToolbarItem`, `ToolbarButtonProps`, `AnyEditor`, `AnyPartialBlock`, and BlockNote's `Block`,
+  `ToolbarItem`, `ToolbarButtonProps`, `AnyEditor`, `AnyPartialBlock`,
+  `DocumentImportError`, `DocumentFormat`, `GoogleDriveImport`, and BlockNote's `Block`,
   `PartialBlock`, `BlockNoteEditor`.
 
 ## Styling
@@ -460,8 +522,6 @@ HTML import and export:
 - `&nbsp;` becomes an ordinary space, and `&nbsp;` padding collapses (see
   [HTML](#html)). Trailing newlines in code blocks are trimmed.
 - Hex colours within ΔE2000 3 of a palette colour or brand swatch snap to it.
-- Captions and image `alt` text come from pasted or loaded HTML; there's no UI to
-  edit them. Embeds have no resize handle (`previewWidth` is stored and exported).
 - JSON-encoded HTML is decoded only in clear cases. The inside of a JSON string
   whose only escapes are newlines inside text, or that shows escapes inside code,
   is parsed as it is.
