@@ -87,7 +87,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prepack": "npm run build",
-    "fixtures": "tsx scripts/fixtures.ts"
+    "fixtures": "tsx scripts/fixtures.ts",
+    "test:node": "node scripts/node-matrix.mjs"
   },
   "peerDependencies": {
     "jsdom": ">=22",
