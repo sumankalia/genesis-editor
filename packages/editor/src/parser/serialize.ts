@@ -2,6 +2,7 @@ import { isSafeUrl } from "./sanitize";
 import { blockAttrs, escapeAttr, escapeText, inline, metaAttrs, plainText, withSwatches, type Props } from "./serialize-inline";
 import { embedRegistry } from "./embeds";
 import { serializeEmbed, type EmbedEnv } from "./serialize-embed";
+import { serializeLinkPreview } from "./serialize-link-preview";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
 import type { HtmlBlock, HtmlTableContent, ToHTMLOptions } from "./types";
 
@@ -103,6 +104,8 @@ function serializeBlock(block: HtmlBlock): string {
       return serializeFile(props, attrs) + nested;
     case "embed":
       return serializeEmbed(props, attrs, env) + nested;
+    case "linkPreview":
+      return serializeLinkPreview(props, attrs) + nested;
     default:
       return `<p${attrs}>${inline(block.content)}</p>${nested}`;
   }

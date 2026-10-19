@@ -108,7 +108,12 @@ export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: Sche
       ];
     }
 
-    const props = (block.props ?? {}) as { url?: string; caption?: string; name?: string };
+    const props = (block.props ?? {}) as { url?: string; caption?: string; name?: string; title?: string };
+    if (type === "linkPreview" && props.url && /^https?:\/\//i.test(props.url)) {
+      const label = props.title || props.url;
+      const content = support.links ? [{ type: "link", href: props.url, content: label }] : label;
+      return [{ type: "paragraph", content: content as never, children, ...metaProps } as AnyPartialBlock];
+    }
     const text = Array.isArray(block.content) || typeof block.content === "string"
       ? cleanInline(block.content, support)
       : (props.caption || props.name || props.url || "");

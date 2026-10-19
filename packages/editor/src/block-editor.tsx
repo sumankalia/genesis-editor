@@ -44,6 +44,7 @@ import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode
 
 export type HtmlExportOptions = Pick<ToHTMLOptions, "embeds" | "embedScripts">;
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
+import { ImageLinkContext, ImageLinkDialog, type ImageLinkTarget } from "./components/image-link-dialog";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
 import { UploadContext, type UploadContextValue } from "./components/upload-context";
@@ -56,6 +57,7 @@ import {
   type PersistOptions,
   type PersistStatus,
 } from "./lib/persistence";
+import { LinkPreviewController, registerLinkPreviews, type LinkPreviewConfig } from "./lib/link-preview";
 import { MAX_INLINE_DATA_IMAGE_BYTES, RehostQueue, fileNameFromUrl } from "./lib/rehost";
 import { UploadStatusStore } from "./lib/upload-status";
 import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig } from "./lib/uploads";
@@ -159,6 +161,11 @@ export type BlockEditorProps = UploadConfig &
   embeds?: EmbedOptions;
   /** Extra embed providers (`defineEmbedProvider`), tried before the built-ins. Read once. */
   embedProviders?: EmbedProvider[];
+  /**
+   * Where link preview cards get their metadata: `{ endpoint }` or `{ resolve }`. With it, a URL pasted on its
+   * own line (or added with "/Link preview") becomes a card; without it, URLs stay links.
+   */
+  linkPreview?: LinkPreviewConfig;
   /**
    * `"auto"` lightens or darkens hex text that would have less than 3:1 contrast with the theme's
    * background. Only the rendering changes; the stored colour stays exact. Palette colours already adapt.
@@ -319,6 +326,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     meta,
     embeds,
     embedProviders,
+    linkPreview,
     colorContrast = "off",
     latestDocument,
   },
@@ -373,6 +381,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   const callbacks = useRef({ onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast });
   // BlockNote captures `uploadFile` once at creation, so it reads the latest config through a ref.
   const uploadConfig = useRef<UploadConfig>({});
+  const linkPreviewConfig = useRef(linkPreview);
+  const [linkPreviews] = useState(() => new LinkPreviewController(() => linkPreviewConfig.current));
   const uploadMode = getUploadMode({ uploadFile, uploadUrl });
   const pasteImageLimit = uploadMode === "local" ? MAX_INLINE_DATA_IMAGE_BYTES : undefined;
   const htmlOptions = useRef<HtmlImportOptions>({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit, ...embedOptions });
@@ -380,6 +390,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   useLayoutEffect(() => {
     callbacks.current = { onChange, onPersistStatusChange, onUploadError, onImportReport, cleanupToast };
     uploadConfig.current = { uploadFile, uploadUrl, mapUploadResponse, uploadFromUrl, uploadRemote, uploadHeaders, rehostImages, trustedHosts, uploadConcurrency };
+    linkPreviewConfig.current = linkPreview;
     htmlOptions.current = { mode: htmlMode, tools, baseUrl, clean, trackProvenance, maxDataImageBytes: pasteImageLimit, ...embedOptions };
     editableRef.current = editable;
   });
@@ -471,6 +482,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   }) as unknown as BlockNoteEditor;
   registerRehostQueue(editor, rehost);
   registerEmbedRegistry(editor, embedSetup);
+  registerLinkPreviews(editor, linkPreviews);
   const colorScheme = useColorScheme(theme);
 
   function markHosted(blockId: string, url: string) {
@@ -764,6 +776,20 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
 
   const linksEnabled = support.links;
 
+  const [imageLinkTarget, setImageLinkTarget] = useState<ImageLinkTarget | null>(null);
+  const closeImageLink = useCallback(() => {
+    setImageLinkTarget(null);
+    editor.focus();
+  }, [editor]);
+  const applyImageLink = useCallback(
+    ({ blockId, href, openInNewTab }: ImageLinkTarget) => {
+      setImageLinkTarget(null);
+      if (editor.getBlock(blockId)?.type === "image") editor.updateBlock(blockId, { props: { href, openInNewTab } } as never);
+      editor.focus();
+    },
+    [editor],
+  );
+
   // BlockNote has no link shortcut; its toolbar link button needs a selection.
   const handleKeyDownCapture = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -857,6 +883,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       >
         {swatches.length > 0 && <style>{swatchCss(scopeId, swatches)}</style>}
         <ToolbarItemsContext.Provider value={toolbarItems}>
+          <ImageLinkContext.Provider value={setImageLinkTarget}>
           <BlockNoteView
             editor={editor}
             // Also applied to BlockNote's portal roots (menus, toolbars), which the stylesheet is scoped to.
@@ -882,6 +909,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
               <FilePanelController filePanel={GenesisFilePanel} />
             </BlockNoteViewEditor>
           </BlockNoteView>
+          </ImageLinkContext.Provider>
         </ToolbarItemsContext.Provider>
         {editable && mobileToolbar && (
           <MobileBlockToolbar
@@ -900,6 +928,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
           onClose={closeLinkDialog}
           onSubmit={applyLink}
         />
+        <ImageLinkDialog target={imageLinkTarget} onClose={closeImageLink} onSubmit={applyImageLink} />
       </div>
     </UploadContext.Provider>
   );

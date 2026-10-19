@@ -35,6 +35,7 @@ export type {
   UploadResponseMapper,
 } from "./lib/uploads";
 export type { RehostStatus } from "./lib/rehost";
+export type { LinkPreviewConfig, LinkPreviewMeta } from "./lib/link-preview";
 export type { EditorTheme } from "./lib/use-color-scheme";
 export type { Block, BlockNoteEditor, PartialBlock } from "@blocknote/core";
 export { definePlugin } from "./plugins/types";

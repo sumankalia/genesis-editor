@@ -21,7 +21,9 @@ import { useMemo } from "react";
 import { ColorPickerButton } from "../components/color-picker";
 import { FontSizeSelect } from "../components/font-size-select";
 import { resolveColorConfig } from "../parser/colors";
+import { ImageLinkButton } from "../components/image-link-dialog";
 import { embedSlashItem, embedSpec } from "./embed";
+import { LinkPreviewButton, linkPreviewSlashItems, linkPreviewSpec } from "./link-preview";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
 import { backgroundColorSpec, blockHexColorsExtension, fontSizeKeysExtension, fontSizeSpec, textColorSpec } from "./text-styles";
 import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
@@ -116,11 +118,24 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
   codeBlock: () => blockTool("codeBlock", "codeBlock"),
   divider: () => blockTool("divider", "divider"),
   table: () => blockTool("table", "table"),
-  image: () => definePlugin({ name: "image", blocks: { image: imageSpec }, extensions: [imageSourceExtension] }),
+  image: () =>
+    definePlugin({
+      name: "image",
+      blocks: { image: imageSpec },
+      extensions: [imageSourceExtension],
+      toolbarItems: { imageLink: ImageLinkButton },
+    }),
   video: () => blockTool("video", "video"),
   audio: () => blockTool("audio", "audio"),
   file: () => blockTool("file", "file"),
   embed: () => definePlugin({ name: "embed", blocks: { embed: embedSpec }, slashItems: [embedSlashItem] }),
+  linkPreview: () =>
+    definePlugin({
+      name: "linkPreview",
+      blocks: { linkPreview: linkPreviewSpec },
+      slashItems: linkPreviewSlashItems,
+      toolbarItems: { linkPreview: LinkPreviewButton },
+    }),
   bold: () => styleTool("bold"),
   italic: () => styleTool("italic"),
   underline: () => styleTool("underline"),
