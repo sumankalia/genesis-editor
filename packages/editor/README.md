@@ -25,7 +25,7 @@ Tailwind or shadcn/ui in your app.
   table cells
 - Import a Word, OpenDocument, HTML, Markdown, or text file (`importFile`, `/import`)
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
-  or a site's embed code, always in sandboxed frames; click-to-load, captions, and resize
+  or a site's embed code, always in sandboxed frames; captions, resize, and optional click-to-load
 - Text and background colours, font sizes, code-block syntax highlighting
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
@@ -402,7 +402,7 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `googleDrive`           | `{ pickFile: () => Promise<File \| null> }`               | —          | Slash item that asks your app for a Drive file. No OAuth in genesis.                                |
 | `onImportError`         | `(error: DocumentImportError) => void`                    | —          | Pages files and unknown types.                                                                      |
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
-| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). `clickToLoad` (default `true`) waits for a click before loading the iframe. Read once. |
+| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). `clickToLoad` (default `false`) waits for a click before loading the iframe. Read once. |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
 | `linkPreview`           | `LinkPreviewConfig`                                       | —          | Link preview cards: `{ endpoint, method?, headers? }` (answers `{ title, description, image, siteName, favicon }`) or `{ resolve(url, { signal }) }`. Without it URLs stay links. See [Link previews](#link-previews). |
 | `colorContrast`         | `"auto" \| "off"`                                         | `"off"`    | `"auto"` adjusts hex text below 3:1 contrast with the theme, at render time only.                     |

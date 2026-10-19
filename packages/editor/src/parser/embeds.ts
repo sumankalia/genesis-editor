@@ -79,7 +79,7 @@ export type EmbedOptions = {
   /** Generic iframes under the `"open"` policy. Defaults to `true`. */
   generic?: boolean;
   /**
-   * Wait for a click before loading the iframe (privacy and speed). Defaults to `true` in the editor.
+   * Wait for a click before loading the iframe (privacy). Defaults to `false` (load immediately).
    * The parser ignores this; it only affects drawing.
    */
   clickToLoad?: boolean;
@@ -121,7 +121,7 @@ export function embedRegistry(
   });
   const generic = (options.policy ?? "open") === "open" && options.generic !== false && !context.strict;
   const origin = context.origin ?? (typeof location !== "undefined" ? location.origin : undefined);
-  return { providers, generic, origin, clickToLoad: options.clickToLoad !== false };
+  return { providers, generic, origin, clickToLoad: options.clickToLoad === true };
 }
 
 export type ResolvedEmbed = {

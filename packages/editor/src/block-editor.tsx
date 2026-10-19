@@ -187,7 +187,7 @@ export type BlockEditorProps = UploadConfig &
   /**
    * Which embeds may show (§8): `"open"` (the default) allows providers plus sandboxed generic iframes;
    * `"allowlist"` allows providers only, which is recommended for user-generated content. `clickToLoad`
-   * (default `true`) waits for a click before loading the iframe. Read once.
+   * (default `false`) waits for a click before loading the iframe when set to `true`. Read once.
    */
   embeds?: EmbedOptions;
   /** Extra embed providers (`defineEmbedProvider`), tried before the built-ins. Read once. */
