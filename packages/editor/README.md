@@ -19,7 +19,8 @@ Tailwind or shadcn/ui in your app.
   ```` ``` ```` code, `---` dividers
 - Images by URL or upload (picker, drop, paste) to your server or your own function,
   with optional re-hosting of pasted images
-- HTML in and out (`format="html"`, `getHTML`/`setHTML`), and pastes from Google
+- HTML in and out (`format="html"`, `getHTML`/`setHTML`), Markdown in
+  (`format="markdown"`, `setMarkdown`, Markdown paste), and pastes from Google
   Docs, Word, WordPress and web pages cleaned into blocks
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
   or a site's embed code, always in sandboxed frames
@@ -115,6 +116,23 @@ With `format="html"`, `value`, `defaultValue` and `onChange` carry HTML strings:
 
 ```tsx
 <BlockEditor format="html" defaultValue={savedHtml} onChange={(html) => save(html)} />
+```
+
+With `format="markdown"`, the same props carry Markdown. Incoming Markdown is
+converted to HTML and parsed by the engine; `onChange` emits a lossy Markdown
+export. `setMarkdown` does the same replacement as `setHTML`. Pasted Markdown
+plain text (a heading, list, quote, fence, table, or Markdown link/image) also
+goes through the engine; real HTML pastes still win.
+
+```tsx
+<BlockEditor format="markdown" defaultValue={savedMd} onChange={(md) => save(md)} />
+```
+
+```ts
+import { parseMarkdown, markdownToHTML } from "genesis-editor/parser";
+import { linkedomDom } from "genesis-editor/parser/linkedom";
+
+const { blocks, report } = parseMarkdown(md, { dom: linkedomDom });
 ```
 
 Pasted HTML, the HTML `value` and `setHTML` go through `genesis-editor/parser`.
@@ -332,16 +350,16 @@ rebuilds the editor: the document is kept, the undo history isn't.
 
 | Prop                    | Type                                                      | Default    | Description                                                                                          |
 | ----------------------- | --------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------- |
-| `format`                | `"blocks" \| "html"`                                      | `"blocks"` | Shape of `value`, `initialContent`/`defaultValue` and `onChange`. See [HTML](#html).                 |
+| `format`                | `"blocks" \| "html" \| "markdown"`                        | `"blocks"` | Shape of `value`, `initialContent`/`defaultValue` and `onChange`. See [HTML](#html).                 |
 | `initialContent`        | `EditorContent`                                           | —          | Content for the first render. Ignored when `value` is set or a persisted document exists.            |
-| `defaultValue`          | `string`                                                  | —          | With `format="html"`: HTML for the first render.                                                     |
-| `value`                 | `EditorContent \| string`                                 | —          | Controlled content (HTML with `format="html"`). A new value that differs from the document replaces it. |
-| `onChange`              | `(blocks, editor) => void` / `(html, info) => void`       | —          | Called after every edit with the full document. Not called for changes made through `value`.         |
+| `defaultValue`          | `string`                                                  | —          | With `format="html"` or `"markdown"`: HTML or Markdown for the first render.                         |
+| `value`                 | `EditorContent \| string`                                 | —          | Controlled content (HTML or Markdown with those formats). A new value that differs from the document replaces it. |
+| `onChange`              | `(blocks, editor) => void` / `(html, info) => void` / `(markdown, info) => void` | — | Called after every edit with the full document. Not called for changes made through `value`. |
 | `htmlMode`              | `"clean" \| "strict"`                                     | `"clean"`  | How pasted and loaded HTML is cleaned.                                                               |
 | `baseUrl`               | `string`                                                  | —          | Resolves relative links and image sources in pasted and loaded HTML.                                 |
 | `clean`                 | `CleanOptions`                                            | —          | Page-furniture removal for pastes: `{ noise: false }`, `keepSelectors`, `dropSelectors`.             |
 | `cleanupToast`          | `boolean`                                                 | `true`     | Show "Removed N sections · Undo cleanup" after a paste that removed furniture.                       |
-| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML is imported (value, `setHTML`, or paste).                                          |
+| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML or Markdown is imported (value, `setHTML`/`setMarkdown`, or paste).                |
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
 | `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). Read once.         |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
@@ -378,7 +396,8 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `getMarkdown()`     | Lossy Markdown export of the document.                              |
 | `getHTML(options?)` | The document as HTML that `parseHTML` reads back losslessly. Options: `embeds`, `embedScripts`. |
 | `setHTML(html)`     | Replaces the document with parsed HTML and returns the import report. |
-| `lastReport`        | The report from the most recent HTML import, or `null`.             |
+| `setMarkdown(md)`   | Replaces the document with Markdown (via the HTML engine) and returns the import report. |
+| `lastReport`        | The report from the most recent HTML or Markdown import, or `null`. |
 | `pendingUploads`    | File uploads and image re-uploads still running.                    |
 | `uploadsSettled()`  | Resolves once nothing is uploading.                                 |
 | `clearPersisted()`  | Removes the saved copy from `localStorage`.                          |
@@ -394,13 +413,16 @@ rebuilds the editor: the document is kept, the undo history isn't.
   BlockNote's `createReactBlockSpec`.
 - `BLOCK_TOOLS`, `INLINE_TOOLS`, `BUILT_IN_TOOLS`, `DEFAULT_TOOLBAR`.
 - From `genesis-editor/parser` (no React): `parseHTML`, `parseHTMLAsync`,
+  `markdownToHTML`, `parseMarkdown`, `parseMarkdownAsync`, `looksLikeMarkdown`,
+  `htmlIsMarkdownSource`,
   `toHTML`, `decodeEscapedHTML`, `defineEmbedProvider`, `BUILT_IN_EMBED_PROVIDERS`,
   `getEmbedFrameSrc`/`getEmbedScriptSrc` (CSP lists), `stripMeta`, colour and
   font-size helpers, `toDomAdapter`, `browserDom`, and the `DomOption`,
   `DomAdapter`, `DocumentFactory` and `DOMParserLike` types.
   `genesis-editor/parser/linkedom` exports `linkedomDom` (install `linkedom`)
   and `genesis-editor/parser/jsdom` exports `jsdomDom` (install `jsdom`).
-- Types: `BlockEditorProps`, `BlockEditorHandle`, `UploadConfig`,
+- Types: `BlockEditorProps`, `BlockEditorHandle`, `BlocksFormatProps`, `HtmlFormatProps`,
+  `MarkdownFormatProps`, `UploadConfig`,
   `UploadErrorEvent`, `UploadMode`, `UploadResponseMapper`, `PersistOptions`,
   `PersistStatus`, `StoredDocument`, `EditorTheme`, `EditorContent`,
   `ToolSelection`, `ToolOptions`, `ToolbarConfig`, `ToolbarItemName`,

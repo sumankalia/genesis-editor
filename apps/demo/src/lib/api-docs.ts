@@ -17,6 +17,8 @@ export type ApiDocs = {
   props: ApiMember[];
   /** Props whose types change with `format="html"`. */
   htmlProps: ApiMember[];
+  /** Props whose types change with `format="markdown"`. */
+  markdownProps: ApiMember[];
   handle: ApiMember[];
   /** Fields of `definePlugin({ ... })`. */
   plugin: ApiMember[];
@@ -138,6 +140,7 @@ export async function getApiDocs(): Promise<ApiDocs> {
   return {
     props: membersOf("BlockEditorProps"),
     htmlProps: membersOf("HtmlFormatProps"),
+    markdownProps: membersOf("MarkdownFormatProps"),
     handle: membersOf("BlockEditorHandle"),
     plugin: membersOf("GenesisPlugin"),
     types: REFERENCED_TYPES.map((name) => sourceOf(name)),

@@ -33,10 +33,12 @@ import { GenesisFilePanel } from "./components/file-panel";
 import {
   createPasteHandler,
   importHTML,
+  importMarkdown,
   pasteWithoutCleanup,
   type HtmlImport,
   type HtmlImportOptions,
 } from "./html";
+import { markdownToHTML } from "./parser/markdown";
 import { embedRegistry, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
 import { metaFromProps, stripMeta, type GenesisMeta, type MetaOptions } from "./parser/meta";
 import { toHTML } from "./parser/serialize";
@@ -108,7 +110,7 @@ export type UploadErrorEvent =
 export type HtmlChangeInfo = {
   /** The document the HTML was serialized from. */
   blocks: GenesisBlock[];
-  /** The report from the most recent HTML import (initial value, `setHTML`, or paste), if any. */
+  /** The report from the most recent HTML or Markdown import (initial value, `setHTML`/`setMarkdown`, or paste), if any. */
   report: FidelityReport | null;
   editor: BlockNoteEditor;
 };
@@ -137,8 +139,20 @@ export type HtmlFormatProps = {
   initialContent?: never;
 };
 
+export type MarkdownFormatProps = {
+  /** `value`, `defaultValue`, and `onChange` carry Markdown strings, converted through the HTML engine. Export is lossy. */
+  format: "markdown";
+  /** Markdown for the first render (uncontrolled). Ignored when `value` is set or a persisted document is found. */
+  defaultValue?: string;
+  /** Controlled Markdown. Parsed only when it differs from the Markdown the editor last emitted, so echoing it back is free. */
+  value?: string;
+  /** Called with the lossy Markdown export of the document, at most every 150 ms while typing. */
+  onChange?: (markdown: string, info: HtmlChangeInfo) => void;
+  initialContent?: never;
+};
+
 export type BlockEditorProps = UploadConfig &
-  (BlocksFormatProps | HtmlFormatProps) & {
+  (BlocksFormatProps | HtmlFormatProps | MarkdownFormatProps) & {
   /** How pasted and loaded HTML is cleaned: `"strict"` also snaps custom colors to the palette and drops what the editor can't show exactly. Defaults to `"clean"`. */
   htmlMode?: ParseMode;
   /** Resolves relative links and image sources in pasted and loaded HTML. */
@@ -164,7 +178,7 @@ export type BlockEditorProps = UploadConfig &
    * background. Only the rendering changes; the stored colour stays exact. Palette colours already adapt.
    */
   colorContrast?: "auto" | "off";
-  /** Called after HTML is imported: the initial HTML `value`, `setHTML`, or a paste from outside the editor. */
+  /** Called after HTML or Markdown is imported: the initial `value`, `setHTML`/`setMarkdown`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
   persist?: boolean | PersistOptions;
@@ -215,7 +229,9 @@ export type BlockEditorHandle = {
   getHTML: (options?: HtmlExportOptions) => string;
   /** Replaces the whole document with parsed HTML and returns the import report. Counts as an edit. */
   setHTML: (html: string) => FidelityReport;
-  /** The report from the most recent HTML import, or `null` if nothing was imported yet. */
+  /** Replaces the whole document with Markdown (via the HTML engine) and returns the import report. Counts as an edit. */
+  setMarkdown: (markdown: string) => FidelityReport;
+  /** The report from the most recent HTML or Markdown import, or `null` if nothing was imported yet. */
   readonly lastReport: FidelityReport | null;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
   clearPersisted: () => void;
@@ -244,7 +260,7 @@ function rerenderEmptyFileBlock(editor: BlockNoteEditor, blockId: string, name: 
 }
 
 /**
- * A whole document (`value`, `defaultValue`, `setHTML`) keeps its blank lines and its inline images;
+ * A whole document (`value`, `defaultValue`, `setHTML`, `setMarkdown`) keeps its blank lines and its inline images;
  * pastes collapse blank lines and drop large inline images when there's nowhere to upload them.
  */
 function documentOptions(options: HtmlImportOptions): HtmlImportOptions {
@@ -342,8 +358,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     }),
   );
   const isHtml = format === "html";
+  const isMarkdown = format === "markdown";
   const htmlValue = isHtml && typeof value === "string" ? value : undefined;
-  const blocksValue = isHtml ? undefined : (value as EditorContent | undefined);
+  const markdownValue = isMarkdown && typeof value === "string" ? value : undefined;
+  const blocksValue = isHtml || isMarkdown ? undefined : (value as EditorContent | undefined);
   const sanitize = useCallback(
     (blocks: EditorContent) => toEditorBlocks(blocks, support) as PartialBlock[],
     [support],
@@ -356,11 +374,16 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       imported = importHTML(html, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, ...embedOptions }), sanitize);
       return nonEmpty(imported.blocks);
     };
+    const parseMd = (markdown: string | undefined) => {
+      if (!markdown?.trim()) return undefined;
+      imported = importMarkdown(markdown, documentOptions({ mode: htmlMode, tools, baseUrl, clean, trackProvenance, ...embedOptions }), sanitize);
+      return nonEmpty(imported.blocks);
+    };
     const content =
-      (isHtml ? parse(htmlValue) : nonEmpty(blocksValue)) ??
+      (isHtml ? parse(htmlValue) : isMarkdown ? parseMd(markdownValue) : nonEmpty(blocksValue)) ??
       nonEmpty(latestDocument.current ?? undefined) ??
       stored?.blocks ??
-      (isHtml ? parse(defaultValue) : nonEmpty(initialContent));
+      (isHtml ? parse(defaultValue) : isMarkdown ? parseMd(defaultValue) : nonEmpty(initialContent));
     const sanitized = content ? sanitize(content) : undefined;
     return {
       key: persistKey,
@@ -648,6 +671,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   // HTML value: the last HTML received or emitted. Anything else is parsed and replaces the document.
   const lastHtml = useRef<string | null>(htmlValue ?? null);
   const htmlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMarkdown = useRef<string | null>(markdownValue ?? null);
+  const markdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const emitHtml = useCallback(() => {
     if (htmlTimer.current) clearTimeout(htmlTimer.current);
@@ -675,6 +700,21 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [editor, sanitize, scheduleRehost],
   );
 
+  const emitMarkdown = useCallback(() => {
+    if (markdownTimer.current) clearTimeout(markdownTimer.current);
+    markdownTimer.current = null;
+    const blocks = exportedBlocks();
+    const markdown = editor.blocksToMarkdownLossy(editor.document);
+    lastMarkdown.current = markdown;
+    const emit = callbacks.current.onChange as MarkdownFormatProps["onChange"];
+    emit?.(markdown, { blocks, report: lastReport.current, editor });
+  }, [editor, exportedBlocks]);
+
+  const applyMarkdown = useCallback(
+    (markdown: string, asEdit: boolean) => applyHtml(markdownToHTML(markdown), asEdit),
+    [applyHtml],
+  );
+
   useEffect(() => {
     if (htmlValue === undefined || htmlValue === lastHtml.current) return;
     lastHtml.current = htmlValue;
@@ -683,11 +723,20 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     applyHtml(htmlValue, false);
   }, [htmlValue, applyHtml]);
 
+  useEffect(() => {
+    if (markdownValue === undefined || markdownValue === lastMarkdown.current) return;
+    lastMarkdown.current = markdownValue;
+    if (markdownTimer.current) clearTimeout(markdownTimer.current);
+    markdownTimer.current = null;
+    applyMarkdown(markdownValue, false);
+  }, [markdownValue, applyMarkdown]);
+
   useEffect(
     () => () => {
       if (htmlTimer.current) emitHtml();
+      if (markdownTimer.current) emitMarkdown();
     },
-    [emitHtml],
+    [emitHtml, emitMarkdown],
   );
 
   const handleChange = useCallback(() => {
@@ -701,11 +750,16 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       htmlTimer.current = setTimeout(emitHtml, 150);
       return;
     }
+    if (isMarkdown) {
+      if (markdownTimer.current) clearTimeout(markdownTimer.current);
+      markdownTimer.current = setTimeout(emitMarkdown, 150);
+      return;
+    }
     const blocks = exportedBlocks();
     lastEmitted.current = blocks;
     const emit = callbacks.current.onChange as BlocksFormatProps["onChange"];
     emit?.(blocks, editor);
-  }, [editor, rehost, scheduleSave, latestDocument, isHtml, emitHtml, documentBlocks, exportedBlocks]);
+  }, [editor, rehost, scheduleSave, latestDocument, isHtml, isMarkdown, emitHtml, emitMarkdown, documentBlocks, exportedBlocks]);
 
   useImperativeHandle(
     ref,
@@ -720,6 +774,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       getMarkdown: () => editor.blocksToMarkdownLossy(editor.document),
       getHTML: exportedHtml,
       setHTML: (html) => applyHtml(html, true),
+      setMarkdown: (markdown) => applyMarkdown(markdown, true),
       get lastReport() {
         return lastReport.current;
       },
@@ -733,7 +788,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       },
       uploadsSettled: () => rehost.settled(),
     }),
-    [editor, initial.key, sanitize, applyHtml, exportedBlocks, exportedHtml, rehost, scheduleRehost],
+    [editor, initial.key, sanitize, applyHtml, applyMarkdown, exportedBlocks, exportedHtml, rehost, scheduleRehost],
   );
 
   // Links

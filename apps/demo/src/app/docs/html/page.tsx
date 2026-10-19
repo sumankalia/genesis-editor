@@ -74,7 +74,9 @@ export default function HtmlPage() {
       <p>
         Set <code>format=&quot;html&quot;</code> and <code>value</code>, <code>defaultValue</code>,
         and <code>onChange</code> carry HTML strings. Incoming HTML is cleaned, sanitized, and mapped
-        to blocks; outgoing HTML is plain semantic markup that loads back to the same document.
+        to blocks; outgoing HTML is plain semantic markup that loads back to the same document.{" "}
+        <Link href="/docs/markdown">Markdown import</Link> uses the same engine after converting
+        CommonMark to HTML.
       </p>
       <CodeBlock code={htmlFormat} />
       <p>Edit either side: the editor and the HTML stay in sync.</p>

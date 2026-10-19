@@ -126,6 +126,22 @@ check("HTML with no content says so", (await status.innerText()).includes("No bl
 await page.getByTestId("paste-html-clear").click();
 check("Clear empties the input and the report", (await input.inputValue()) === "" && (await page.getByTestId("paste-html-report").count()) === 0 && (await page.getByTestId("paste-html-error").count()) === 0);
 
+await tab("Paste Markdown").click();
+const mdInput = page.getByTestId("paste-markdown-input");
+await page.getByTestId("paste-markdown-load").click();
+check("empty Markdown input shows an error", (await page.getByTestId("paste-markdown-error").innerText()).includes("Paste some Markdown first"));
+await mdInput.fill("# Pasted md\n\nA **bold** [link](https://example.com).");
+await page.getByTestId("paste-markdown-load").click();
+await page.getByTestId("paste-markdown-report").waitFor({ timeout: 5000 });
+check("Load Markdown replaces the document", (await editor.locator("h1").innerText()) === "Pasted md");
+check("Markdown load keeps links", (await editor.locator("a[href='https://example.com']").count()) === 1);
+await page.getByTestId("paste-markdown-sample").click();
+await page.getByRole("option", { name: "Release notes", exact: true }).click();
+await page.getByTestId("paste-markdown-load-sample").click();
+await page.waitForTimeout(150);
+check("Markdown sample loads", (await editor.locator("h1").innerText()) === "Release notes");
+await page.screenshot({ path: `${SHOTS}/playground-paste-markdown.png`, fullPage: true });
+
 // Mobile: the tabs scroll instead of overflowing the page.
 for (const width of [320, 480]) {
   const mobile = await browser.newPage({ viewport: { width, height: 800 } });

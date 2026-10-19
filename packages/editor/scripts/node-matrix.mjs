@@ -71,13 +71,13 @@ if (first.blocks[3].content[0].text !== "a\\n  b") throw new Error("code lost it
 /** [id, file name, source, required] — each runs in its own process, so one failure can't hide another. */
 const CHECKS = [
   ["require genesis-editor", "main.cjs", `const m = require("genesis-editor"); if (typeof m.BlockEditor !== "object" && typeof m.BlockEditor !== "function") throw new Error("no BlockEditor");`],
-  ["require /parser", "parser.cjs", `const m = require("genesis-editor/parser"); if (typeof m.parseHTML !== "function") throw new Error("no parseHTML");`],
+  ["require /parser", "parser.cjs", `const m = require("genesis-editor/parser"); if (typeof m.parseHTML !== "function") throw new Error("no parseHTML"); if (typeof m.markdownToHTML !== "function" || !m.markdownToHTML("# T").includes("<h1")) throw new Error("no markdownToHTML");`],
   ["require /parser/linkedom", "linkedom.cjs", `const m = require("genesis-editor/parser/linkedom"); if (!m.linkedomDom) throw new Error("no linkedomDom");`],
   ["require /parser/jsdom", "jsdom.cjs", `const m = require("genesis-editor/parser/jsdom"); if (!m.jsdomDom) throw new Error("no jsdomDom");`],
   ["CJS round trip (linkedom)", "rt-linkedom.cjs", roundTrip(`const parser = require("genesis-editor/parser"); const dom = require("genesis-editor/parser/linkedom").linkedomDom;`)],
   ["CJS round trip (jsdom)", "rt-jsdom.cjs", roundTrip(`const parser = require("genesis-editor/parser"); const dom = require("genesis-editor/parser/jsdom").jsdomDom;`)],
   ["import genesis-editor", "main.mjs", `const m = await import("genesis-editor"); if (!m.BlockEditor) throw new Error("no BlockEditor");`],
-  ["import /parser", "parser.mjs", `const m = await import("genesis-editor/parser"); if (typeof m.parseHTML !== "function") throw new Error("no parseHTML");`],
+  ["import /parser", "parser.mjs", `const m = await import("genesis-editor/parser"); if (typeof m.parseHTML !== "function") throw new Error("no parseHTML"); if (typeof m.markdownToHTML !== "function" || !m.markdownToHTML("# T").includes("<h1")) throw new Error("no markdownToHTML");`],
   ["import /parser/linkedom", "linkedom.mjs", `const m = await import("genesis-editor/parser/linkedom"); if (!m.linkedomDom) throw new Error("no linkedomDom");`],
   ["import /parser/jsdom", "jsdom.mjs", `const m = await import("genesis-editor/parser/jsdom"); if (!m.jsdomDom) throw new Error("no jsdomDom");`],
   ["ESM round trip (linkedom)", "rt-linkedom.mjs", roundTrip(`const parser = await import("genesis-editor/parser"); const { linkedomDom: dom } = await import("genesis-editor/parser/linkedom");`)],
