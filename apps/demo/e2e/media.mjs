@@ -46,6 +46,8 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 const playground = page.locator(".playground-editor .bn-editor");
 await playground.waitFor({ timeout: 15000 });
+await page.getByRole("button", { name: "Reset" }).click();
+await page.waitForTimeout(300);
 const last = playground.locator(".bn-block-content").last();
 await last.click();
 await page.keyboard.type("/embed");
@@ -54,16 +56,17 @@ await menu.waitFor({ state: "visible", timeout: 3000 }).catch(() => {});
 await page.keyboard.press("Enter");
 const input = playground.locator(".genesis-embed-input").last();
 await input.waitFor({ timeout: 5000 });
-await page.keyboard.type(YT);
-await page.keyboard.press("Enter");
-await page.waitForTimeout(400);
+await input.fill(YT);
+await playground.locator(".genesis-embed-submit").last().click();
 const load = playground.locator("[data-testid='embed-load']").last();
-await load.waitFor({ timeout: 5000 });
-check("click-to-load shows a Load button", /Load YouTube embed/.test(await load.innerText()));
+const loadVisible = await load.waitFor({ timeout: 8000 }).then(() => true).catch(() => false);
+check("click-to-load shows a Load button", loadVisible && /Load YouTube embed/.test(await load.innerText().catch(() => "")));
 check("iframe is not loaded yet", (await playground.locator(".genesis-embed iframe").count()) === 0);
-await load.click();
-await page.waitForTimeout(300);
-check("Load click sets the YouTube iframe", (await playground.locator(".genesis-embed iframe").last().getAttribute("src")) === "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+if (loadVisible) {
+  await load.click();
+  await page.waitForTimeout(300);
+}
+check("Load click sets the YouTube iframe", (await playground.locator(".genesis-embed iframe").last().getAttribute("src").catch(() => "")) === "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
 check("resize handle is present", (await playground.locator("[data-testid='embed-resize']").count()) >= 1);
 const embedCaption = playground.locator("[data-testid='embed-caption']").last();
 await embedCaption.evaluate((el) => {
