@@ -87,6 +87,7 @@ const CHECKS = [
     "rt-factory.mjs",
     roundTrip(`const parser = await import("genesis-editor/parser"); const { parseHTML: linkedom } = await import("linkedom"); const dom = (html) => linkedom(html).document;`),
   ],
+  ["ESM round trip (DOMParser class)", "rt-domparser.mjs", roundTrip(`const parser = await import("genesis-editor/parser"); const { DOMParser: dom } = await import("linkedom");`)],
   [
     "SSR import + render (ESM)",
     "ssr.mjs",
