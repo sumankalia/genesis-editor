@@ -59,7 +59,7 @@ await demo.getByRole("button", { name: "Paste GitHub" }).click();
 await demo.getByTestId("markdown-paste-report").waitFor({ timeout: 5000 });
 check("pasted GitHub heading", (await pasteEditor.locator("h1").innerText().catch(() => "")) === "Quarterly plan");
 check("pasted GitHub link", (await pasteEditor.locator("a[href='https://example.com/changelog']").count()) === 1);
-check("paste report is shown", /Fidelity \d+%/.test(await demo.getByTestId("markdown-paste-score").innerText().catch(() => "")));
+check("paste report is shown", /^\d+%$/.test(await demo.getByTestId("markdown-paste-score").innerText().catch(() => "")));
 await demo.scrollIntoViewIfNeeded();
 await page.waitForTimeout(200);
 await demo.screenshot({ path: `${SHOTS}/markdown-paste.png` });
