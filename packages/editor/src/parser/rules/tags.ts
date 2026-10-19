@@ -80,7 +80,7 @@ export const ALLOWED_ATTRIBUTES = new Set([
   "href", "src", "srcset", "sizes", "alt", "title", "width", "height", "colspan", "rowspan", "start",
   "value", "type", "checked", "class", "id", "style", "align", "bgcolor", "color", "dir", "lang",
   "role", "aria-level", "aria-checked", "aria-hidden", "hidden", "poster", "download", "cite", "span",
-  "face", "size",
+  "face", "size", "target",
 ]);
 
 /** URL attributes, checked against `SAFE_URL`. */

@@ -19,6 +19,7 @@ import {
   type ResolvedEmbed,
 } from "./embeds";
 import { decodeEscapedHTML } from "./escaped";
+import { linkPreviewProps } from "./link-preview";
 import {
   finalizeRuns,
   inlineText,
@@ -68,6 +69,8 @@ type Ctx = {
   textColor?: string;
   backgroundColor?: string;
   link?: string;
+  /** The link has `target="_blank"`. */
+  linkNewTab?: boolean;
   pre: boolean;
   size: number;
   /** A `data-font-size` step, taken as is. */
@@ -387,6 +390,7 @@ function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
   const cls = classes(el);
   if (cls.some((c) => FIGURE_CLASSES.has(c))) return withElementMeta(el, sink, () => figure(el, decl, next, sink, state));
   if (cls.includes("wp-block-file") && fileBlock(el, sink, state)) return;
+  if (tag === "a" && el.hasAttribute("data-genesis-link-preview") && ctx.container === "root" && linkPreview(el, sink, state)) return;
 
   const kind = TAG_CLASSES[tag] ?? (tag.includes(":") ? "inline" : undefined);
   switch (kind) {
@@ -670,6 +674,7 @@ function inline(el: Element, tag: string, decl: Declarations, ctx: Ctx, sink: Si
       const clean = cleanHref(href, state.base);
       if (clean) {
         next.link = clean;
+        next.linkNewTab = el.getAttribute("target")?.trim().toLowerCase() === "_blank";
         if (!state.tools.has("link")) state.report.downgrade("a", "text");
       }
     }
@@ -1201,8 +1206,10 @@ function image(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   if (original && /^https?:\/\//i.test(original) && isSafeUrl(original)) props.originalUrl = original;
   if (el.hasAttribute("data-genesis-hosted")) props.hosted = true;
   if (ctx.link) {
-    if (state.tools.has("link") && isSafeUrl(ctx.link)) props.href = ctx.link;
-    else state.report.downgrade("image link", "image");
+    if (state.tools.has("link") && isSafeUrl(ctx.link)) {
+      props.href = ctx.link;
+      if (ctx.linkNewTab) props.openInNewTab = true;
+    } else state.report.downgrade("image link", "image");
   }
   sink.flush();
   emitMedia({ type: "image", props }, "image", alt || url, ctx, sink, state);
@@ -1363,6 +1370,34 @@ function embedFigure(el: Element, sink: Sink, state: State) {
     sink,
     state,
   );
+}
+
+/**
+ * Our own link preview export: the metadata is read from the `data-*` attributes and cleaned again (absolute
+ * http(s) image and favicon, capped plain text). With the `linkPreview` tool off it's a link paragraph.
+ */
+function linkPreview(el: Element, sink: Sink, state: State) {
+  const href = el.getAttribute("href");
+  const data = (name: string) => el.getAttribute(`data-${name}`) ?? undefined;
+  const card = href
+    ? linkPreviewProps(resolveUrl(href, state.base).url, {
+        title: data("title") ?? el.querySelector("strong")?.textContent,
+        description: data("description"),
+        image: data("image"),
+        siteName: data("site-name"),
+        favicon: data("favicon"),
+      })
+    : null;
+  if (!card) return false;
+  sink.flush();
+  if (state.tools.has("linkPreview")) {
+    state.report.mapped++;
+    sink.push({ type: "linkPreview", props: { ...card } });
+    return true;
+  }
+  state.report.downgrade("link preview", "link paragraph");
+  sink.push(linkParagraph(card.url, card.title || card.url, state));
+  return true;
 }
 
 function figure(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: State) {
