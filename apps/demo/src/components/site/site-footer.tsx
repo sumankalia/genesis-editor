@@ -18,6 +18,9 @@ export function SiteFooter() {
           <a className="hover:text-foreground" href={site.npmUrl}>
             npm
           </a>
+          <a className="hover:text-foreground" href="/llms.txt">
+            llms.txt
+          </a>
         </div>
       </div>
     </footer>

@@ -7,7 +7,12 @@ block that can be inserted, converted, reordered, and nested independently.
 The editor is published as [`genesis-editor`](packages/editor) on npm. See the
 [package README](packages/editor/README.md) for installation, usage, upload
 options, and the full API, or try it on the
-[docs site and live demo](https://genesis-editor-three.vercel.app).
+[docs site and live demo](https://genesis-editor-three.vercel.app). For LLMs
+and coding agents, the docs are also served as Markdown:
+[`/llms.txt`](https://genesis-editor-three.vercel.app/llms.txt) is the index,
+[`/llms-full.txt`](https://genesis-editor-three.vercel.app/llms-full.txt) is
+every page in one file, and each docs page has a `.md` version, such as
+[`/docs/html.md`](https://genesis-editor-three.vercel.app/docs/html.md).
 
 ```tsx
 import { BlockEditor } from "genesis-editor";
@@ -33,6 +38,7 @@ apps/demo/                    Docs and playground site (Next.js) that consumes t
   src/components/playground/  Props panel, output views, save indicator
   src/components/site/        Header, sidebar, code blocks, Preview/Code tabs
   src/lib/api-docs.ts         API reference tables, generated from the package's exported types
+  src/lib/llms.ts             /llms.txt, /llms-full.txt and /docs/<page>.md, converted from the rendered docs pages
   src/app/api/mock-upload/    Local mock upload server
   e2e/                        Browser checks (Playwright)
 ```

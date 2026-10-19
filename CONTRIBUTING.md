@@ -36,7 +36,10 @@ pnpm --filter demo e2e         # browser checks; needs the docs site running on 
 
 The browser checks in `apps/demo/e2e` drive the site with Playwright: `editor.mjs` and
 `uploads.mjs` exercise `/playground`, `playground.mjs` its HTML and Paste HTML
-tabs, and `docs.mjs` covers the landing page, docs, and playground options. They use
+tabs, and `docs.mjs` covers the landing page, docs, and playground options.
+`llms.mjs` checks that `/llms.txt` follows the llmstxt.org format, that every URL
+in it answers 200, and that `/docs/api.md` lists exactly the props and ref members
+of `BlockEditorProps` and `BlockEditorHandle` in the package source. They use
 Playwright's Chromium (`pnpm --filter demo exec playwright-core install chromium`),
 or an installed Chrome with `E2E_CHANNEL=chrome`. Point them at another server
 with `E2E_BASE_URL`. Screenshots go to `apps/demo/e2e/screenshots/`. Place the

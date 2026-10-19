@@ -9,7 +9,8 @@ shadcn/ui-style skin. The stylesheet is precompiled and scoped, so you don't nee
 Tailwind or shadcn/ui in your app.
 
 **[Docs and live demo](https://genesis-editor-three.vercel.app)** ·
-[Playground](https://genesis-editor-three.vercel.app/playground)
+[Playground](https://genesis-editor-three.vercel.app/playground) ·
+[llms.txt](https://genesis-editor-three.vercel.app/llms.txt)
 
 - Slash menu (`/`), drag handles, `Tab` / `Shift+Tab` nesting
 - Floating formatting toolbar and shortcuts (`Mod+B`, `Mod+I`, `Mod+U`,
