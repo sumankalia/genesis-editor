@@ -126,7 +126,7 @@ const last = editor.locator("table .genesis-inline-image").last();
 await last.hover();
 await last.getByTestId("inline-image-edit").click();
 await dialog.getByRole("button", { name: "Remove image" }).click();
-await page.waitForTimeout(150);
+await dialog.waitFor({ state: "hidden" });
 check("Remove image deletes it", (await cellImages(editor).count()) === 5);
 
 // 5. Insert from the slash menu, into a cell.
@@ -146,8 +146,8 @@ await dialog.waitFor();
 await dialog.getByLabel("Image URL").fill(`${PAGE_ORIGIN}/examples/lake.png`);
 await dialog.getByLabel("Alt text").fill("Lake");
 await dialog.getByRole("button", { name: "Insert" }).click();
-await page.waitForTimeout(200);
-const inserted = editor.locator("table td").last().locator(".genesis-inline-image img");
+const inserted = lastCell.locator(".genesis-inline-image img[alt='Lake']");
+await inserted.waitFor({ timeout: 5000 });
 check("/Inline image inserts into the cell", (await inserted.count()) === 1 && (await inserted.getAttribute("alt")) === "Lake");
 check("the slash text is gone", !(await editor.locator("table td").last().innerText()).includes("/inline"));
 
