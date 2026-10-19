@@ -46,6 +46,7 @@ import {
   UNSUPPORTED_MARKS,
 } from "./rules/tags";
 import { isSafeUrl, sanitizeTree } from "./sanitize";
+import { rewriteWordHtml } from "./word-html";
 import { storedCodeLanguage } from "./code-languages";
 import { nearestLevel, resolveTools, type ParserTools } from "./tools";
 import {
@@ -175,6 +176,7 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   report.cleanup = removeNoise(body, html, report, options.clean);
   if (state.tools.has("embed")) markScriptSnippets(body, state);
   sanitizeTree(body, report);
+  rewriteWordHtml(body);
 
   const root = new Sink(state, paragraphMaker(state, {}, true), { synthetic: true });
   const ctx: Ctx = { pre: false, size: 16, textOnly: false, container: "root", listDepth: 0, depth: 0 };
