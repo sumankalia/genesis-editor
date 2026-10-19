@@ -111,9 +111,9 @@ describe("browser clipboard HTML (dev.to)", () => {
     expect(urls).toEqual([
       `${ORIGIN}/examples/lake.png`,
       `${ORIGIN}/examples/dunes.png`,
-      `${ORIGIN}/examples/gradient.svg`,
       `${ORIGIN}/examples/dunes.png`,
-      `${ORIGIN}/examples/gradient.svg`,
+      `${ORIGIN}/examples/dunes.png`,
+      `${ORIGIN}/examples/lake.png`,
       `${ORIGIN}/examples/lake.png`,
     ]);
     expect(urls.some((u) => u.startsWith("data:"))).toBe(false);
@@ -152,7 +152,7 @@ describe("browser clipboard HTML (dev.to)", () => {
     });
     const urls = cellImages(tableOf(result.blocks)).map((n) => (n.type === "inlineImage" ? n.props : undefined));
     expect(urls.every((p) => p?.url.startsWith("https://cdn.app/") && p.originalUrl?.startsWith(ORIGIN))).toBe(true);
-    expect(seen).toContain(`${ORIGIN}/examples/gradient.svg`);
+    expect(seen.sort()).toEqual([`${ORIGIN}/examples/dunes.png`, `${ORIGIN}/examples/lake.png`]);
   });
 });
 

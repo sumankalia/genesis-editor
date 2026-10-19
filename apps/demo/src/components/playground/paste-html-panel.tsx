@@ -4,6 +4,7 @@ import { useState, type RefObject } from "react";
 import type { BlockEditorHandle, FidelityReport } from "genesis-editor";
 import { EraserIcon, FileInputIcon } from "lucide-react";
 
+import { devtoSample } from "@/components/examples/devto-sample";
 import { pasteSamples, type PasteSample } from "@/components/examples/paste-samples";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Synthetic samples only: the docs' paste samples plus HTML as it arrives from a JSON API. */
+/** Synthetic samples only: the docs' paste samples, HTML as it arrives from a JSON API, and a copied dev.to article. */
 const SAMPLES: PasteSample[] = [
   ...pasteSamples,
   {
@@ -24,7 +25,10 @@ const SAMPLES: PasteSample[] = [
       '<h2 class="title">Release notes</h2>\n<p>Copied from an API response, so quotes and newlines arrive <em>escaped</em>.</p>\n<ul>\n  <li>Decoded before parsing</li>\n  <li>Reported as a warning</li>\n</ul>',
     ),
   },
+  { name: "dev.to images in a table", html: "" },
 ];
+
+const sampleHtml = (sample: PasteSample) => (sample.name === "dev.to images in a table" ? devtoSample(window.location.origin) : sample.html);
 
 type Status =
   | { kind: "idle" }
@@ -54,8 +58,9 @@ export function PasteHtmlPanel({ editorRef }: { editorRef: RefObject<BlockEditor
 
   const loadSample = () => {
     const chosen = SAMPLES.find((s) => s.name === sample) ?? SAMPLES[0];
-    setHtml(chosen.html);
-    load(chosen.html);
+    const source = sampleHtml(chosen);
+    setHtml(source);
+    load(source);
   };
 
   const clear = () => {

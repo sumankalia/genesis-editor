@@ -238,12 +238,18 @@ export function swapInlineImageUrl(editor: AnyEditor, from: string, to: string) 
 export function openInsertInlineImage(editor: AnyEditor) {
   const hooks = hooksByEditor.get(editor);
   if (!hooks) return;
+  // The modal dialog takes focus, and the editor's selection doesn't survive it.
+  const at = editor.transact((tr) => tr.selection.from);
   hooks.open({
     mode: "insert",
     props: EMPTY_INLINE_IMAGE,
     apply: (props) => {
       if (!props) return;
       editor.focus();
+      editor.transact((tr) => {
+        const $pos = tr.doc.resolve(Math.min(at, tr.doc.content.size));
+        if ($pos.parent.inlineContent) tr.setSelection(TextSelection.create(tr.doc, $pos.pos));
+      });
       editor.insertInlineContent([{ type: "inlineImage", props } as never, " "]);
     },
   });

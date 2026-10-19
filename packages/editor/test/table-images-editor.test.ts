@@ -67,7 +67,7 @@ describe("pasting browser-copied HTML with images in table cells", () => {
     paste(editor, sanitize, { "text/html": clipboardHtml });
     const from = `${ORIGIN}/examples/lake.png`;
     expect(hasInlineImage(editor as unknown as AnyEditor, from)).toBe(true);
-    expect(swapInlineImageUrl(editor as unknown as AnyEditor, from, "https://cdn.app/lake.png")).toBe(2);
+    expect(swapInlineImageUrl(editor as unknown as AnyEditor, from, "https://cdn.app/lake.png")).toBe(3);
     expect(hasInlineImage(editor as unknown as AnyEditor, from)).toBe(false);
     const swapped = imagesIn(editor).filter((n) => n.props?.url === "https://cdn.app/lake.png");
     expect(swapped.every((n) => n.props?.originalUrl === from && n.props?.hosted === true)).toBe(true);
