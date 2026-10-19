@@ -112,12 +112,12 @@ await page.waitForTimeout(150);
 check("stepping up from 16 reaches 24", (await sizeOf("Doors"))[0] === "24px", String((await sizeOf("Doors"))[0]));
 await page.keyboard.press(`${mod}+Shift+Comma`);
 await page.waitForTimeout(150);
-check("Mod+Shift+, steps down to 18", (await sizeOf("Doors"))[0] === "18px");
+check("Mod+Shift+, steps 24 down to 20", (await sizeOf("Doors"))[0] === "20px", String((await sizeOf("Doors"))[0]));
 
 // 5. Undo.
 await page.keyboard.press(`${mod}+z`);
 await page.waitForTimeout(150);
-check("undo restores 20", (await sizeOf("Doors"))[0] === "20px", String((await sizeOf("Doors"))[0]));
+check("undo restores 24", (await sizeOf("Doors"))[0] === "24px", String((await sizeOf("Doors"))[0]));
 
 // 6. Headings keep a size; the menu still lists 6–20.
 await select("Event poster", "Event");
