@@ -53,7 +53,7 @@ await pick({
 await editor().locator("h1").waitFor({ timeout: 10000 });
 check("Markdown import makes a heading", (await editor().locator("h1").innerText()) === "Markdown title");
 check("Markdown import keeps the link", (await editor().locator("a[href='https://example.com/md']").count()) === 1);
-check("Markdown import makes list items", (await editor().locator("li").count()) >= 2);
+check("Markdown import makes list items", (await editor().locator("[data-content-type='bulletListItem']").count()) >= 2);
 
 await pick({
   name: "notes.txt",
