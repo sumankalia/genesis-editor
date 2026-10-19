@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 
+import { placeCaret } from "./caret.mjs";
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
 const results = [];
@@ -32,8 +33,7 @@ check("HTML value keeps links and colors", (await liveEditor.locator("a[href='ht
 check("import report is shown", /Fidelity \d+%/.test(await live.getByTestId("html-score").innerText()));
 const before = await source.inputValue();
 
-await liveEditor.locator("h2").click();
-await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowRight" : "End");
+await placeCaret(liveEditor.locator("h2"));
 await page.keyboard.type(" for v2", { delay: 20 });
 await page.waitForTimeout(400);
 await page.keyboard.type(" today", { delay: 20 });

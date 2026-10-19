@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 
+import { placeCaret } from "./caret.mjs";
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
 const URL = `${BASE_URL}/playground`;
@@ -88,9 +89,7 @@ await page.keyboard.type("let x = 1;");
 
 // Nesting with Tab / Shift+Tab on "Bullet two".
 const bulletTwo = page.locator(".bn-block-content", { hasText: "Bullet two" });
-await bulletTwo.click();
-await page.waitForTimeout(100);
-await page.keyboard.press("End");
+await placeCaret(bulletTwo);
 const depth = () =>
   bulletTwo.evaluate((el) => {
     let d = 0;

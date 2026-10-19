@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 
+import { placeCaret } from "./caret.mjs";
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
 const results = [];
@@ -92,8 +93,7 @@ check("email export: text as a quote, then the link", !email.includes("<iframe")
 
 // 4. Round trip: pasting the export gives the same embeds again.
 const before = await frames().count();
-await editor.locator(".bn-block-outer").first().locator(".bn-inline-content").click();
-await page.keyboard.press("End");
+await placeCaret(editor.locator(".bn-block-outer").first().locator(".bn-inline-content"));
 await page.evaluate((html) => {
   const transfer = new DataTransfer();
   transfer.setData("text/html", html);

@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 
+import { placeCaret } from "./caret.mjs";
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
 const results = [];
@@ -44,9 +45,7 @@ check("attribution is a styled paragraph", (await quoteGroup.locator("[data-cont
 check("image renders alt", (await editor.locator("img.bn-visual-media").getAttribute("alt")) === "A soft gradient");
 
 // A real Enter split: the second half gets the meta without the id.
-await editor.locator("h2").click();
-await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowLeft" : "Home");
-for (let i = 0; i < "Launch".length; i++) await page.keyboard.press("ArrowRight");
+await placeCaret(editor.locator("h2"), "Launch".length);
 await page.keyboard.press("Enter");
 await page.waitForTimeout(400);
 doc = await blocks();
@@ -93,8 +92,7 @@ const persisted = page.locator("[data-example='persist'] .bn-editor");
 await persisted.waitFor({ timeout: 15000 });
 await page.waitForTimeout(300);
 check("an unversioned save still loads", (await persisted.innerText()).includes("Gespeichert vor Version 2"));
-await persisted.locator("p").first().click();
-await page.keyboard.press("End");
+await placeCaret(persisted.locator("p").first());
 await page.keyboard.type("!");
 await page.waitForTimeout(800);
 const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("docs:persist-example")));
