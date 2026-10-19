@@ -7,7 +7,7 @@ import { registerEmbedRegistry, resolveEmbedInput } from "../src/plugins/embed";
 import { resolveEditorSetup, type ToolSelection } from "../src/plugins/resolve";
 import { schemaSupport, toEditorBlocks } from "../src/plugins/sanitize";
 
-function mounted(options: { tools?: ToolSelection; content?: PartialBlock[]; policy?: "open" | "allowlist" } = {}) {
+function mounted(options: { tools?: ToolSelection; content?: PartialBlock[]; policy?: "open" | "allowlist"; clickToLoad?: boolean } = {}) {
   const setup = resolveEditorSetup(options.tools, []);
   const support = schemaSupport(setup.schema);
   const editor = BlockNoteEditor.create({
@@ -15,7 +15,10 @@ function mounted(options: { tools?: ToolSelection; content?: PartialBlock[]; pol
     extensions: setup.extensions,
     initialContent: options.content as never,
   }) as unknown as BlockNoteEditor;
-  registerEmbedRegistry(editor, embedRegistry({ policy: options.policy }, [], { origin: "http://localhost:3000" }));
+  registerEmbedRegistry(
+    editor,
+    embedRegistry({ policy: options.policy, clickToLoad: options.clickToLoad ?? false }, [], { origin: "http://localhost:3000" }),
+  );
   const root = document.createElement("div");
   document.body.append(root);
   editor.mount(root);
@@ -115,6 +118,39 @@ describe("embed block", () => {
     expect(box.style.height).toBe("400px");
     window.dispatchEvent(new MessageEvent("message", { data: { genesisEmbedHeight: 9000 }, source: iframe.contentWindow }));
     expect(box.style.height).toBe("640px");
+  });
+
+  it("click-to-load waits for a click before setting iframe src", () => {
+    expect(embedRegistry().clickToLoad).toBe(true);
+    expect(embedRegistry({ clickToLoad: false }).clickToLoad).toBe(false);
+    const { root } = mounted({
+      clickToLoad: true,
+      content: [{ type: "embed", props: { provider: "youtube", url: YT, aspectRatio: "16/9" } } as unknown as PartialBlock],
+    });
+    expect(root.querySelector("iframe")).toBeNull();
+    const load = root.querySelector<HTMLButtonElement>("[data-testid='embed-load']")!;
+    expect(load.textContent).toBe("Load YouTube embed");
+    load.click();
+    expect(root.querySelector("[data-testid='embed-load']")).toBeNull();
+    expect(root.querySelector<HTMLIFrameElement>("iframe")?.src).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+  });
+
+  it("edits the caption from the bar and stores previewWidth from the resize handle", () => {
+    const { editor, root } = mounted({
+      content: [{ type: "embed", props: { provider: "youtube", url: YT, aspectRatio: "16/9" } } as unknown as PartialBlock],
+    });
+    const caption = root.querySelector<HTMLElement>("[data-testid='embed-caption']")!;
+    caption.textContent = "Weekend watch";
+    caption.dispatchEvent(new Event("blur"));
+    expect(editor.document[0].props).toMatchObject({ caption: "Weekend watch" });
+    const handle = root.querySelector<HTMLElement>("[data-testid='embed-resize']")!;
+    const embed = root.querySelector<HTMLElement>(".genesis-embed")!;
+    Object.defineProperty(embed, "getBoundingClientRect", { value: () => ({ width: 480, height: 270, top: 0, left: 0, right: 480, bottom: 270, x: 0, y: 0, toJSON() {} }) });
+    handle.dispatchEvent(new MouseEvent("mousedown", { clientX: 480, bubbles: true }));
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 560 }));
+    window.dispatchEvent(new MouseEvent("mouseup", { clientX: 560 }));
+    expect(editor.document[0].props).toMatchObject({ previewWidth: 560 });
+    expect(embed.style.maxWidth).toBe("560px");
   });
 
   it("exports through toHTML and survives a reload", () => {

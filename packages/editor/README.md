@@ -18,13 +18,13 @@ Tailwind or shadcn/ui in your app.
 - Markdown shortcuts: `#` headings, `-` / `1.` / `[]` lists, `>` quotes,
   ```` ``` ```` code, `---` dividers
 - Images by URL or upload (picker, drop, paste) to your server or your own function,
-  with optional re-hosting of pasted images
+  with optional re-hosting of pasted images; alt text, captions, and alignment in the toolbar
 - HTML in and out (`format="html"`, `getHTML`/`setHTML`), Markdown in
   (`format="markdown"`, `setMarkdown`, Markdown paste), and pastes from Google
   Docs, Word, WordPress and web pages cleaned into blocks, including images inside
   table cells
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
-  or a site's embed code, always in sandboxed frames
+  or a site's embed code, always in sandboxed frames; click-to-load, captions, and resize
 - Text and background colours, font sizes
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
@@ -394,7 +394,7 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `cleanupToast`          | `boolean`                                                 | `true`     | Show "Removed N sections · Undo cleanup" after a paste that removed furniture.                       |
 | `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML or Markdown is imported (value, `setHTML`/`setMarkdown`, or paste).                |
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
-| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). Read once.         |
+| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). `clickToLoad` (default `true`) waits for a click before loading the iframe. Read once. |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
 | `linkPreview`           | `LinkPreviewConfig`                                       | —          | Link preview cards: `{ endpoint, method?, headers? }` (answers `{ title, description, image, siteName, favicon }`) or `{ resolve(url, { signal }) }`. Without it URLs stay links. See [Link previews](#link-previews). |
 | `colorContrast`         | `"auto" \| "off"`                                         | `"off"`    | `"auto"` adjusts hex text below 3:1 contrast with the theme, at render time only.                     |
@@ -511,8 +511,6 @@ HTML import and export:
 - `&nbsp;` becomes an ordinary space, and `&nbsp;` padding collapses (see
   [HTML](#html)). Trailing newlines in code blocks are trimmed.
 - Hex colours within ΔE2000 3 of a palette colour or brand swatch snap to it.
-- Captions and image `alt` text come from pasted or loaded HTML; there's no UI to
-  edit them. Embeds have no resize handle (`previewWidth` is stored and exported).
 - JSON-encoded HTML is decoded only in clear cases. The inside of a JSON string
   whose only escapes are newlines inside text, or that shows escapes inside code,
   is parsed as it is.

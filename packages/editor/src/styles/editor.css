@@ -457,7 +457,19 @@
   background: var(--muted);
 }
 
+.genesis-editor [data-content-type="image"][data-text-alignment="center"] .bn-visual-media-wrapper,
+.genesis-editor [data-content-type="image"][data-text-alignment="center"] .bn-file-block-content-wrapper {
+  display: block;
+  margin-inline: auto;
+}
+
+.genesis-editor [data-content-type="image"][data-text-alignment="right"] .bn-visual-media-wrapper,
+.genesis-editor [data-content-type="image"][data-text-alignment="right"] .bn-file-block-content-wrapper {
+  margin-inline-start: auto;
+}
+
 .genesis-editor .genesis-embed-frame {
+  position: relative;
   width: 100%;
 }
 
@@ -543,6 +555,14 @@
   white-space: nowrap;
 }
 
+.genesis-editor .genesis-embed-caption[contenteditable="true"] {
+  flex: 1;
+  min-width: 0;
+  cursor: text;
+  user-select: text;
+  outline: none;
+}
+
 .genesis-editor .genesis-embed-spacer {
   flex: 1;
 }
@@ -619,6 +639,54 @@
   margin: 0;
   color: var(--destructive);
   font-size: 0.8125rem;
+}
+
+.genesis-editor .genesis-embed-load {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 10rem;
+  margin: 0;
+  border: 0;
+  background: color-mix(in oklab, var(--muted) 70%, var(--background));
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.genesis-editor .genesis-embed-load:hover {
+  background: var(--muted);
+}
+
+.genesis-editor .genesis-embed-load:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.genesis-editor .genesis-embed-caption:empty::before {
+  color: var(--muted-foreground);
+  content: attr(data-placeholder);
+}
+
+.genesis-editor .genesis-embed-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 0.5rem;
+  height: calc(100% - 2rem);
+  cursor: ew-resize;
+}
+
+.genesis-editor .genesis-embed-resize:hover,
+.genesis-editor .genesis-embed-resize:active {
+  background: color-mix(in oklab, var(--foreground) 18%, transparent);
 }
 
 .genesis-editor .genesis-embed-error:empty {

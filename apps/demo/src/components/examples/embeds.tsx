@@ -83,7 +83,7 @@ export default function EmbedsExample() {
         ref={editor}
         format="html"
         defaultValue={article}
-        embeds={{ policy }}
+        embeds={{ policy, clickToLoad: false }}
       />
       <div className="flex flex-wrap items-center gap-2 px-15 text-sm">
         <button className="rounded-md border px-2.5 py-1 hover:bg-muted" onClick={() => show("iframe")}>
