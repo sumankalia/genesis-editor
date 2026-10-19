@@ -132,7 +132,7 @@ check("Remove image deletes it", (await cellImages(editor).count()) === 5);
 // 5. Insert from the slash menu, into a cell.
 await editor.locator("table td").last().click();
 await page.keyboard.type("/inline");
-const slashItem = page.locator(".bn-suggestion-menu-item", { hasText: "Inline image" });
+const slashItem = page.getByRole("option", { name: /Inline image/ });
 await slashItem.waitFor({ timeout: 5000 });
 await slashItem.click();
 await dialog.waitFor();
