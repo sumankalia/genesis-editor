@@ -2,6 +2,10 @@
 
 All notable changes to `genesis-editor`.
 
+## Unreleased
+
+- **The editor and `genesis-editor/parser` share chunks** in the ESM build, so an app that imports both downloads the HTML engine once: about 27 KB (gzip) less in Vite and Next.js. Apps that import only one of them are unchanged, as are the API, the behaviour and the CommonJS build. Only the editor entry is marked `"use client"`.
+
 ## 0.1.0 (2026-10-19)
 
 First release. Everything below is new in it; the "breaking" notes concern documents and handlers written against earlier unreleased builds. See the README's [Known limitations](README.md#known-limitations).
