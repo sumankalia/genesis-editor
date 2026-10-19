@@ -1,7 +1,7 @@
 import { createInlineContentSpec } from "@blocknote/core";
 import { useBlockNoteEditor, useComponentsContext, useEditorState } from "@blocknote/react";
 import { ImagePlus } from "lucide-react";
-import { TextSelection, type Transaction } from "prosemirror-state";
+import { TextSelection } from "prosemirror-state";
 
 import type { RehostQueue } from "../lib/rehost";
 import { REHOST_META } from "./specs";
@@ -234,39 +234,31 @@ export function swapInlineImageUrl(editor: AnyEditor, from: string, to: string) 
   return swapped;
 }
 
-/** A TextSelection inside inline content near `at`, so insert still lands in a table cell after the dialog. */
-function selectionNearInline(tr: Transaction, at: number) {
-  const size = tr.doc.content.size;
-  const clamp = (pos: number) => Math.max(1, Math.min(pos, size));
-  for (const pos of [at, at - 1, at + 1, at - 2, at + 2]) {
-    const $pos = tr.doc.resolve(clamp(pos));
-    if ($pos.parent.inlineContent) return TextSelection.near($pos, 1);
-  }
-  const $at = tr.doc.resolve(clamp(at));
-  for (let depth = $at.depth; depth > 0; depth--) {
-    if ($at.node(depth).inlineContent) {
-      return TextSelection.create(tr.doc, $at.start(depth) + Math.min($at.parentOffset, $at.node(depth).content.size));
-    }
-  }
-  return TextSelection.near($at, 1);
-}
-
 /** Opens the dialog to insert an image at the cursor. */
 export function openInsertInlineImage(editor: AnyEditor) {
   const hooks = hooksByEditor.get(editor);
   if (!hooks) return;
-  // The modal dialog takes focus, and the editor's selection doesn't survive it.
-  const at = editor.transact((tr) => tr.selection.from);
+  // Insert first, while the selection is still in the cell: the modal would steal it.
+  let pos = -1;
+  editor.transact((tr) => {
+    const type = tr.doc.type.schema.nodes.inlineImage;
+    if (!type || !tr.selection.$from.parent.inlineContent) return;
+    pos = tr.selection.from;
+    tr.replaceSelectionWith(type.create(EMPTY_INLINE_IMAGE), false);
+  });
+  if (pos < 0) return;
   hooks.open({
     mode: "insert",
     props: EMPTY_INLINE_IMAGE,
     apply: (props) => {
-      if (!props) return;
-      editor.focus();
       editor.transact((tr) => {
-        tr.setSelection(selectionNearInline(tr, at));
+        const mapped = tr.mapping.map(pos);
+        const node = tr.doc.nodeAt(mapped);
+        if (!node || node.type.name !== "inlineImage") return;
+        if (!props) tr.delete(mapped, mapped + node.nodeSize);
+        else tr.setNodeMarkup(mapped, undefined, { ...node.attrs, ...props });
       });
-      editor.insertInlineContent([{ type: "inlineImage", props } as never, " "]);
+      if (props) editor.focus();
     },
   });
 }

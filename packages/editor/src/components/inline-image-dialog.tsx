@@ -50,8 +50,10 @@ function InlineImageForm({ titleId, request, onClose, upload }: { titleId: strin
   const fileRef = useRef<HTMLInputElement>(null);
   const checkboxId = useId();
   const editing = request.mode === "edit";
+  const committed = useRef(false);
 
   const finish = (props: InlineImageProps | null) => {
+    committed.current = true;
     request.apply(props);
     onClose();
   };
@@ -151,7 +153,7 @@ function InlineImageForm({ titleId, request, onClose, upload }: { titleId: strin
             Remove image
           </Button>
         )}
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={() => (editing ? onClose() : finish(null))}>
           Cancel
         </Button>
         <Button type="submit" disabled={!url.trim() || uploading}>
