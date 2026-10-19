@@ -1,7 +1,7 @@
 import { createInlineContentSpec } from "@blocknote/core";
 import { useBlockNoteEditor, useComponentsContext, useEditorState } from "@blocknote/react";
 import { ImagePlus } from "lucide-react";
-import { TextSelection } from "prosemirror-state";
+import { TextSelection, type Transaction } from "prosemirror-state";
 
 import type { RehostQueue } from "../lib/rehost";
 import { REHOST_META } from "./specs";
@@ -234,6 +234,23 @@ export function swapInlineImageUrl(editor: AnyEditor, from: string, to: string) 
   return swapped;
 }
 
+/** A TextSelection inside inline content near `at`, so insert still lands in a table cell after the dialog. */
+function selectionNearInline(tr: Transaction, at: number) {
+  const size = tr.doc.content.size;
+  const clamp = (pos: number) => Math.max(1, Math.min(pos, size));
+  for (const pos of [at, at - 1, at + 1, at - 2, at + 2]) {
+    const $pos = tr.doc.resolve(clamp(pos));
+    if ($pos.parent.inlineContent) return TextSelection.near($pos, 1);
+  }
+  const $at = tr.doc.resolve(clamp(at));
+  for (let depth = $at.depth; depth > 0; depth--) {
+    if ($at.node(depth).inlineContent) {
+      return TextSelection.create(tr.doc, $at.start(depth) + Math.min($at.parentOffset, $at.node(depth).content.size));
+    }
+  }
+  return TextSelection.near($at, 1);
+}
+
 /** Opens the dialog to insert an image at the cursor. */
 export function openInsertInlineImage(editor: AnyEditor) {
   const hooks = hooksByEditor.get(editor);
@@ -247,8 +264,7 @@ export function openInsertInlineImage(editor: AnyEditor) {
       if (!props) return;
       editor.focus();
       editor.transact((tr) => {
-        const $pos = tr.doc.resolve(Math.min(at, tr.doc.content.size));
-        if ($pos.parent.inlineContent) tr.setSelection(TextSelection.create(tr.doc, $pos.pos));
+        tr.setSelection(selectionNearInline(tr, at));
       });
       editor.insertInlineContent([{ type: "inlineImage", props } as never, " "]);
     },
