@@ -4,7 +4,7 @@ All notable changes to `genesis-editor`.
 
 ## Unreleased
 
-- **Markdown import.** `setMarkdown`, `format="markdown"` (`value` / `defaultValue` / `onChange`), and paste of Markdown text (ChatGPT, GitHub, Slack, `.md` files) all go through `genesis-editor/parser`: Markdown is converted to HTML, then parsed, sanitized, and reported like any other HTML import. Inline links stay links. Real HTML pastes still win; a trivial `<pre>`/`<div>` wrapper of the same source is treated as Markdown. Parser exports: `markdownToHTML`, `parseMarkdown`, `parseMarkdownAsync`, `looksLikeMarkdown`, `htmlIsMarkdownSource`. New dependency: `marked` (MIT). The editor never calls BlockNote's `tryParseMarkdownToBlocks`.
+- **Markdown import.** `setMarkdown`, `format="markdown"` (`value` / `defaultValue` / `onChange`), and paste of Markdown text (ChatGPT, GitHub, Slack, `.md` files) all go through `genesis-editor/parser`: Markdown is converted to HTML, then parsed, sanitized, and reported like any other HTML import. Inline links stay links. Real HTML pastes still win; a trivial `<pre>`/`<div>` wrapper of the same source is treated as Markdown. Parser exports: `markdownToHTML`, `parseMarkdown`, `parseMarkdownAsync`, `looksLikeMarkdown`, `htmlIsMarkdownSource`. New dependency: `marked` (MIT), bundled into the parser because it is ESM-only. The editor never calls BlockNote's `tryParseMarkdownToBlocks`.
 
 ## 0.1.0 (2026-10-19)
 
