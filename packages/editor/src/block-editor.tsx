@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type {
   ClipboardEvent as ReactClipboardEvent,
@@ -256,12 +257,19 @@ function nonEmpty(blocks: EditorContent | undefined) {
   return blocks && blocks.length > 0 ? blocks : undefined;
 }
 
+const subscribeNothing = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 /**
  * The schema is fixed when a BlockNote editor is created, so a change to `tools` or to the plugin
  * names mounts a new editor, which starts from the latest document.
  */
 export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(function BlockEditor(props, ref) {
   const latestDocument = useRef<AnyPartialBlock[] | null>(null);
+  // BlockNote needs `window`, so server rendering and hydration draw an empty root; the editor mounts right after.
+  const onClient = useSyncExternalStore(subscribeNothing, clientSnapshot, serverSnapshot);
+  if (!onClient) return <div className={cn("genesis-editor", props.className)} data-genesis-pending="" />;
   return (
     <EditorInstance
       key={setupSignature(props.tools, props.plugins, props.meta?.policy !== "off")}
