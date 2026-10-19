@@ -18,7 +18,7 @@ import {
 } from "../parser/embeds";
 import type { AnyEditor } from "./types";
 
-type LooseBlock = { id: string; type: string; props: Record<string, unknown>; content: unknown; children: unknown[] };
+export type LooseBlock = { id: string; type: string; props: Record<string, unknown>; content: unknown; children: unknown[] };
 
 const registries = new WeakMap<object, EmbedRegistry>();
 
@@ -42,7 +42,7 @@ type EmbedBlockProps = {
   snippet: boolean;
 };
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
+export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
   const node = document.createElement(tag);
   node.className = className;
   if (text) node.textContent = text;
@@ -50,7 +50,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 }
 
 // ProseMirror listens on the editor root; controls inside the block keep their own keys and clicks.
-function isolate(node: HTMLElement) {
+export function isolate(node: HTMLElement) {
   for (const type of ["keydown", "keypress", "beforeinput", "input", "mousedown", "paste", "drop"]) {
     node.addEventListener(type, (event) => event.stopPropagation());
   }
@@ -75,7 +75,7 @@ export function resolveEmbedInput(value: string, registry: EmbedRegistry): Embed
   return resolved ? { resolved, extras: { aspectRatio: resolved.provider ? undefined : "16/9" } } : null;
 }
 
-function linkBlock(editor: AnyEditor, url: string, label: string) {
+export function linkBlock(editor: AnyEditor, url: string, label: string) {
   const hasLink = "link" in (editor.schema.inlineContentSchema as object);
   return { type: "paragraph", content: hasLink ? [{ type: "link", href: url, content: label }] : label };
 }
@@ -280,9 +280,9 @@ export const embedSlashItem = {
 const linkText = (content: unknown) =>
   Array.isArray(content) ? content.map((part: { text?: string }) => part.text ?? "").join("") : "";
 
-/** The provider URL when the block is a paragraph holding only a link to it, written as the URL. */
-function bareProviderUrl(block: LooseBlock, registry: EmbedRegistry) {
-  if (block.type !== "paragraph" || block.children.length) return null;
+/** The URL when the block is a paragraph holding only that URL, as text or as a link written as the URL. */
+export function bareUrl(block: LooseBlock) {
+  if (block.type !== "paragraph" || block.children.length || !Array.isArray(block.content)) return null;
   const content = (block.content as unknown as { type: string; text?: string; href?: string; content?: unknown }[]).filter(
     (part) => part.type !== "text" || part.text?.trim(),
   );
@@ -295,7 +295,12 @@ function bareProviderUrl(block: LooseBlock, registry: EmbedRegistry) {
     const same = (a: string) => a.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
     if (same(text) !== same(url)) return null;
   }
-  return embedForUrl(url, registry);
+  return url;
+}
+
+function bareProviderUrl(block: LooseBlock, registry: EmbedRegistry) {
+  const url = bareUrl(block);
+  return url ? embedForUrl(url, registry) : null;
 }
 
 /**

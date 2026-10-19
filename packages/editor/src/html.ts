@@ -8,7 +8,9 @@ import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
 import { escapeAttr, escapeText } from "./parser/serialize-inline";
 import type { CleanOptions, FidelityReport, HtmlBlock, ParseMode } from "./parser/types";
+import { linkPreviewsOf } from "./lib/link-preview";
 import { convertBareEmbedLinks, embedRegistryOf } from "./plugins/embed";
+import { convertBareLinkPreviews } from "./plugins/link-preview";
 import type { ToolSelection } from "./plugins/resolve";
 
 export type HtmlImportOptions = {
@@ -166,9 +168,11 @@ export function createPasteHandler(
     // Embed code copied as text (a site's "Copy code" button, or code shown highlighted): import the code itself.
     if (embeds && isEmbedCode(plain, editor) && !(html && isEmbedCode(html, editor, true))) html = plain;
     if (!html) {
-      // A provider URL copied from the address bar arrives as plain text; it goes in as a link first.
+      // A URL copied from the address bar arrives as plain text; an embed or a card goes in as a link first.
       const url = plain.trim();
-      if (!embeds || !/^https?:\/\/\S+$/.test(url) || !embedForUrl(url, embedRegistryOf(editor))) return defaultPasteHandler();
+      const embeddable = embeds && embedForUrl(url, embedRegistryOf(editor));
+      const previewable = "linkPreview" in editor.schema.blockSchema && linkPreviewsOf(editor)?.configured;
+      if (!/^https?:\/\/\S+$/.test(url) || !(embeddable || previewable)) return defaultPasteHandler();
       html = `<p><a href="${escapeAttr(url)}">${escapeText(url)}</a></p>`;
     }
     const inCode = editor.transact((tr) => Boolean(tr.selection.$from.parent.type.spec.code));
@@ -179,6 +183,7 @@ export function createPasteHandler(
     const inserted = insertBlocks(target, result.blocks);
     const converted = convertBareEmbedLinks(target, [...inserted, target.getTextCursorPosition().block]);
     result.report.embeds.provider += converted.length;
+    convertBareLinkPreviews(target, [...inserted, target.getTextCursorPosition().block]);
     onImport(result, html, inserted);
     return true;
   };

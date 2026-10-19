@@ -28,6 +28,7 @@ export const BLOCK_TOOLS = [
   "audio",
   "file",
   "embed",
+  "linkPreview",
 ] as const;
 
 export const INLINE_TOOLS = ["bold", "italic", "underline", "strike", "code", "link", "colors", "fontSize"] as const;
@@ -44,6 +45,7 @@ export const DEFAULT_TOOLBAR = [
   "blockType",
   "tableMerge",
   "file",
+  "imageLink",
   "bold",
   "italic",
   "underline",
@@ -57,6 +59,7 @@ export const DEFAULT_TOOLBAR = [
   "nest",
   "unnest",
   "link",
+  "linkPreview",
 ] as const;
 
 export type BuiltInToolbarItem = (typeof DEFAULT_TOOLBAR)[number];
