@@ -346,7 +346,8 @@
 }
 
 .genesis-editor .genesis-embed-caption[contenteditable="true"] {
-  min-width: 5rem;
+  flex: 1;
+  min-width: 0;
   cursor: text;
   user-select: text;
   outline: none;
