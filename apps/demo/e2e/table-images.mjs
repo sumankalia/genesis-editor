@@ -134,7 +134,8 @@ await editor.locator("table td").last().click();
 await page.keyboard.type("/inline");
 const slashItem = page.getByRole("option", { name: /Inline image/ });
 await slashItem.waitFor({ timeout: 5000 });
-await slashItem.click();
+// Clicking the menu blurs the cell; Enter keeps the selection so the image lands in it.
+await page.keyboard.press("Enter");
 await dialog.waitFor();
 await dialog.getByLabel("Image URL").fill(`${PAGE_ORIGIN}/examples/lake.png`);
 await dialog.getByLabel("Alt text").fill("Lake");
