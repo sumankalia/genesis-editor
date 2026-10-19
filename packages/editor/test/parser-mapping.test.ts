@@ -11,6 +11,30 @@ describe("inline and whitespace", () => {
     expect(blocks("<p>  a \n  b <br>  c<br></p>")[0].content).toEqual([t("a b\nc")]);
   });
 
+  it("collapses &nbsp; padding next to other whitespace and trims it at line edges", () => {
+    const html = [
+      "<p>Fields,&nbsp; and hedges</p>",
+      "<p>the end.&nbsp;&nbsp; &nbsp;</p>",
+      "<p> &nbsp;Starts here</p>",
+      "<ul><li>&nbsp;An item&nbsp;</li></ul>",
+      "<p>one&nbsp;&nbsp;two<br>&nbsp;three&nbsp;<br>four</p>",
+      "<p>Mr.<span>&nbsp;</span> <i>Smith</i></p>",
+    ].join("");
+    expect(blocks(html).map((b) => b.content)).toEqual([
+      [t("Fields, and hedges")],
+      [t("the end.")],
+      [t("Starts here")],
+      [t("An item")],
+      [t("one two\nthree\nfour")],
+      [t("Mr. "), t("Smith", { italic: true })],
+    ]);
+  });
+
+  it("keeps a lone &nbsp; between words as a space, and spacing under white-space: pre*", () => {
+    expect(blocks("<p>10&nbsp;km</p>")[0].content).toEqual([t("10 km")]);
+    expect(blocks('<p>a<span style="white-space:pre-wrap">  </span>b<span style="white-space:pre-wrap"> </span></p>')[0].content).toEqual([t("a  b ")]);
+  });
+
   it("splits loose text at double breaks into paragraphs", () => {
     expect(blocks("one<br><br>two").map((b) => b.content)).toEqual([[t("one")], [t("two")]]);
   });

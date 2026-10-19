@@ -26,21 +26,36 @@ export function inline(content: HtmlBlock["content"]): string {
   return full.endsWith("\n") ? `${html}<br>` : html;
 }
 
-/** Escapes text so the parser's whitespace collapsing gives it back unchanged. */
+const SPACE = /[ \u00a0\t\n]/;
+
+/**
+ * Escapes text so the parser's whitespace collapsing gives it back unchanged. Spaces it would
+ * collapse or trim (doubled, or at a line's edge) go in a `white-space:pre-wrap` span: the parser
+ * collapses `&nbsp;` next to other whitespace, as pasted HTML uses it as padding.
+ */
 function escapeInline(text: string, full: string, offset: number) {
   let out = "";
+  let kept = "";
+  const flush = () => {
+    if (kept) out += `<span style="white-space:pre-wrap">${kept}</span>`;
+    kept = "";
+  };
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const at = offset + i;
+    if (ch === " " || ch === "\u00a0") {
+      const edge = at === 0 || at === full.length - 1 || SPACE.test(full[at - 1]) || SPACE.test(full[at + 1]);
+      if (edge) {
+        kept += " ";
+        continue;
+      }
+    }
+    flush();
     if (ch === "\n") out += "<br>";
     else if (ch === "\t") out += '<span style="white-space:pre">\t</span>';
-    else if (ch === " " || ch === "\u00a0") {
-      const prev = full[at - 1];
-      const next = full[at + 1];
-      const edge = at === 0 || at === full.length - 1 || prev === " " || prev === "\n" || prev === "\t" || next === "\n";
-      out += edge ? "&nbsp;" : " ";
-    } else out += escapeChar(ch);
+    else out += escapeChar(ch === "\u00a0" ? " " : ch);
   }
+  flush();
   return out;
 }
 

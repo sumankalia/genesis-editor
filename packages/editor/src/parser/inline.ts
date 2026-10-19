@@ -19,7 +19,12 @@ export type Run = {
   sourceBold: boolean;
 };
 
-const COLLAPSIBLE = /[ \t\n\r\f]+/g;
+/**
+ * A whitespace run with at least one collapsible character, or two or more `&nbsp;`s. Pasted HTML
+ * pads with `&nbsp;` next to ordinary spaces (`Land,&nbsp; some`, `seasons.&nbsp;&nbsp; &nbsp;`),
+ * which would otherwise survive as double and trailing spaces.
+ */
+const COLLAPSIBLE = /[ \t\n\r\f\u00a0]*[ \t\n\r\f][ \t\n\r\f\u00a0]*|\u00a0{2,}/g;
 const NBSP = /\u00a0/g;
 
 /** Splits runs at `<br><br>` (only whitespace between), for loose text that has no `<p>`. */
@@ -43,8 +48,9 @@ export function splitAtDoubleBreaks(runs: Run[]): Run[][] {
 
 /**
  * HTML whitespace rules: collapse runs of spaces, trim at line starts and ends, drop a final `<br>`
- * (browsers don't render it), then turn `&nbsp;` into spaces. Returns `undefined` when only
- * whitespace is left.
+ * (browsers don't render it), then turn `&nbsp;` into spaces. Unlike a browser, `&nbsp;` collapses
+ * too, unless it stands alone between words: intentional spacing is kept only through
+ * `white-space: pre*`, which is what `toHTML` writes. Returns `undefined` when only whitespace is left.
  */
 export function finalizeRuns(runs: Run[]): Run[] | undefined {
   const out: Run[] = [];
@@ -54,7 +60,7 @@ export function finalizeRuns(runs: Run[]): Run[] | undefined {
     for (let i = out.length - 1; i >= 0; i--) {
       const run = out[i];
       if (run.pre) break;
-      run.text = run.text.replace(/ +$/, "");
+      run.text = run.text.replace(/[ \u00a0]+$/, "");
       if (run.text) break;
       out.splice(i, 1);
     }
@@ -72,11 +78,11 @@ export function finalizeRuns(runs: Run[]): Run[] | undefined {
       lastSpace = false;
     } else {
       let text = run.text.replace(COLLAPSIBLE, " ");
-      if (lineStart || lastSpace) text = text.replace(/^ /, "");
+      if (lineStart || lastSpace) text = text.replace(/^[ \u00a0]/, "");
       if (!text) continue;
       out.push({ ...run, text });
       lineStart = false;
-      lastSpace = text.endsWith(" ");
+      lastSpace = / $|\u00a0$/.test(text);
     }
   }
   trimEnd();

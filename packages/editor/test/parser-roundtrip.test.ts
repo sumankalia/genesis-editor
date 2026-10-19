@@ -52,4 +52,21 @@ describe("parser round trip", () => {
     expect(blocks).toEqual(doc);
     expect(toHTML(blocks)).toBe(html);
   });
+
+  it("keeps intentional spaces (leading, doubled, across runs, around line breaks) without writing &nbsp;", () => {
+    const spaced: HtmlBlock[] = [
+      { type: "paragraph", content: [t(" lead  double   triple ")] },
+      { type: "paragraph", content: [t("a "), t(" b", { bold: true }), t(" \n c\t d")] },
+      { type: "heading", props: { level: 2 }, content: [t("  Indented")] },
+    ];
+    const html = toHTML(spaced);
+    expect(html).not.toContain("&nbsp;");
+    expect(html).toContain('<span style="white-space:pre-wrap">  </span>');
+    expect(parseHTML(html, { dom: linkedomDom }).blocks).toEqual(spaced);
+  });
+
+  it("writes a stored &nbsp; as a plain space", () => {
+    const html = toHTML([{ type: "paragraph", content: [t("10\u00a0km")] }]);
+    expect(html).toBe("<p>10 km</p>");
+  });
 });
