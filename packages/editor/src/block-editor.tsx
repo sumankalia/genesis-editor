@@ -45,6 +45,15 @@ import type { CleanOptions, CleanupSummary, FidelityReport, HtmlBlock, ParseMode
 export type HtmlExportOptions = Pick<ToHTMLOptions, "embeds" | "embedScripts">;
 import { GenesisFormattingToolbar, ToolbarItemsContext } from "./components/formatting-toolbar";
 import { ImageLinkContext, ImageLinkDialog, type ImageLinkTarget } from "./components/image-link-dialog";
+import { InlineImageDialog } from "./components/inline-image-dialog";
+import {
+  hasInlineImage,
+  inlineImageJobKey,
+  isInlineImageJob,
+  registerInlineImages,
+  swapInlineImageUrl,
+  type InlineImageRequest,
+} from "./plugins/inline-image";
 import { LinkDialog } from "./components/link-dialog";
 import { MobileBlockToolbar } from "./components/mobile-block-toolbar";
 import { UploadContext, type UploadContextValue } from "./components/upload-context";
@@ -408,6 +417,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   }, [initial.report]);
 
   const [uploadStatuses] = useState(() => new UploadStatusStore());
+  const [inlineImageRequest, setInlineImageRequest] = useState<InlineImageRequest | null>(null);
   const editorRef = useRef<BlockNoteEditor | null>(null);
   const retryRef = useRef<(blockId: string) => Promise<void>>(async () => {});
 
@@ -419,6 +429,10 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         {
           onDone: (job, url) => {
             const current = editorRef.current;
+            if (current && isInlineImageJob(job.blockId)) {
+              if (swapInlineImageUrl(current as unknown as AnyEditor, job.url, url) && job.report) job.report.images.rehosted++;
+              return;
+            }
             const block = current?.getBlock(job.blockId);
             if (!current || (block?.props as { url?: string } | undefined)?.url !== job.url) return;
             const props = /^https?:/i.test(job.url) ? { url, originalUrl: job.url, hosted: true } : { url, hosted: true };
@@ -452,11 +466,25 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   /** Queues the images in `blocks` (and their children) that `rehostImages` calls for. Read-only views leave them be. */
   const [scheduleRehost] = useState(() => (blocks: Block[], source: RehostSource, report: FidelityReport | null) => {
     if (!editableRef.current) return;
+    const inline = (content: unknown[]) => {
+      for (const node of content as { type?: string; props?: { url?: string; alt?: string; originalUrl?: string; hosted?: boolean } }[]) {
+        const props = node.type === "inlineImage" ? node.props : undefined;
+        if (!props?.url || props.originalUrl || props.hosted || !rehost.shouldRehost(props.url)) continue;
+        rehost.enqueue({ blockId: inlineImageJobKey(props.url), url: props.url, alt: props.alt || undefined, filename: fileNameFromUrl(props.url), source, report });
+      }
+    };
     const visit = (list: Block[]) => {
       for (const block of list) {
         const props = block.props as { url?: string; originalUrl?: string; hosted?: boolean; alt?: string; name?: string };
         if (block.type === "image" && props.url && !props.originalUrl && !props.hosted && rehost.shouldRehost(props.url)) {
           rehost.enqueue({ blockId: block.id, url: props.url, alt: props.alt || props.name || undefined, filename: fileNameFromUrl(props.url), source, report });
+        }
+        const content = block.content as unknown;
+        if (Array.isArray(content)) inline(content);
+        else if ((content as { type?: string } | undefined)?.type === "tableContent") {
+          for (const row of (content as { rows: { cells: unknown[] }[] }).rows) {
+            for (const cell of row.cells) inline(Array.isArray(cell) ? cell : ((cell as { content?: unknown[] }).content ?? []));
+          }
         }
         visit(block.children as Block[]);
       }
@@ -473,7 +501,9 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       sanitize,
       (result, html, inserted) => {
         recordImport.current(result, html);
-        scheduleRehost(inserted, "paste", result.report);
+        // An inline paste inserts no blocks; its images are in the block at the cursor.
+        const cursor = editorRef.current?.getTextCursorPosition().block;
+        scheduleRehost(cursor ? [...inserted, cursor] : inserted, "paste", result.report);
       },
     ),
     // Never rejects: paste/drop uploads would surface as unhandled rejections, so
@@ -481,6 +511,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     uploadFile: (file, blockId) => rehost.track(upload(file, blockId)),
   }) as unknown as BlockNoteEditor;
   registerRehostQueue(editor, rehost);
+  registerInlineImages(editor, { open: setInlineImageRequest, queue: rehost });
   registerEmbedRegistry(editor, embedSetup);
   registerLinkPreviews(editor, linkPreviews);
   const colorScheme = useColorScheme(theme);
@@ -703,7 +734,11 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
   );
 
   const handleChange = useCallback(() => {
-    rehost.prune((job) => (editor.getBlock(job.blockId)?.props as { url?: string } | undefined)?.url === job.url);
+    rehost.prune((job) =>
+      isInlineImageJob(job.blockId)
+        ? hasInlineImage(editor as unknown as AnyEditor, job.url)
+        : (editor.getBlock(job.blockId)?.props as { url?: string } | undefined)?.url === job.url,
+    );
     setCleanup(null);
     scheduleSave();
     if (applyingValue.current) return;
@@ -788,6 +823,31 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       editor.focus();
     },
     [editor],
+  );
+
+  const closeInlineImage = useCallback(() => {
+    setInlineImageRequest(null);
+    editor.focus();
+  }, [editor]);
+  const inlineImageDialogRequest = useMemo<InlineImageRequest | null>(
+    () =>
+      inlineImageRequest && {
+        ...inlineImageRequest,
+        apply: (props) => {
+          inlineImageRequest.apply(props);
+          // A typed URL is copied like a pasted one; uploads are already on the app's storage.
+          scheduleRehost(editor.document, "value", null);
+        },
+      },
+    [inlineImageRequest, editor, scheduleRehost],
+  );
+  const uploadInlineImage = useCallback(
+    async (file: File) => {
+      const url = await uploadWithConfig(uploadConfig.current, file, { signal: new AbortController().signal, onProgress: () => {}, source: "upload" });
+      rehost.rememberHost(url);
+      return url;
+    },
+    [rehost],
   );
 
   // BlockNote has no link shortcut; its toolbar link button needs a selection.
@@ -929,6 +989,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
           onSubmit={applyLink}
         />
         <ImageLinkDialog target={imageLinkTarget} onClose={closeImageLink} onSubmit={applyImageLink} />
+        <InlineImageDialog request={inlineImageDialogRequest} onClose={closeInlineImage} upload={uploadInlineImage} />
       </div>
     </UploadContext.Provider>
   );

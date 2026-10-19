@@ -8,6 +8,8 @@ export type SchemaSupport = {
   blocks: Record<string, string>;
   styles: Set<string>;
   links: boolean;
+  /** Inline content types besides `text` and `link`, e.g. `inlineImage`. */
+  inline: Set<string>;
   headingLevels: readonly number[] | null;
   /** Whether blocks have the `meta` prop (it's left out with `meta={{ policy: "off" }}`). */
   meta: boolean;
@@ -23,6 +25,7 @@ export function schemaSupport(schema: { blockSchema: any; styleSchema: any; inli
     blocks,
     styles: new Set(Object.keys(schema.styleSchema)),
     links: "link" in schema.inlineContentSchema,
+    inline: new Set(Object.keys(schema.inlineContentSchema).filter((type) => type !== "text" && type !== "link")),
     headingLevels:
       (schema.blockSchema.heading?.propSchema?.level?.values as readonly number[] | undefined) ?? null,
     meta: Boolean(schema.blockSchema.paragraph?.propSchema?.meta),
@@ -48,8 +51,23 @@ function cleanInline(content: unknown, support: SchemaSupport): unknown {
       return typeof inner === "string" ? [{ type: "text", text: inner, styles: {} }] : inner;
     }
     if (node.type === "text" || node.type === undefined) return [{ ...node, styles: cleanStyles(node.styles, support) }];
+    // Without the image tool there's no inline image node; its alt text stays.
+    if (!support.inline.has(node.type)) {
+      const alt = node.type === "inlineImage" ? (node as { props?: { alt?: unknown } }).props?.alt : undefined;
+      return typeof alt === "string" && alt ? [{ type: "text", text: alt, styles: {} }] : [];
+    }
     return [node];
   });
+}
+
+function cleanTable(content: unknown, support: SchemaSupport): unknown {
+  const table = content as { rows?: { cells?: unknown[] }[] } | undefined;
+  if (!table || !Array.isArray(table.rows)) return content;
+  const cell = (value: unknown) =>
+    value && typeof value === "object" && !Array.isArray(value) && (value as { type?: string }).type === "tableCell"
+      ? { ...(value as object), content: cleanInline((value as { content?: unknown }).content, support) }
+      : cleanInline(value, support);
+  return { ...table, rows: table.rows.map((row) => ({ ...row, cells: (row.cells ?? []).map(cell) })) };
 }
 
 function inlineText(content: unknown): string {
@@ -92,6 +110,7 @@ export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: Sche
     if (kind) {
       const next: AnyPartialBlock = { ...block, children };
       if (kind === "inline") next.content = cleanInline(block.content, support) as never;
+      if (kind === "table") next.content = cleanTable(block.content, support) as never;
       if (type === "heading" && support.headingLevels?.length) {
         const level = Number((block.props as { level?: number } | undefined)?.level ?? 1);
         if (!support.headingLevels.includes(level)) {

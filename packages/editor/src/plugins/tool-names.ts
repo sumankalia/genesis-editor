@@ -46,6 +46,7 @@ export const DEFAULT_TOOLBAR = [
   "tableMerge",
   "file",
   "imageLink",
+  "inlineImage",
   "bold",
   "italic",
   "underline",
