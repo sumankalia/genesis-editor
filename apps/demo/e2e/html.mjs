@@ -50,6 +50,18 @@ const unsafe = await liveEditor.evaluate((el) => ({ html: el.innerHTML, pwned: "
 check("HTML value is sanitized", !/onclick|<script|javascript:/i.test(unsafe.html) && !unsafe.pwned);
 check("textarea keeps what was typed until the next edit", (await source.inputValue()).includes("<script>"));
 
+await source.fill(JSON.stringify('<h3 class="sub">Escaped</h3>\n<p>Line&nbsp; one.&nbsp;&nbsp; &nbsp;</p>\n<pre><code>a\n  b</code></pre>').slice(1, -1));
+await page.waitForTimeout(300);
+const escaped = await liveEditor.evaluate((el) => ({
+  h3: el.querySelector("h3")?.textContent,
+  p: el.querySelector("[data-content-type='paragraph'] p")?.textContent,
+  code: el.querySelector("pre code")?.textContent,
+  text: el.textContent,
+}));
+check("JSON-escaped HTML value is decoded, not shown as \\n text", escaped.h3 === "Escaped" && !/\\[n"]/.test(escaped.text ?? ""), JSON.stringify(escaped).slice(0, 160));
+check("&nbsp; padding collapses to single spaces", escaped.p === "Line one.", JSON.stringify(escaped.p));
+check("decoded code block keeps its newlines", escaped.code === "a\n  b", JSON.stringify(escaped.code));
+
 await source.fill(before);
 await page.waitForTimeout(300);
 await live.scrollIntoViewIfNeeded();
@@ -142,6 +154,21 @@ const inside = await pasteEditor.evaluate((root) => {
   return root.querySelectorAll("[data-text-color='blue'], [data-style-type='textColor'][data-value='blue']").length;
 });
 check("internal clipboard bypasses the engine", inside > 0);
+
+// HTML copied as JSON text (an API response, a .json file) pastes as its HTML.
+const jsonPaste = await pasteEditor.evaluate((root) => {
+  const target = root.querySelector("h2");
+  const data = new DataTransfer();
+  data.setData("text/plain", JSON.stringify([{ HTML: '<h4 class="x">From JSON</h4>\n<p>Body</p>' }], null, 2));
+  const range = document.createRange();
+  range.selectNodeContents(target);
+  range.collapse(false);
+  getSelection().removeAllRanges();
+  getSelection().addRange(range);
+  root.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  return { h4: root.querySelector("h4")?.textContent, raw: root.textContent.includes('"HTML"') };
+});
+check("HTML inside pasted JSON text is imported", jsonPaste.h4 === "From JSON" && !jsonPaste.raw, JSON.stringify(jsonPaste));
 
 // API reference.
 await page.goto(`${BASE_URL}/docs/api`);
