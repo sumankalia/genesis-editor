@@ -15,7 +15,7 @@ const doc: HtmlBlock[] = [
   { type: "toggleListItem", content: [t("toggle")], children: [{ type: "paragraph", content: [t("inside")] }] },
   { type: "heading", props: { level: 3, isToggleable: true }, content: [t("Toggle heading")], children: [{ type: "paragraph", content: [t("body")] }] },
   { type: "quote", content: [t("quoted")] },
-  { type: "codeBlock", props: { language: "ts" }, content: [t("const a = 1;\n  b();")] },
+  { type: "codeBlock", props: { language: "typescript" }, content: [t("const a = 1;\n  b();")] },
   { type: "divider" },
   {
     type: "table",

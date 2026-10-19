@@ -415,3 +415,8 @@
 .genesis-editor .genesis-embed-error:empty {
   display: none;
 }
+
+/* Dual-theme tokens from Shiki (`--shiki-light` / `--shiki-dark`). Code blocks stay on a dark surface. */
+.genesis-editor .bn-block-content[data-content-type="codeBlock"] span {
+  color: var(--shiki-dark, inherit);
+}

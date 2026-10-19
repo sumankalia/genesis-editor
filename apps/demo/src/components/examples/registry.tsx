@@ -41,6 +41,7 @@ const examples = {
   "embed-code": load(() => import("./embed-code")),
   colors: load(() => import("./colors")),
   "font-size": load(() => import("./font-size")),
+  "code-blocks": load(() => import("./code-blocks")),
 };
 
 export type ExampleName = keyof typeof examples;

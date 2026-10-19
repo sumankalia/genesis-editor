@@ -8,7 +8,7 @@
     "start": "next start -p 4317",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "e2e": "node e2e/editor.mjs && node e2e/uploads.mjs && node e2e/rehost.mjs && node e2e/embeds.mjs && node e2e/embed-code.mjs && node e2e/colors.mjs && node e2e/fontsize.mjs && node e2e/toolbar-mobile.mjs && node e2e/docs.mjs && node e2e/tools.mjs && node e2e/html.mjs && node e2e/meta.mjs && node e2e/playground.mjs && node e2e/llms.mjs"
+    "e2e": "node e2e/editor.mjs && node e2e/uploads.mjs && node e2e/rehost.mjs && node e2e/embeds.mjs && node e2e/embed-code.mjs && node e2e/colors.mjs && node e2e/fontsize.mjs && node e2e/toolbar-mobile.mjs && node e2e/docs.mjs && node e2e/tools.mjs && node e2e/html.mjs && node e2e/meta.mjs && node e2e/code.mjs && node e2e/playground.mjs && node e2e/llms.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

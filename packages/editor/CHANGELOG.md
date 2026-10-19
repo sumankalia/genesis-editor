@@ -2,6 +2,10 @@
 
 All notable changes to `genesis-editor`.
 
+## Unreleased
+
+- **Code block syntax highlighting.** Code blocks get a language picker and Shiki highlighting (github-light / github-dark), loaded on first use so it stays out of the 0.1.0 editor chunk. HTML still round-trips as `<pre><code class="language-x">`; aliases such as `ts` and `js` are stored as `typescript` and `javascript` so the picker doesn't throw. Unknown languages stay on parse and become plain text in the editor.
+
 ## 0.1.0 (2026-10-19)
 
 First release. Everything below is new in it; the "breaking" notes concern documents and handlers written against earlier unreleased builds. See the README's [Known limitations](README.md#known-limitations).
