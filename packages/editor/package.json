@@ -5,12 +5,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sandeep-code/genesis.git",
+    "url": "git+https://github.com/sumankalia/genesis-editor.git",
     "directory": "packages/editor"
   },
-  "homepage": "https://github.com/sandeep-code/genesis/tree/main/packages/editor#readme",
+  "homepage": "https://github.com/sumankalia/genesis-editor#readme",
   "bugs": {
-    "url": "https://github.com/sandeep-code/genesis/issues"
+    "url": "https://github.com/sumankalia/genesis-editor/issues"
   },
   "keywords": [
     "react",
