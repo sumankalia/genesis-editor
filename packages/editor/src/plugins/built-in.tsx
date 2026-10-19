@@ -23,6 +23,7 @@ import { FontSizeSelect } from "../components/font-size-select";
 import { resolveColorConfig } from "../parser/colors";
 import { ImageLinkButton } from "../components/image-link-dialog";
 import { embedSlashItem, embedSpec } from "./embed";
+import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
 import { LinkPreviewButton, linkPreviewSlashItems, linkPreviewSpec } from "./link-preview";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
 import { backgroundColorSpec, blockHexColorsExtension, fontSizeKeysExtension, fontSizeSpec, textColorSpec } from "./text-styles";
@@ -122,8 +123,10 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
     definePlugin({
       name: "image",
       blocks: { image: imageSpec },
+      inlineContent: { inlineImage: inlineImageSpec },
       extensions: [imageSourceExtension],
-      toolbarItems: { imageLink: ImageLinkButton },
+      slashItems: [inlineImageSlashItem],
+      toolbarItems: { imageLink: ImageLinkButton, inlineImage: InlineImageButton },
     }),
   video: () => blockTool("video", "video"),
   audio: () => blockTool("audio", "audio"),

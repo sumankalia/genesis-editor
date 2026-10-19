@@ -20,7 +20,8 @@ Tailwind or shadcn/ui in your app.
 - Images by URL or upload (picker, drop, paste) to your server or your own function,
   with optional re-hosting of pasted images
 - HTML in and out (`format="html"`, `getHTML`/`setHTML`), and pastes from Google
-  Docs, Word, WordPress and web pages cleaned into blocks
+  Docs, Word, WordPress and web pages cleaned into blocks, including images inside
+  table cells
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
   or a site's embed code, always in sandboxed frames
 - Text and background colours, font sizes
@@ -158,6 +159,10 @@ browser, `dom` defaults to the page's `DOMParser`.
   `[{ "HTML": "…" }]`, and the inside of a JSON string when its escapes are
   clearly structural. The report gets a warning; `decodeEscaped: false` turns it
   off. `decodeEscapedHTML(text)` is exported for your own inputs.
+- `<img>` in a table cell (or a paragraph) is kept as an inline image, with the
+  same URL, upload and re-hosting as image blocks. Export is
+  `<td><img data-genesis-inline>`. Empty header rows of empty `<th>`s are
+  dropped; an image that links to itself loses the link.
 
 ## Image uploads
 
@@ -308,8 +313,9 @@ of showing it on selection, and `toolbar={false}` removes it.
 ```
 
 The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `file`,
-`bold`, `italic`, `underline`, `strike`, `code`, `alignLeft`, `alignCenter`,
-`alignRight`, `fontSize`, `colors`, `nest`, `unnest`, `link`, followed by plugin items.
+`imageLink`, `inlineImage`, `bold`, `italic`, `underline`, `strike`, `code`,
+`alignLeft`, `alignCenter`, `alignRight`, `fontSize`, `colors`, `nest`,
+`unnest`, `link`, `linkPreview`, followed by plugin items.
 
 ### Plugins
 

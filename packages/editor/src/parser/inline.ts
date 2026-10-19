@@ -1,4 +1,7 @@
-import type { HtmlInline, HtmlStyles, HtmlText } from "./types";
+import type { HtmlInline, HtmlInlineImage, HtmlStyles, HtmlText } from "./types";
+
+/** The text an inline image stands for in runs and whitespace offsets. */
+export const IMAGE_CHAR = "\uFFFC";
 
 /** A run of source text with the formatting in effect, before whitespace processing. */
 export type Run = {
@@ -17,6 +20,8 @@ export type Run = {
   literalSize?: boolean;
   /** Bold in the source, even when the bold tool is off. */
   sourceBold: boolean;
+  /** An inline image; `text` is `IMAGE_CHAR`. */
+  image?: HtmlInlineImage["props"];
 };
 
 /**
@@ -104,11 +109,15 @@ export function runsToInline(runs: Run[]): HtmlInline[] {
   for (const run of runs) {
     if (!run.text) continue;
     const prev = merged[merged.length - 1];
-    if (prev && prev.link === run.link && sameStyles(prev.styles, run.styles)) prev.text += run.text;
+    if (prev && !prev.image && !run.image && prev.link === run.link && sameStyles(prev.styles, run.styles)) prev.text += run.text;
     else merged.push({ ...run, styles: { ...run.styles } });
   }
   const content: HtmlInline[] = [];
   for (const run of merged) {
+    if (run.image) {
+      content.push({ type: "inlineImage", props: { ...run.image } });
+      continue;
+    }
     const text: HtmlText = { type: "text", text: run.text, styles: run.styles };
     const prev = content[content.length - 1];
     if (run.link) {
@@ -123,6 +132,10 @@ export function runsToInline(runs: Run[]): HtmlInline[] {
 export function inlineToRuns(content: HtmlInline[] | undefined, extra: Partial<HtmlStyles> = {}): Run[] {
   const runs: Run[] = [];
   for (const node of content ?? []) {
+    if (node.type === "inlineImage") {
+      runs.push({ text: IMAGE_CHAR, styles: {}, pre: true, size: 16, sourceBold: false, image: { ...node.props } });
+      continue;
+    }
     const texts = node.type === "link" ? node.content : [node];
     for (const text of texts) {
       runs.push({
@@ -138,8 +151,19 @@ export function inlineToRuns(content: HtmlInline[] | undefined, extra: Partial<H
   return runs;
 }
 
+/** The text of inline content; images count as nothing. */
 export function inlineText(content: HtmlInline[] | undefined) {
-  return (content ?? []).map((node) => (node.type === "link" ? node.content.map((t) => t.text).join("") : node.text)).join("");
+  return (content ?? []).map((node) => (node.type === "link" ? node.content.map((t) => t.text).join("") : node.type === "text" ? node.text : "")).join("");
+}
+
+/** Whether content has an image or text other than whitespace. */
+export function hasInlineContent(content: HtmlInline[] | undefined) {
+  return (content ?? []).some((node) => node.type === "inlineImage") || /\S/.test(inlineText(content).replace(/\u00a0/g, " "));
+}
+
+/** Text nodes, links' included; images left out. */
+export function inlineTexts(content: HtmlInline[]): HtmlText[] {
+  return content.flatMap((node) => (node.type === "link" ? node.content : node.type === "text" ? [node] : []));
 }
 
 /** Applies `fn` to every text node's styles. */
@@ -147,7 +171,7 @@ export function mapStyles(content: HtmlInline[], fn: (styles: HtmlStyles) => Htm
   const map = (text: HtmlText): HtmlText => ({ ...text, styles: fn({ ...text.styles }) });
   return runsToInline(
     inlineToRuns(
-      content.map((node) => (node.type === "link" ? { ...node, content: node.content.map(map) } : map(node))),
+      content.map((node) => (node.type === "link" ? { ...node, content: node.content.map(map) } : node.type === "text" ? map(node) : node)),
     ),
   );
 }

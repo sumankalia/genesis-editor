@@ -1,7 +1,7 @@
 import { RehostQueue, fileNameFromUrl } from "../lib/rehost";
 import type { UploadConfig } from "../lib/uploads";
 import { parseHTML } from "./parse";
-import type { HtmlBlock, ParseOptions, ParseResult } from "./types";
+import type { HtmlBlock, HtmlInline, HtmlInlineImage, ParseOptions, ParseResult } from "./types";
 
 export type ParseAsyncOptions = ParseOptions &
   Pick<UploadConfig, "uploadRemote" | "uploadFromUrl" | "uploadHeaders" | "mapUploadResponse" | "uploadConcurrency" | "trustedHosts"> & {
@@ -19,11 +19,11 @@ export type ParseAsyncOptions = ParseOptions &
  */
 export async function parseHTMLAsync(html: string, options: ParseAsyncOptions = {}): Promise<ParseResult> {
   const result = parseHTML(html, options);
-  const images = new Map<string, HtmlBlock>();
+  const images = new Map<string, HtmlBlock | HtmlInlineImage>();
   const queue = new RehostQueue(() => options, {
     onDone: (job, url) => {
-      const block = images.get(job.blockId)!;
-      block.props = { ...block.props, url, originalUrl: job.url, hosted: true };
+      const target = images.get(job.blockId)!;
+      target.props = { ...target.props, url, originalUrl: job.url, hosted: true };
       result.report.images.rehosted++;
     },
     onFail: (job, error) => {
@@ -31,15 +31,23 @@ export async function parseHTMLAsync(html: string, options: ParseAsyncOptions = 
       result.report.warnings.push(`Couldn't re-upload ${job.url}: ${error.message}`);
     },
   });
+  const add = (target: HtmlBlock | HtmlInlineImage) => {
+    const props = target.props as Record<string, unknown> | undefined;
+    const url = props?.url;
+    if (typeof url !== "string" || props?.originalUrl || props?.hosted || !queue.shouldRehost(url)) return;
+    const blockId = `image-${images.size}`;
+    images.set(blockId, target);
+    const alt = props?.alt ?? props?.name;
+    queue.enqueue({ blockId, url, alt: typeof alt === "string" && alt ? alt : undefined, filename: fileNameFromUrl(url), source: "value" });
+  };
+  const inline = (content: HtmlInline[]) => {
+    for (const node of content) if (node.type === "inlineImage") add(node);
+  };
   const visit = (blocks: HtmlBlock[]) => {
     for (const block of blocks) {
-      const url = block.props?.url;
-      if (block.type === "image" && typeof url === "string" && !block.props?.originalUrl && !block.props?.hosted && queue.shouldRehost(url)) {
-        const blockId = `image-${images.size}`;
-        images.set(blockId, block);
-        const alt = block.props?.alt ?? block.props?.name;
-        queue.enqueue({ blockId, url, alt: typeof alt === "string" ? alt : undefined, filename: fileNameFromUrl(url), source: "value" });
-      }
+      if (block.type === "image") add(block);
+      if (Array.isArray(block.content)) inline(block.content);
+      else if (block.content?.type === "tableContent") for (const row of block.content.rows) for (const cell of row.cells) inline(cell.content);
       if (block.children) visit(block.children);
     }
   };

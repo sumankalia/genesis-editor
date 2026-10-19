@@ -19,7 +19,24 @@ export type HtmlStyles = {
 
 export type HtmlText = { type: "text"; text: string; styles: HtmlStyles };
 export type HtmlLink = { type: "link"; href: string; content: HtmlText[] };
-export type HtmlInline = HtmlText | HtmlLink;
+/** An image inside text, mainly in table cells. `href` links it; BlockNote can't nest it in a link node. */
+export type HtmlInlineImage = {
+  type: "inlineImage";
+  props: {
+    url: string;
+    alt?: string;
+    /** Intrinsic size, from `width`/`height` attributes. */
+    width?: number;
+    height?: number;
+    /** Display width in px; the editor caps it to the cell. */
+    previewWidth?: number;
+    href?: string;
+    openInNewTab?: boolean;
+    originalUrl?: string;
+    hosted?: boolean;
+  };
+};
+export type HtmlInline = HtmlText | HtmlLink | HtmlInlineImage;
 
 export type HtmlTableCell = {
   type: "tableCell";

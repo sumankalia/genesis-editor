@@ -1,14 +1,16 @@
 import { cleanSwatches, cssColor, isPaletteName, type ColorSwatch } from "./colors";
 import { isFontSize } from "./font-size";
 import { isSafeUrl } from "./sanitize";
-import type { HtmlBlock, HtmlInline, HtmlStyles } from "./types";
+import type { HtmlBlock, HtmlInline, HtmlInlineImage, HtmlStyles } from "./types";
+
+const IMAGE_CHAR = "\uFFFC";
 
 export type Props = Record<string, string | number | boolean | undefined>;
 
 export function inline(content: HtmlBlock["content"]): string {
   if (!Array.isArray(content)) return "";
-  const texts = content.flatMap((node) => (node.type === "link" ? node.content : [node]));
-  const full = texts.map((t) => t.text).join("");
+  // Images count as one character, so spaces next to them aren't taken for a line's edge.
+  const full = (content as HtmlInline[]).map((node) => (node.type === "link" ? node.content.map((t) => t.text).join("") : node.type === "text" ? node.text : IMAGE_CHAR)).join("");
   let offset = 0;
   const text = (node: { text: string; styles: HtmlStyles }) => {
     const html = styled(escapeInline(node.text, full, offset), node.styles);
@@ -20,6 +22,9 @@ export function inline(content: HtmlBlock["content"]): string {
     if (node.type === "link") {
       const inner = node.content.map(text).join("");
       html += isSafeUrl(node.href) ? `<a href="${escapeAttr(node.href)}">${inner}</a>` : inner;
+    } else if (node.type === "inlineImage") {
+      html += inlineImage(node);
+      offset += 1;
     } else html += text(node);
   }
   // The parser drops a final line break, as browsers do; a second one keeps the trailing newline.
@@ -74,7 +79,41 @@ function styled(html: string, styles: HtmlStyles) {
 
 export function plainText(content: HtmlBlock["content"]) {
   if (!Array.isArray(content)) return "";
-  return content.map((n) => (n.type === "link" ? n.content.map((t) => t.text).join("") : n.text)).join("");
+  return content.map((n) => (n.type === "link" ? n.content.map((t) => t.text).join("") : n.type === "text" ? n.text : "")).join("");
+}
+
+const str = (value: Props[string]) => (typeof value === "string" ? value : "");
+const int = (value: Props[string]) => (typeof value === "number" && value > 0 ? Math.round(value) : undefined);
+
+/**
+ * An `<img>`, in an `<a>` when linked. `extra` are attributes written on the `<img>` (srcset, a marker);
+ * the result takes the outer element's attributes.
+ */
+export function imageHtml(url: string, props: Props, extra = "") {
+  const alt = str(props.alt) || str(props.name);
+  const width = int(props.width);
+  const height = int(props.height);
+  const preview = int(props.previewWidth);
+  const size = (width ? ` width="${width}"` : "") + (height ? ` height="${height}"` : "");
+  // Display width as a style, so it isn't read back as the intrinsic width.
+  const display = preview && preview !== width ? ` style="width:${preview}px"` : "";
+  const href = str(props.href) && isSafeUrl(str(props.href)) ? str(props.href) : "";
+  const target = props.openInNewTab === true ? ` target="_blank" rel="noopener noreferrer"` : "";
+  // Read back on import, so an image that was already re-hosted isn't copied again.
+  const original = /^https?:\/\//i.test(str(props.originalUrl)) && isSafeUrl(str(props.originalUrl)) ? ` data-original-src="${escapeAttr(str(props.originalUrl))}"` : "";
+  // The image is on the app's own storage, so loading this HTML again never copies it.
+  const hosted = props.hosted === true ? " data-genesis-hosted" : "";
+  return (attrs: string) => {
+    const img = `<img${href ? "" : attrs} src="${escapeAttr(url)}" alt="${escapeAttr(alt)}"${extra}${size}${display}${original}${hosted}>`;
+    return href ? `<a${attrs} href="${escapeAttr(href)}"${target}>${img}</a>` : img;
+  };
+}
+
+/** `data-genesis-inline` keeps it inline when read back outside a table cell. */
+function inlineImage(node: HtmlInlineImage) {
+  const url = node.props.url;
+  if (!url || !isSafeUrl(url, true)) return "";
+  return imageHtml(url, node.props, " data-genesis-inline")("");
 }
 
 let swatches: ColorSwatch[] = [];
