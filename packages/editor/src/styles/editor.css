@@ -250,6 +250,7 @@
 
 .genesis-editor [data-content-type="image"][data-text-alignment="center"] .bn-visual-media-wrapper,
 .genesis-editor [data-content-type="image"][data-text-alignment="center"] .bn-file-block-content-wrapper {
+  display: block;
   margin-inline: auto;
 }
 
