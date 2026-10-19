@@ -43,7 +43,7 @@ const inline = fc
   )
   .map((nodes) => canonical(structuredClone(nodes)))
   // Whitespace-only content is canonically empty (`<p>&nbsp;</p>` is a spacer).
-  .filter((nodes) => nodes.some((n) => (n.type === "link" ? n.content.some((t) => t.text.trim()) : n.text.trim())));
+  .filter((nodes) => nodes.some((n) => (n.type === "link" ? n.content.some((t) => t.text.trim()) : n.type === "text" && n.text.trim())));
 
 const props = fc.record({ textAlignment: fc.constantFrom("center", "right"), textColor: fc.constantFrom("red", "gray"), backgroundColor: fc.constantFrom("blue", "pink") }, { requiredKeys: [] });
 
@@ -53,7 +53,7 @@ const leaf: fc.Arbitrary<HtmlBlock> = fc.oneof(
     type: fc.constant("heading"),
     props: props.chain((p) => fc.integer({ min: 1, max: 6 }).map((level) => ({ ...p, level }))),
     // §6 drops whole-heading bold, so an all-bold heading is not canonical.
-    content: inline.filter((nodes) => !nodes.flatMap((n) => (n.type === "link" ? n.content : [n])).every((t) => t.styles.bold || !t.text.trim())),
+    content: inline.filter((nodes) => !nodes.flatMap((n) => (n.type === "link" ? n.content : n.type === "text" ? [n] : [])).every((t) => t.styles.bold || !t.text.trim())),
   }),
   fc.record({ type: fc.constant("bulletListItem"), props, content: inline }),
   fc.record({ type: fc.constant("checkListItem"), props: props.chain((p) => fc.boolean().map((checked) => (checked ? { ...p, checked } : p))), content: inline }),

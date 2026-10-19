@@ -56,6 +56,7 @@ export type {
   FidelityReport,
   HtmlBlock,
   HtmlInline,
+  HtmlInlineImage,
   HtmlLink,
   HtmlStyles,
   HtmlTableCell,
