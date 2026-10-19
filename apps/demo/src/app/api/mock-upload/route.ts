@@ -1,13 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-
-import {
-  MAX_UPLOAD_BYTES,
-  UPLOAD_DIR,
-  filePath,
-  metaPath,
-  type StoredUploadMeta,
-} from "./store";
+import { MAX_UPLOAD_BYTES, saveUpload } from "./store";
 
 /**
  * Mock image upload server for trying the editor's `uploadUrl` mode.
@@ -49,11 +40,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Images must be 10 MB or smaller." }, { status: 413 });
   }
 
-  const id = randomUUID();
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  await writeFile(filePath(id)!, Buffer.from(await file.arrayBuffer()));
-  const meta: StoredUploadMeta = { type: file.type, name: file.name };
-  await writeFile(metaPath(id)!, JSON.stringify(meta));
+  const id = await saveUpload(new Uint8Array(await file.arrayBuffer()), { type: file.type, name: file.name });
 
   const url = `/api/mock-upload/${id}`;
   return Response.json(params.get("shape") === "nested" ? { data: { link: url } } : { url });

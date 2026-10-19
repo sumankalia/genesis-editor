@@ -1,9 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
-import { mkdir, writeFile } from "node:fs/promises";
 import { isIP } from "node:net";
 
-import { MAX_UPLOAD_BYTES, UPLOAD_DIR, filePath, metaPath, type StoredUploadMeta } from "../mock-upload/store";
+import { MAX_UPLOAD_BYTES, saveUpload } from "../mock-upload/store";
 
 const MAX_REDIRECTS = 3;
 
@@ -88,14 +86,10 @@ export async function POST(request: Request) {
   if (Number(response.headers.get("content-length")) > MAX_UPLOAD_BYTES) {
     return Response.json({ error: "Images must be 10 MB or smaller." }, { status: 413 });
   }
-  const bytes = Buffer.from(await response.arrayBuffer());
+  const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.length > MAX_UPLOAD_BYTES) return Response.json({ error: "Images must be 10 MB or smaller." }, { status: 413 });
 
-  const id = randomUUID();
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  await writeFile(filePath(id)!, bytes);
   const name = typeof body.filename === "string" ? body.filename.slice(0, 200) : "image";
-  const meta: StoredUploadMeta = { type, name };
-  await writeFile(metaPath(id)!, JSON.stringify(meta));
+  const id = await saveUpload(bytes, { type, name });
   return Response.json({ url: `/api/mock-upload/${id}` });
 }
