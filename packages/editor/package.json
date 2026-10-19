@@ -105,7 +105,8 @@
     "prosemirror-history": "^1.5.1",
     "prosemirror-model": "^1.25.12",
     "prosemirror-state": "^1.4.4",
-    "prosemirror-view": "^1.42.6"
+    "prosemirror-view": "^1.42.6",
+    "shiki": "^4.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9",

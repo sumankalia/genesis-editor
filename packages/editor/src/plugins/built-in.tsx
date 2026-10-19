@@ -1,4 +1,4 @@
-import { createHeadingBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, defaultStyleSpecs } from "@blocknote/core";
+import { createCodeBlockSpec, createHeadingBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, defaultStyleSpecs } from "@blocknote/core";
 import {
   BasicTextStyleButton,
   BlockTypeSelect,
@@ -21,8 +21,10 @@ import { useMemo } from "react";
 import { AltTextButton } from "../components/alt-text-button";
 import { ColorPickerButton } from "../components/color-picker";
 import { FontSizeSelect } from "../components/font-size-select";
+import { CODE_LANGUAGES } from "../parser/code-languages";
 import { resolveColorConfig } from "../parser/colors";
 import { ImageLinkButton } from "../components/image-link-dialog";
+import { genesisSyntaxHighlighting } from "./code-highlight";
 import { embedSlashItem, embedSpec } from "./embed";
 import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
 import { LinkPreviewButton, linkPreviewSlashItems, linkPreviewSpec } from "./link-preview";
@@ -118,7 +120,18 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
   checkList: () => blockTool("checkList", "checkListItem"),
   toggleList: () => blockTool("toggleList", "toggleListItem"),
   quote: () => definePlugin({ name: "quote", blocks: { quote: quoteSpec } }),
-  codeBlock: () => blockTool("codeBlock", "codeBlock"),
+  codeBlock: () =>
+    definePlugin({
+      name: "codeBlock",
+      blocks: {
+        codeBlock: createCodeBlockSpec({
+          indentLineWithTab: true,
+          defaultLanguage: "text",
+          supportedLanguages: CODE_LANGUAGES,
+        }),
+      },
+      extensions: [genesisSyntaxHighlighting()],
+    }),
   divider: () => blockTool("divider", "divider"),
   table: () => blockTool("table", "table"),
   image: () =>

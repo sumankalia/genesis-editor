@@ -44,6 +44,7 @@ const examples = {
   "link-previews": load(() => import("./link-previews")),
   colors: load(() => import("./colors")),
   "font-size": load(() => import("./font-size")),
+  "code-blocks": load(() => import("./code-blocks")),
 };
 
 export type ExampleName = keyof typeof examples;

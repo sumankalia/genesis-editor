@@ -1,3 +1,4 @@
+import { canonicalizeCodeLanguage, CODE_LANGUAGES } from "../parser/code-languages";
 import { isFontSize } from "../parser/font-size";
 import { metaToProps } from "../parser/meta";
 import type { AnyPartialBlock } from "./types";
@@ -115,6 +116,12 @@ export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: Sche
         const level = Number((block.props as { level?: number } | undefined)?.level ?? 1);
         if (!support.headingLevels.includes(level)) {
           next.props = { ...block.props, level: closestLevel(level, support.headingLevels) } as never;
+        }
+      }
+      if (type === "codeBlock") {
+        const language = (block.props as { language?: string } | undefined)?.language;
+        if (language && !(language in CODE_LANGUAGES)) {
+          next.props = { ...block.props, language: canonicalizeCodeLanguage(language) ?? "text" } as never;
         }
       }
       return [next];

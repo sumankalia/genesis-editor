@@ -16,6 +16,8 @@ export {
   type PaletteName,
 } from "./colors";
 export { FONT_SIZES, isFontSize, snapFontSize } from "./font-size";
+export { CODE_LANGUAGES, canonicalizeCodeLanguage, storedCodeLanguage } from "./code-languages";
+export type { CodeLanguageInfo } from "./code-languages";
 export { META_VERSION, migrateMeta, stripMeta } from "./meta";
 export {
   defineEmbedProvider,

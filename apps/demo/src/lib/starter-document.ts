@@ -51,6 +51,7 @@ export const starterDocument: PartialBlock[] = [
   },
   {
     type: "codeBlock",
+    props: { language: "javascript" },
     content: 'const blocks = editor.document;\nconsole.log(blocks.length, "blocks");',
   },
   { type: "paragraph" },

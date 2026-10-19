@@ -8,7 +8,18 @@ const shared = {
   target: "es2020",
 };
 
-const editorExternal = ["react", "react-dom", /^@blocknote\//, "lucide-react", "prosemirror-state", "prosemirror-history", "prosemirror-view", "prosemirror-model"];
+const editorExternal = [
+  "react",
+  "react-dom",
+  /^@blocknote\//,
+  "lucide-react",
+  "prosemirror-state",
+  "prosemirror-history",
+  "prosemirror-view",
+  "prosemirror-model",
+  "shiki",
+  /^@shikijs\//,
+];
 // The editor relies on hooks and browser APIs, so it must be a client component in React Server Components apps.
 const editorBanner = { js: '"use client";' };
 const parserEntries = {
@@ -54,8 +65,9 @@ export default defineConfig([
     clean: false,
     // A bundled BlockNote's source map would be ~18 MB.
     sourcemap: false,
-    external: ["react", "react-dom"],
-    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/)/],
+    // Keep shiki out of the CJS bundle (it's ESM-only and large); load it with import() when highlighting.
+    external: ["react", "react-dom", "shiki", /^@shikijs\//],
+    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/|shiki$|@shikijs\/)/],
     banner: editorBanner,
   },
   {

@@ -25,7 +25,7 @@ Tailwind or shadcn/ui in your app.
   table cells
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
   or a site's embed code, always in sandboxed frames; click-to-load, captions, and resize
-- Text and background colours, font sizes
+- Text and background colours, font sizes, code-block syntax highlighting
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
 - A bottom block toolbar on small screens
@@ -297,6 +297,11 @@ Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
 `code`, `link`, `colors`, `fontSize`. They're exported as `BLOCK_TOOLS`,
 `INLINE_TOOLS`, and `BUILT_IN_TOOLS`, so "everything except tables" is
 `BUILT_IN_TOOLS.filter((tool) => tool !== "table")`.
+
+Code blocks highlight with [Shiki](https://shiki.style/) (loaded the first time
+a block needs it) and a language picker. HTML is still
+`<pre><code class="language-typescript">…</code></pre>`; aliases such as `ts` and
+`js` are stored as `typescript` and `javascript`.
 
 `colors` stores theme-aware palette names, your brand swatches, or exact hex;
 `fontSize` adds a 6–20 px dropdown to the selection toolbar:
