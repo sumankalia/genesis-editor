@@ -27,6 +27,13 @@ const fresh = async (settings) => {
   }, settings ?? null);
   await page.reload();
   await page.waitForSelector(".bn-editor");
+  // Starter now includes a columns sample with an image; upload counts assume an empty doc.
+  const editor = page.locator(".bn-editor");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
 };
 
 const panel = page.locator(".bn-panel");

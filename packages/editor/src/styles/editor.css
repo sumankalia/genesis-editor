@@ -716,7 +716,7 @@
   height: 0;
   margin: 0;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .genesis-editor .bn-block-outer:has(> .bn-block > [data-content-type="column"]) {
@@ -727,6 +727,16 @@
 
 .genesis-editor .bn-block:has(> [data-content-type="column"]) {
   position: relative;
+  min-height: 100%;
+}
+
+.genesis-editor [data-content-type="column"] {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .genesis-editor .bn-block:has(> [data-content-type="column"]) > .bn-block-group {
@@ -736,14 +746,6 @@
 
 .genesis-editor .bn-block:has(> [data-content-type="column"]) > .bn-block-group > .bn-block-outer::before {
   display: none;
-}
-
-.genesis-editor [data-content-type="column"] {
-  height: 0;
-  margin: 0;
-  padding: 0;
-  overflow: visible;
-  pointer-events: none;
 }
 
 .genesis-editor .genesis-column-resize {

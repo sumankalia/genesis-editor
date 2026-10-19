@@ -38,6 +38,7 @@ await page.evaluate(() => localStorage.clear());
 await page.reload();
 const play = page.locator(".playground-editor .bn-editor");
 await play.waitFor({ timeout: 15000 });
+page.once("dialog", (dialog) => dialog.accept());
 await page.getByRole("button", { name: "Reset" }).click();
 await page.waitForTimeout(300);
 check("starter has columns", (await play.locator("[data-content-type='columnList']").count()) === 1);
@@ -53,12 +54,13 @@ await page.waitForTimeout(300);
 check("slash Columns inserts two columns", (await play.locator("[data-content-type='columnList']").count()) === 2);
 check("inserted list has two column blocks", (await play.locator("[data-content-type='column']").count()) >= 4);
 
-await page.getByRole("tab", { name: "HTML" }).click();
+const tabs = page.getByTestId("output-tabs");
+await tabs.getByRole("tab", { name: "HTML", exact: true }).click();
 const htmlText = await page.getByTestId("output-html").innerText();
 check("export writes data-genesis-columns", /data-genesis-columns/.test(htmlText), htmlText.slice(0, 160));
 check("export is a presentation table", /role="presentation"/.test(htmlText));
 
-await page.getByRole("tab", { name: "Paste HTML" }).click();
+await tabs.getByRole("tab", { name: "Paste HTML", exact: true }).click();
 await page.getByTestId("paste-html-sample").click();
 await page.getByRole("option", { name: "Image beside text", exact: true }).click();
 await page.getByTestId("paste-html-load-sample").click();

@@ -25,14 +25,24 @@ function isolate(node: HTMLElement) {
   }
 }
 
-function applyColumnWidth(dom: HTMLElement, width: number) {
-  const outer = dom.closest(".bn-block-outer") as HTMLElement | null;
-  if (!outer) return false;
-  outer.style.flexGrow = String(Math.max(1, width));
-  outer.style.flexShrink = "1";
-  outer.style.flexBasis = "0px";
-  outer.style.minWidth = "0";
-  return true;
+const WIDTH_STYLE_ID = "genesis-column-widths";
+
+/** Widths live on our node (`data-width`); the outer's flex-grow is a :has() rule. Mutating
+ * BlockNote's `.bn-block-outer` is a ProseMirror mutation and remounts the document. */
+function ensureWidthStyles() {
+  if (typeof document === "undefined" || document.getElementById(WIDTH_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = WIDTH_STYLE_ID;
+  const rules = Array.from({ length: 99 }, (_, i) => {
+    const n = i + 1;
+    return `.genesis-editor .bn-block-outer:has(> .bn-block > [data-content-type="column"][data-width="${n}"]){flex-grow:${n}}`;
+  });
+  style.textContent = rules.join("");
+  document.head.append(style);
+}
+
+function setColumnWidth(dom: HTMLElement, width: number) {
+  dom.dataset.width = String(Math.max(1, Math.min(99, Math.round(width))));
 }
 
 function locate(blocks: LooseBlock[], id: string, ancestors: LooseBlock[] = []): { block: LooseBlock; ancestors: LooseBlock[] } | null {
@@ -85,6 +95,7 @@ export function insertColumns(editor: AnyEditor, count: 2 | 3 = 2) {
 }
 
 function attachResize(dom: HTMLElement, block: LooseBlock, editor: AnyEditor) {
+  if (dom.querySelector(":scope > .genesis-column-resize")) return;
   const handle = el("div", "genesis-column-resize");
   handle.title = "Resize columns";
   handle.dataset.testid = "column-resize";
@@ -95,12 +106,12 @@ function attachResize(dom: HTMLElement, block: LooseBlock, editor: AnyEditor) {
     const next = outer?.nextElementSibling as HTMLElement | null;
     if (!outer || !next) return;
     const leftId = block.id;
-    const rightContent = next.querySelector("[data-content-type='column']");
+    const rightContent = next.querySelector("[data-content-type='column']") as HTMLElement | null;
     const rightId =
       (rightContent?.closest("[data-id]")?.getAttribute("data-id") || rightContent?.getAttribute("data-id") || "").trim();
     const leftBlock = editor.getBlock(leftId) as unknown as LooseBlock | undefined;
     const rightBlock = rightId ? (editor.getBlock(rightId) as unknown as LooseBlock | undefined) : undefined;
-    if (!leftBlock || !rightBlock || rightBlock.type !== "column") return;
+    if (!leftBlock || !rightBlock || rightBlock.type !== "column" || !rightContent) return;
     const startLeft = columnWidthOf(leftBlock);
     const startRight = columnWidthOf(rightBlock);
     const pair = outer.getBoundingClientRect().width + next.getBoundingClientRect().width;
@@ -108,8 +119,8 @@ function attachResize(dom: HTMLElement, block: LooseBlock, editor: AnyEditor) {
     const apply = (clientX: number) => {
       const ratio = pair > 0 ? (clientX - origin) / pair : 0.5;
       const [left, right] = resizePair(startLeft, startRight, ratio * (startLeft + startRight));
-      outer.style.flexGrow = String(left);
-      next.style.flexGrow = String(right);
+      setColumnWidth(dom, left);
+      setColumnWidth(rightContent, right);
       return [left, right] as const;
     };
     const onMove = (move: MouseEvent) => apply(move.clientX);
@@ -133,14 +144,9 @@ function renderColumnList() {
 }
 
 function renderColumn(block: LooseBlock, editor: AnyEditor) {
+  ensureWidthStyles();
   const dom = el("div", "genesis-column");
-  const width = columnWidthOf(block);
-  let tries = 0;
-  const apply = () => {
-    if (applyColumnWidth(dom, width) || tries++ > 20) return;
-    requestAnimationFrame(apply);
-  };
-  apply();
+  setColumnWidth(dom, columnWidthOf(block));
   if (editor.isEditable) attachResize(dom, block, editor);
   return { dom };
 }
