@@ -25,7 +25,7 @@ import { CODE_LANGUAGES } from "../parser/code-languages";
 import { resolveColorConfig } from "../parser/colors";
 import { ImageLinkButton } from "../components/image-link-dialog";
 import { genesisSyntaxHighlighting } from "./code-highlight";
-import { ColumnsButton, columnListSpec, columnSpec, columnsSlashItems } from "./columns";
+import { ColumnsButton, columnListSpec, columnSpec, columnsSectionExtension, columnsSlashItems, exitColumnOnEnter } from "./columns";
 import { embedSlashItem, embedSpec } from "./embed";
 import { importSlashItems } from "./import-file";
 import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
@@ -146,6 +146,8 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       blocks: { columnList: columnListSpec, column: columnSpec },
       slashItems: columnsSlashItems,
       toolbarItems: { columns: ColumnsButton },
+      keyboardShortcuts: { Enter: exitColumnOnEnter },
+      extensions: [columnsSectionExtension()],
     }),
   image: () =>
     definePlugin({

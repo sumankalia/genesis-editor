@@ -1,5 +1,6 @@
-import { createBlockSpec } from "@blocknote/core";
+import { createBlockSpec, createExtension, type ExtensionFactoryInstance } from "@blocknote/core";
 import { Columns2, Columns3 } from "lucide-react";
+import { Plugin, PluginKey } from "prosemirror-state";
 
 import { columnWidthOf, resizePair, splitWidths } from "../parser/columns";
 import { ToolbarButton } from "./toolbar-button";
@@ -79,6 +80,38 @@ export function emptyColumns(count: 2 | 3): AnyPartialBlock {
   };
 }
 
+function siblingsOf(editor: AnyEditor, block: LooseBlock): LooseBlock[] {
+  const found = locate(editor.document as unknown as LooseBlock[], block.id);
+  if (!found) return [];
+  if (!found.ancestors.length) return editor.document as unknown as LooseBlock[];
+  return found.ancestors[found.ancestors.length - 1].children ?? [];
+}
+
+function nextSibling(editor: AnyEditor, block: LooseBlock): LooseBlock | undefined {
+  const siblings = siblingsOf(editor, block);
+  const index = siblings.findIndex((item) => item.id === block.id);
+  return index >= 0 ? siblings[index + 1] : undefined;
+}
+
+function liveBlock(editor: AnyEditor, block: { id: string }): LooseBlock | undefined {
+  return editor.getBlock(block.id) as unknown as LooseBlock | undefined;
+}
+
+/** A full-width paragraph after this columnList, created if the list is the last sibling. */
+function ensureFullWidthAfter(editor: AnyEditor, list: LooseBlock): LooseBlock {
+  const current = liveBlock(editor, list) ?? list;
+  const next = nextSibling(editor, current);
+  if (next && next.type !== "column" && next.type !== "columnList") return next;
+  const inserted = editor.insertBlocks([{ type: "paragraph" }], current, "after");
+  return inserted[0] as unknown as LooseBlock;
+}
+
+function focusFirstCell(editor: AnyEditor, list: LooseBlock) {
+  const live = liveBlock(editor, list) ?? list;
+  const first = live.children?.[0]?.children?.[0];
+  if (first) editor.setTextCursorPosition(first, "start");
+}
+
 /** Insert 2 or 3 columns. Nested columns are inserted after the ancestor list, not inside a column. */
 export function insertColumns(editor: AnyEditor, count: 2 | 3 = 2) {
   if (!("columnList" in editor.schema.blockSchema)) return;
@@ -86,12 +119,57 @@ export function insertColumns(editor: AnyEditor, count: 2 | 3 = 2) {
   const cursor = editor.getTextCursorPosition().block as unknown as LooseBlock;
   const found = locate(editor.document as unknown as LooseBlock[], cursor.id);
   const ancestorList = found?.ancestors.find((block) => block.type === "columnList");
-  if (ancestorList) {
-    editor.insertBlocks([list], ancestorList, "after");
-    return;
+  const created = ancestorList
+    ? (editor.insertBlocks([list], ancestorList, "after")[0] as unknown as LooseBlock)
+    : isEmptyParagraph(cursor)
+      ? ((editor.replaceBlocks([cursor.id], [list] as never) as { insertedBlocks: LooseBlock[] }).insertedBlocks[0] as LooseBlock)
+      : (editor.insertBlocks([list], cursor, "after")[0] as unknown as LooseBlock);
+  if (!created) return;
+  ensureFullWidthAfter(editor, created);
+  focusFirstCell(editor, created);
+}
+
+/**
+ * Enter on the empty last block of a column leaves the section: a full-width paragraph
+ * after the `columnList`. Other Enter presses stay inside the column (any nested blocks).
+ */
+export function exitColumnOnEnter(editor: AnyEditor): boolean {
+  if (!editor.isEditable) return false;
+  const cursor = editor.getTextCursorPosition().block as unknown as LooseBlock;
+  const found = locate(editor.document as unknown as LooseBlock[], cursor.id);
+  const list = found?.ancestors.find((block) => block.type === "columnList");
+  const column = found?.ancestors.find((block) => block.type === "column");
+  if (!list || !column) return false;
+  const kids = (liveBlock(editor, column) ?? column).children ?? [];
+  const last = kids[kids.length - 1];
+  if (!last || last.id !== cursor.id || !isEmptyParagraph(cursor)) return false;
+  const after = editor.insertBlocks([{ type: "paragraph" }], list, "after")[0] as unknown as LooseBlock;
+  if (kids.length > 1) editor.removeBlocks([cursor.id]);
+  editor.setTextCursorPosition(after, "start");
+  return true;
+}
+
+function clickBelowColumns(editor: AnyEditor, event: MouseEvent): boolean {
+  if (!editor.isEditable) return false;
+  const root = editor.domElement;
+  if (!root?.contains(event.target as Node)) return false;
+  const lists = [...root.querySelectorAll('[data-content-type="columnList"]')];
+  for (const node of lists) {
+    const outer = node.closest(".bn-block-outer") as HTMLElement | null;
+    if (!outer) continue;
+    const rect = outer.getBoundingClientRect();
+    if (event.clientY <= rect.bottom + 2) continue;
+    const next = outer.nextElementSibling as HTMLElement | null;
+    if (next && event.clientY >= next.getBoundingClientRect().top) continue;
+    const id = (outer.getAttribute("data-id") || outer.querySelector("[data-id]")?.getAttribute("data-id") || "").trim();
+    const list = id ? (editor.getBlock(id) as unknown as LooseBlock | undefined) : undefined;
+    if (!list || list.type !== "columnList") continue;
+    const after = ensureFullWidthAfter(editor, list);
+    editor.setTextCursorPosition(after, "start");
+    event.preventDefault();
+    return true;
   }
-  if (isEmptyParagraph(cursor)) editor.replaceBlocks([cursor.id], [list] as never);
-  else editor.insertBlocks([list], cursor, "after");
+  return false;
 }
 
 function attachResize(dom: HTMLElement, block: LooseBlock, editor: AnyEditor) {
@@ -174,6 +252,27 @@ export const columnSpec = createBlockSpec(
     render: (block, editor) => renderColumn(block as unknown as LooseBlock, editor as unknown as AnyEditor),
   },
 )();
+
+/** Click in the empty space below a column section continues full-width after it. */
+export function columnsSectionExtension(): ExtensionFactoryInstance {
+  return createExtension(({ editor }: { editor: AnyEditor }) => ({
+    key: "genesis-columns-section",
+    prosemirrorPlugins: [
+      new Plugin({
+        key: new PluginKey("genesis-columns-section"),
+        props: {
+          handleKeyDown(_view, event) {
+            if (event.key !== "Enter" || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) return false;
+            return exitColumnOnEnter(editor);
+          },
+          handleClick(_view, _pos, event) {
+            return clickBelowColumns(editor, event);
+          },
+        },
+      }),
+    ],
+  }))();
+}
 
 export const columnsSlashItems: SlashMenuItem[] = [
   {

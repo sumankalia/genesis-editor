@@ -55,6 +55,32 @@ check("slash Columns inserts two columns", (await play.locator("[data-content-ty
 check("inserted list has two column blocks", (await play.locator("[data-content-type='column']").count()) >= 4);
 
 const tabs = page.getByTestId("output-tabs");
+await play.locator("[data-content-type='column']").last().locator(".bn-inline-content").first().click();
+await page.keyboard.press("Enter");
+await page.keyboard.type("Full width after");
+await tabs.getByRole("tab", { name: "JSON", exact: true }).click();
+await page.waitForFunction(() => (document.querySelector('[data-testid="output-json"]')?.innerText ?? "").includes("Full width after"));
+const jsonText = await page.getByTestId("output-json").locator("pre").innerText().catch(async () => page.getByTestId("output-json").innerText());
+let topTypes = [];
+let afterIsTop = false;
+try {
+  const doc = JSON.parse(jsonText.replace(/^```(?:json)?\n?|\n?```$/g, "").trim());
+  const blocks = Array.isArray(doc) ? doc : doc.blocks ?? [];
+  topTypes = blocks.map((b) => b.type);
+  const listAt = topTypes.lastIndexOf("columnList");
+  afterIsTop = listAt >= 0 && blocks.some((b, i) => i > listAt && b.type === "paragraph" && JSON.stringify(b).includes("Full width after"));
+} catch {
+  afterIsTop = false;
+}
+check("JSON has columnList then a top-level paragraph", afterIsTop, topTypes.join(",") || jsonText.slice(0, 120));
+await tabs.getByRole("tab", { name: "HTML", exact: true }).click();
+const afterHtml = await page.getByTestId("output-html").innerText();
+check(
+  "HTML has a paragraph after the columns table",
+  /data-genesis-columns[\s\S]*<\/table>[\s\S]*<p>Full width after<\/p>/.test(afterHtml),
+  afterHtml.slice(-240),
+);
+
 await tabs.getByRole("tab", { name: "HTML", exact: true }).click();
 const htmlText = await page.getByTestId("output-html").innerText();
 check("export writes data-genesis-columns", /data-genesis-columns/.test(htmlText), htmlText.slice(0, 160));

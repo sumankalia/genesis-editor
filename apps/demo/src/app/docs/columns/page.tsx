@@ -45,14 +45,17 @@ export default function ColumnsPage() {
       <H2>Inserting</H2>
       <p>
         Type <code>/Columns</code> for two columns, or <code>/3 columns</code> for three. The
-        formatting toolbar&apos;s Columns button inserts two. Each column holds the same blocks as
-        the rest of the document: paragraphs, headings, images, lists, and so on. Drag the handle
-        between columns to change their widths. On viewports under 640px the columns stack.
+        formatting toolbar&apos;s Columns button inserts two. Each column is a normal nest of
+        blocks — paragraph beside paragraph, code beside text, image beside a heading, list beside
+        a quote. Drag the handle between columns to change their widths. On viewports under 640px
+        the columns stack.
       </p>
       <p>
-        Columns are a wrapping block (<code>columnList</code> of <code>column</code> children), not
-        CSS float on a single image, and not a BlockNote table (those cells are inline-only). They
-        are not <code>@blocknote/xl-multi-column</code> (GPL-3.0 / commercial).
+        A <code>columnList</code> is a finite section. Enter at the end of a column (empty last
+        block) or click below the layout continues as a full-width sibling after it, not more
+        nested blocks in the last column. Columns are not CSS float on a single image, and not a
+        BlockNote table (those cells are inline-only). They are not{" "}
+        <code>@blocknote/xl-multi-column</code> (GPL-3.0 / commercial).
       </p>
       <CodeBlock code={insert} />
       <Callout>

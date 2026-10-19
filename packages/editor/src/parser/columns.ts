@@ -203,6 +203,7 @@ export function floatLayoutRun(start: Node, parent: Node | null): FloatRun | nul
   const sameWrapperText = !direct && isSubstantialTextCell(el);
   const nodes: Node[] = [start];
   if (!sameWrapperText) {
+    let wrapBlocks = 0;
     for (let sib = start.nextSibling; sib; sib = sib.nextSibling) {
       if (sib.nodeType === ELEMENT && isHardBreak(sib)) break;
       if (sib.nodeType === ELEMENT && floatSide(sib as Element)) break;
@@ -211,7 +212,14 @@ export function floatLayoutRun(start: Node, parent: Node | null): FloatRun | nul
         // A full-width image starts a new block, not the wrap.
         if (lower(sib as Element) === "img" || lower(sib as Element) === "figure" || lower(sib as Element) === "picture") break;
       }
+      if (sib.nodeType === ELEMENT) {
+        const tag = lower(sib as Element);
+        // A later heading is a new section. Cap the wrap so the rest of the article stays full-width.
+        if (wrapBlocks > 0 && /^h[1-6]$/.test(tag)) break;
+        if (wrapBlocks >= 2) break;
+      }
       nodes.push(sib);
+      if (sib.nodeType === ELEMENT && lower(sib as Element) !== "br") wrapBlocks++;
     }
   }
 

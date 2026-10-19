@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { parseHTML, toHTML, type HtmlBlock, type ParseOptions } from "../src/parser";
 import { linkedomDom } from "../src/parser/linkedom";
-import { layoutWidths, normalizeWidths, resizePair, splitWidths } from "../src/parser/columns";
-import { insertColumns } from "../src/plugins/columns";
+import { columnBlock, columnListBlock, layoutWidths, normalizeWidths, resizePair, splitWidths } from "../src/parser/columns";
+import { exitColumnOnEnter, insertColumns } from "../src/plugins/columns";
 import { mergeSlashItems, resolveEditorSetup } from "../src/plugins/resolve";
 import { sanitizeBlocks, schemaSupport } from "../src/plugins/sanitize";
 import type { AnyEditor } from "../src/plugins/types";
@@ -74,6 +74,27 @@ describe("parse layout tables and floats", () => {
     expect(cols[1].children?.map((c) => c.type)).toEqual(["heading", "paragraph"]);
   });
 
+  it("keeps blocks after a column section full-width", () => {
+    const { blocks } = parse(`${LAYOUT}<p>After the section.</p><h2>Next chapter</h2>`);
+    expect(blocks.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList", "paragraph", "heading"]);
+    expect(blocks[3]).toMatchObject({ type: "paragraph", content: [t("After the section.")] });
+  });
+
+  it("does not pour later siblings into a float wrap", () => {
+    const html = `<p>Lead</p><img src="https://x.test/lake.png" alt="Lake" style="float:left"><h3>Mountain lake</h3><p>Beside the image.</p><p>Full width after.</p><h2>Next</h2>`;
+    const { blocks } = parse(html);
+    expect(blocks.map((b) => b.type)).toEqual(["paragraph", "columnList", "paragraph", "heading"]);
+    expect(blocks[2]).toMatchObject({ type: "paragraph", content: [t("Full width after.")] });
+  });
+
+  it("caps a float wrap so later paragraphs stay full-width", () => {
+    const html = `<img src="https://x.test/lake.png" alt="Lake" style="float:left"><p>One.</p><p>Two.</p><p>Three full width.</p>`;
+    const { blocks } = parse(html);
+    expect(blocks.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
+    expect(blocks[0].children?.[1].children?.map((c) => c.type)).toEqual(["paragraph", "paragraph"]);
+    expect(blocks[1]).toMatchObject({ type: "paragraph", content: [t("Three full width.")] });
+  });
+
   it("flattens layout HTML when the columns tool is off", () => {
     const { blocks } = parse(LAYOUT, ["heading", "image", "table"]);
     expect(blocks.some((b) => b.type === "columnList")).toBe(false);
@@ -92,6 +113,29 @@ describe("HTML export", () => {
     expect(again.map((b) => b.type)).toEqual(blocks.map((b) => b.type));
     expect(again[2].children?.map((c) => c.props?.width)).toEqual(blocks[2].children?.map((c) => c.props?.width));
     expect(toHTML(again)).toBe(html);
+  });
+
+  it("round-trips a column section of any blocks, then a full-width paragraph", () => {
+    const blocks: HtmlBlock[] = [
+      columnListBlock([
+        columnBlock(50, [
+          { type: "paragraph", content: [t("Left")] },
+          { type: "bulletListItem", content: [t("Item")] },
+        ]),
+        columnBlock(50, [
+          { type: "quote", content: [t("Quoted")] },
+          { type: "codeBlock", content: [t("const n = 1;")] },
+        ]),
+      ]),
+      { type: "paragraph", content: [t("After")] },
+    ];
+    const html = toHTML(blocks);
+    expect(html).toMatch(/<\/table>\s*<p>After<\/p>/);
+    const again = parse(html).blocks;
+    expect(again.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
+    expect(again[0].children?.[0].children?.map((c) => c.type)).toEqual(["paragraph", "bulletListItem"]);
+    expect(again[0].children?.[1].children?.map((c) => c.type)).toEqual(["quote", "codeBlock"]);
+    expect(again[1]).toMatchObject({ type: "paragraph", content: [t("After")] });
   });
 });
 
@@ -124,6 +168,39 @@ describe("editor", () => {
     expect(lists).toHaveLength(2);
     expect(lists[1].children).toHaveLength(3);
     expect(lists[0].children.some((c) => c.type === "columnList")).toBe(false);
+  });
+
+  it("inserts a full-width sibling after the column section", () => {
+    const { editor } = editorFor();
+    insertColumns(editor, 2);
+    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
+    const list = editor.document.find((b) => b.type === "columnList")!;
+    editor.setTextCursorPosition(list.children[1].children[0], "end");
+    editor.insertInlineContent("Right column");
+    expect(exitColumnOnEnter(editor)).toBe(false);
+    editor.insertBlocks([{ type: "paragraph" }], list.children[1].children[0], "after");
+    const empty = editor.getBlock(list.id)!.children[1].children[1];
+    editor.setTextCursorPosition(empty, "start");
+    expect(exitColumnOnEnter(editor)).toBe(true);
+    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph", "paragraph"]);
+    const cursor = editor.getTextCursorPosition().block;
+    expect(editor.document.some((b) => b.id === cursor.id && b.type === "paragraph")).toBe(true);
+  });
+
+  it("does not pull following blocks into the last column", () => {
+    const { editor } = editorFor();
+    editor.replaceBlocks(editor.document, [
+      { type: "paragraph", content: "Before" },
+      { type: "paragraph" },
+      { type: "paragraph", content: "After" },
+      { type: "heading", props: { level: 2 }, content: "Next chapter" },
+    ] as never);
+    editor.setTextCursorPosition(editor.document[1], "start");
+    insertColumns(editor, 2);
+    expect(editor.document.map((b) => b.type)).toEqual(["paragraph", "columnList", "paragraph", "heading"]);
+    expect(JSON.stringify(editor.document[2])).toContain("After");
+    expect(JSON.stringify(editor.document[1])).not.toContain("After");
+    expect(JSON.stringify(editor.document[3])).toContain("Next chapter");
   });
 
   it("flattens columns when the tool is off", () => {
