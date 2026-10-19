@@ -42,6 +42,7 @@ export const docsNav: { title: string; items: NavItem[] }[] = [
 ];
 
 export const mainNav: NavItem[] = [
+  { title: "Paste", href: "/paste" },
   { title: "Docs", href: "/docs/getting-started" },
   { title: "Playground", href: "/playground" },
 ];

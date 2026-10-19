@@ -1,0 +1,300 @@
+<article data-genesis-sample="1">
+<h1>Web workers in ReactJs</h1>
+<p class="byline"><a href="https://dev.to/sumankalia/web-workers-in-reactjs-4bc7">Suman Kumar · DEV Community · 2023-09-16</a></p>
+<p>Have you ever faced a situation in which you are executing a block of code and it is freezing the UI for a few seconds? If yes then you surely need a solution to handle that block of code in the background. </p>
+
+<p>In React we have a simple way to do these types of CPU-intensive processes in the background with the help of web workers. First of all what a web worker is?</p>
+
+<p>A <strong>web worker</strong> is a JavaScript feature that allows you to run scripts in the background, separate from the main thread of your web page. This background execution enables you to perform tasks concurrently without blocking the user interface (UI) or causing it to become unresponsive. Web workers are particularly useful for handling computationally intensive or time-consuming operations without impacting the user's experience.</p>
+
+<p>The <strong>use cases</strong> for a web worker are </p>
+
+<ul>
+<li>
+<strong>Complex Calculations:</strong> Web workers are ideal for performing complex mathematical calculations or data processing tasks without impacting the main thread.</li>
+<li>
+<strong>Large Data Handling:</strong> When dealing with large datasets or files, web workers can help process and parse the data in the background.</li>
+<li>
+<strong>Background Services:</strong> Web workers can be used to run background services such as periodic data synchronization or background notifications.</li>
+</ul>
+
+<p>So, let's try to implement a web worker in a React application.</p>
+
+<p>First, we create a react project, and then we use a service <a href="https://fakerjs.dev/" target="_blank" rel="noopener noreferrer">faker</a> to create 25000 user records.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>import { faker } from '@faker-js/faker';
+
+export function fetchUsers() {
+    const users = [];
+
+    for (let i = 0; i &lt; 25000; i++) {
+        let id = i + 1;
+        let name = faker.person.fullName();
+        let email = faker.internet.email();
+        let joinedOn = faker.date.recent();
+        let commentCount = faker.number.int({ min: 0, max: 100 });
+        let user = {
+            id,
+            name,
+            email,
+            joinedOn,
+            commentCount
+        };
+        users.push(user);
+    }
+    return Promise.resolve(users);
+}
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>Now, our goal is to sort these records ascending and descending based on "commentCount" by using a web worker.</p>
+
+<p>So, first, we will create two files "src/app.worker.js" and "src/WebWorker.js".</p>
+
+<p>In the "app.worker.js" file we will export an arrow function in which we will add an event listener on the window object(self) to listen to the "message". This "message" will be triggered from the UI with "users" and "type"(ascending or descending" variables.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>export default () =&gt; {
+  self.addEventListener('message', e =&gt; { // eslint-disable-line no-restricted-globals
+      if (!e) return;
+      let { users, type } = e.data;
+
+      if(type === "asc") {
+        users = users.sort((a, b) =&gt; a.commentCount - b.commentCount);
+      } else {
+        users = users.sort((a, b) =&gt; b.commentCount - a.commentCount);
+      }
+
+      postMessage(users);
+  })
+}
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>And we will sort it according to the "type" variable and return it by "postMesssage" method.</p>
+
+<p>And in the "WebWorker.js" we will export a class.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>export default class WebWorker {
+    constructor(worker) {
+        const code = worker.toString();
+        const blob = new Blob(['('+code+')()']);
+        return new Worker(URL.createObjectURL(blob));
+    }
+}
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>It will simply change the worker we defined in "app.worker.js" to an object URL.</p>
+
+<p>Now, let's connect this webworker to the UI.</p>
+
+<p>First we will import both the "worker" and "WebWorker" from the respective files.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>import worker from './app.worker.js';
+import WebWorker from './WebWorker';
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>Then, we will initialize the "WebWorker" with the argument "worker".<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>const webWorker = new WebWorker(worker);
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>First, we will work on the ascending logic. So, we will send the "users" and "type" to the worker by the "postMessage" method on this web worker.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>webWorker.postMessage({ users, type: "asc"});
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>Then, we will listen to the "message" and get the sorted data from the web worker like this.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>webWorker.addEventListener('message', (event) =&gt; {
+            const sortedList = event.data;
+
+            setUsers(sortedList);
+        });
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>Same logic we will add for the descending function as well.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>webWorker.postMessage({ users, type: "desc"});
+        webWorker.addEventListener('message', (event) =&gt; {
+            const sortedList = event.data;
+
+            setUsers(sortedList);
+        });
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>So, now our sorting is working fine. But don't forget to terminate the web worker at the time of component unmounting.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>return () =&gt; {
+            webWorker.terminate()
+        }
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<p>So, finally, our application will look something like this.</p>
+
+<p>Working Example- <a href="https://6505555525bea36e699fd62c--monumental-cuchufli-bc3416.netlify.app/" target="_blank" rel="noopener noreferrer">https://6505555525bea36e699fd62c--monumental-cuchufli-bc3416.netlify.app/</a></p>
+
+<p>Github- <a href="https://github.com/sumankalia/react_web_workers/tree/type" target="_blank" rel="noopener noreferrer">https://github.com/sumankalia/react_web_workers/tree/type</a></p>
+
+<p>If you want to watch this tutorial on YouTube in Hindi. Here's the link</p>
+
+<p><iframe width="710" height="399" src="https://www.youtube.com/embed/2QR1XOr1MyI" allowfullscreen loading="lazy">
+</iframe>
+</p>
+
+<p>If you like the above article, please clap on the article.</p>
+
+<p>Thanks for reading.</p>
+
+
+</article>

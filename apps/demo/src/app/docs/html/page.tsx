@@ -95,6 +95,13 @@ export default function HtmlPage() {
         for example a heading becomes a paragraph, so whatever loads can be edited.
       </p>
 
+      <H2>Preview</H2>
+      <p>
+        The playground and <Link href="/paste">paste landing</Link> can show{" "}
+        <strong>Edit | Preview</strong>. Preview renders <code>getHTML()</code> with article CSS and
+        no editor chrome — the same markup a host would store, not a pixel match of Google Docs.
+      </p>
+
       <H2>Pasting</H2>
       <p>
         HTML pasted from outside the editor goes through the same engine, in every{" "}

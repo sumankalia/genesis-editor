@@ -15,6 +15,7 @@ import { ClipboardCopyIcon, FileUpIcon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { calloutPlugin } from "@/components/examples/callout-plugin";
+import { ArticlePreview } from "@/components/article-preview";
 import { ImportReport } from "@/components/import-report";
 import { ClientCode } from "@/components/playground/client-code";
 import { PasteHtmlPanel } from "@/components/playground/paste-html-panel";
@@ -57,6 +58,7 @@ export default function Playground() {
   const [markdown, setMarkdown] = useState("");
   const [html, setHtml] = useState("");
   const [outputTab, setOutputTab] = useState("code");
+  const [view, setView] = useState<"edit" | "preview">("edit");
   const importInput = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<
     { kind: "idle" } | { kind: "error"; message: string } | { kind: "loaded"; report: FidelityReport }
@@ -159,7 +161,32 @@ export default function Playground() {
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <div className="flex h-11 items-center justify-between gap-2 border-b px-3">
-            <SaveIndicator state={saveState} />
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1" data-testid="playground-view">
+                <Button
+                  variant={view === "edit" ? "secondary" : "ghost"}
+                  size="sm"
+                  aria-pressed={view === "edit"}
+                  onClick={() => setView("edit")}
+                  data-testid="playground-edit"
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant={view === "preview" ? "secondary" : "ghost"}
+                  size="sm"
+                  aria-pressed={view === "preview"}
+                  onClick={() => {
+                    setHtml(editorRef.current?.getHTML() ?? html);
+                    setView("preview");
+                  }}
+                  data-testid="playground-preview"
+                >
+                  Preview
+                </Button>
+              </div>
+              <SaveIndicator state={saveState} />
+            </div>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" onClick={() => importInput.current?.click()} data-testid="playground-import">
                 <FileUpIcon />
@@ -187,7 +214,7 @@ export default function Playground() {
               </Button>
             </div>
           </div>
-          <div className="playground-editor pt-6 pb-24 sm:pb-10">
+          <div className={view === "edit" ? "playground-editor pt-6 pb-24 sm:pb-10" : "hidden"}>
             <BlockEditor
               ref={editorRef}
               initialContent={starterDocument}
@@ -209,6 +236,11 @@ export default function Playground() {
               onConfigureUploads={focusUploadOptions}
             />
           </div>
+          {view === "preview" && (
+            <div className="px-6 py-10 sm:px-12" data-testid="playground-preview-pane">
+              <ArticlePreview html={html} />
+            </div>
+          )}
         </section>
 
         <aside className="rounded-xl border bg-card p-4 shadow-sm lg:sticky lg:top-20">

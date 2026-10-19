@@ -1,0 +1,476 @@
+<article data-genesis-sample="1">
+<h1>🧠 NewsPulse AI – Real-Time News Analysis with LLMs & Web Scraping via Bright Data</h1>
+<p class="byline"><a href="https://dev.to/sumankalia/newspulseai-real-time-news-intelligence-powered-by-web-data-agents-2bep">Suman Kumar · DEV Community · 2025-05-25</a></p>
+<p><em>This is a submission for the <a href="https://dev.to/challenges/brightdata-2025-05-07">Bright Data AI Web Access Hackathon</a></em><br>
+We built NewsPulse AI to explore a simple but powerful question:</p>
+
+<p><strong><em>"What if you could instantly see how different media outlets spin the same story?"</em></strong></p>
+
+<p>In a world flooded with headlines, bias, and misinformation, NewsPulse AI acts like an AI-powered research assistant. You ask a question, and it fetches, scrapes, analyzes, and visualizes fresh news articles in real-time—just like a human researcher, but supercharged.</p>
+
+<p>🚀 What It Does</p>
+
+<ul>
+<li>🔍 Enter any news-related query (e.g. farmers protest, AI in education, etc.)</li>
+<li>🌐 NewsPulse fetches real-time articles via Bright Data’s MCP scraping infrastructure</li>
+<li>🧠 LangChain &amp; GPT-3.5 process each article for:</li>
+<li>Sentiment (positive/neutral/negative)</li>
+<li>Bias</li>
+<li>Political lean</li>
+<li>Toxicity and propaganda presence</li>
+<li>📊 Get aggregate insights and transparent logs instantly</li>
+</ul>
+<h2>
+  <a name="what-i-built" href="#what-i-built">
+  </a>
+  What I Built
+</h2>
+
+<p>NewsPulse AI is an intelligent real-time news analysis engine that allows users to query any news-related topic and instantly receive a stream of analyzed articles. It mimics how a human researcher might discover, navigate, extract, and interact with web content—but does it entirely autonomously.</p>
+
+<p>The project solves the problem of understanding media bias, misinformation, and sentiment across different news sources in real-time. Whether a user wants to explore how different platforms cover a political event, assess the emotional tone of news about a public figure, or analyze the presence of propaganda or toxicity in media, NewsPulse AI provides deep insights in seconds.</p>
+<h3>
+  <a name="deep-integration-with-fastmcp-via-stdio" href="#deep-integration-with-fastmcp-via-stdio">
+  </a>
+  🔧 Deep Integration with FastMCP via STDIO
+</h3>
+
+<p><em><strong>🔥 One of the key differentiators of our solution is that we have directly integrated Bright Data’s official MCP source code with our Node.js backend using FastMCP over standard input/output (STDIO).</strong></em></p>
+
+<p>We are:</p>
+
+<ul>
+<li><strong>Running the FastMCP server inside our Express (Node.js) environment</strong></li>
+<li><strong>Communicating with it through STDIO (stdin/stdout)</strong></li>
+<li><strong>Launching and managing scraping methods programmatically from Node.js</strong></li>
+</ul>
+
+<p>This level of integration is not just plug-and-play—it required fine-tuning STDIO communication and handling input/output streams carefully. But it makes our backend much more flexible and efficient, enabling real-time task execution without relying on HTTP or RPC overhead.</p>
+
+<p>It also aligns perfectly with Bright Data’s vision for real-time AI agents interacting with the open web, giving us full control over tool orchestration, logging, and performance.</p>
+<h3>
+  <a name="tech-stack-amp-architecture" href="#tech-stack-amp-architecture">
+  </a>
+  🛠️ Tech Stack &amp; Architecture
+</h3>
+
+<p>Our project is built entirely on modern, open-source tools optimized for real-time web data extraction and analysis:</p>
+
+<ul>
+<li>
+<strong>Frontend</strong>: React + Vite</li>
+<li>
+<strong>Backend</strong>: Node.js + Express</li>
+<li>
+<strong>AI Orchestration</strong>: LangChain + OpenAI GPT-3.5 Turbo</li>
+<li>
+<strong>Scraping Infrastructure</strong>: Bright Data MCP (FastMCP Server)</li>
+<li>
+<strong>Communication</strong>: REST APIs + WebSocket (for real-time logs &amp; results)</li>
+<li>
+<strong>Deployment</strong>: Hosted on an EC2 instance with persistent STDIO-based communication</li>
+</ul>
+
+<p><strong>⚡ No Database Used:</strong><br>
+We do <strong>not persist any data</strong>. Everything — from scraping to analysis — happens <strong>live from the open web</strong>. This ensures:</p>
+
+<ul>
+<li>
+<strong>Real-time results</strong> for every query</li>
+<li>No stale or outdated information</li>
+<li>Transparent validation that scraping works on-demand</li>
+<li>Compliance with the <strong>hackathon’s goal of showcasing live data access</strong>
+</li>
+</ul>
+
+<p>This stateless, no-DB approach proves the reliability of Bright Data’s infrastructure in powering real-time AI agents without any dependency on pre-stored content.</p>
+
+<p><a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fdv8n0vubam5yits71r9i.png" class="article-body-image-wrapper"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fdv8n0vubam5yits71r9i.png" alt="Project artchitecture" loading="lazy"></a></p>
+<h2>
+  <a name="demo" href="#demo">
+  </a>
+  Demo
+</h2>
+
+<p>Video Demo<br>
+  </p>
+<div style="max-width: 315px; margin: 0 auto;">
+    <iframe src="https://www.youtube.com/embed/WHBH2baw1YQ" style="width: 100%; aspect-ratio: 9 / 16;" allowfullscreen loading="lazy">
+    </iframe>
+  </div>
+
+
+<p><strong>📁 GitHub Repo:</strong> <a href="https://github.com/sumankalia/news-pulse-ai" target="_blank" rel="noopener noreferrer">https://github.com/sumankalia/news-pulse-ai</a></p>
+
+<p>🌐 Live Site: <br>
+<strong>Frontend:</strong> <a href="http://ec2-16-170-239-65.eu-north-1.compute.amazonaws.com:5173/" target="_blank" rel="noopener noreferrer">http://ec2-16-170-239-65.eu-north-1.compute.amazonaws.com:5173/</a><br>
+<strong>Backend:</strong> <a href="http://ec2-16-170-239-65.eu-north-1.compute.amazonaws.com:4002/api/articles/ping" target="_blank" rel="noopener noreferrer">http://ec2-16-170-239-65.eu-north-1.compute.amazonaws.com:4002/api/articles/ping</a></p>
+
+<p>📸 Screenshots:</p>
+
+<p>🔍 <strong>Search Input Interface –</strong> Users can enter any news-related query, such as “farmers protest” or “AI in education,” to fetch real-time news articles and analyze them instantly.<br>
+<a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fsvxl64llmunabnldxr7q.png" class="article-body-image-wrapper"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fsvxl64llmunabnldxr7q.png" alt="Search field for user query" loading="lazy"></a></p>
+
+<p>⚙️ <strong>Real-Time Query Processing –</strong> The system uses Bright Data’s MCP server to fetch and analyze fresh articles from Indian news sources. Logs show live scraping and analysis updates for transparency and debugging.<br>
+<a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fuh3x9hgye7cd8u4ptbeb.png" class="article-body-image-wrapper"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fuh3x9hgye7cd8u4ptbeb.png" alt="Analyzing the query and showing logs" loading="lazy"></a></p>
+
+<p>📰 <strong>Scraped Article Snapshot –</strong> A detailed preview of an individual article showing title, source, timestamp, and extracted summary. Each result is processed for bias, sentiment, and lean.<br>
+<a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fhchek7dvsqhb48fqni20.png" class="article-body-image-wrapper"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fhchek7dvsqhb48fqni20.png" alt="One scraped result from the list" loading="lazy"></a></p>
+
+<p>📊 <strong>Sentiment, Bias, and Political Lean Breakdown –</strong> Each article undergoes NLP-based analysis to categorize tone (positive/neutral/negative), detect media bias, and predict political inclination.<br>
+<a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fdfx3rwwcf73g1e2xr3ep.png" class="article-body-image-wrapper"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fdfx3rwwcf73g1e2xr3ep.png" alt="All the sentiment analysis details" loading="lazy"></a></p>
+
+<p>📈 <strong>Aggregate Insights Dashboard –</strong> Provides a summary of all fetched articles, highlighting sentiment distribution, bias frequency, and lean trends to help users quickly assess media coverage patterns.<br>
+<a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fgshzyp2j6t3i3n2sankc.png" class="article-body-image-wrapper"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2Fgshzyp2j6t3i3n2sankc.png" alt="Overall analysis of all the articles" loading="lazy"></a></p>
+<h2>
+  <a name="how-i-used-bright-datas-infrastructure" href="#how-i-used-bright-datas-infrastructure">
+  </a>
+  How I Used Bright Data's Infrastructure
+</h2>
+
+<p>This project is powered by <strong>Bright Data’s MCP infrastructure</strong>, particularly the <strong>FastMCP server</strong>, which enables our AI agent to simulate human browsing behavior and extract structured information in real time. Here’s how the four key actions were implemented:</p>
+<h3>
+  <a name="1-discover" href="#1-discover">
+  </a>
+  1. Discover
+</h3>
+
+<p>We use <strong>LangChain</strong> with a custom PromptTemplate to dynamically route user queries to one of four scraping methods:</p>
+
+<ul>
+<li>
+<code>scrape_as_article</code>: Direct article URLs</li>
+<li>
+<code>scrape_a_homepage</code>: Homepage or latest headline queries</li>
+<li>
+<code>search_via_google</code>: Informational and broad-topic queries</li>
+<li>
+<code>search_via_bing</code>: Dynamic, JS-heavy search result pages
+</li>
+</ul>
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>switch (result.method) {
+      case "scrape_as_article":
+        data = await runToolCall("scrape_as_article", { url: query });
+        break;
+      case "scrape_a_homepage":
+        data = await runToolCall("scrape_a_homepage", {
+          url: result?.homepageUrl,
+        });
+        break;
+      case "search_via_google":
+        data = await runToolCall("search_via_google", { query });
+        break;
+      case "search_via_bing":
+        processedResults = await searchViaBing({
+          query,
+          userId,
+        });
+    }
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+<p>LangChain decides the optimal route based on user intent, and our backend follows through using the selected method.</p>
+<h3>
+  <a name="2-access" href="#2-access">
+  </a>
+  2. Access
+</h3>
+
+<p>We leverage Bright Data’s FastMCP to access dynamic and protected web pages like news homepages or search results.</p>
+
+<p>Here’s what happens:</p>
+
+<ul>
+<li>First, we load the target page (e.g., a news homepage or Bing/Google search results).</li>
+<li>We then <strong>scrape all the article</strong> links visible on that page.</li>
+<li>Next, we go <strong>article-by-article</strong>, scraping each one individually for full content and metadata.</li>
+<li>This method helps us analyze <strong>multiple perspectives</strong> from a single page, all without hitting stale data or relying on pre-saved content.</li>
+</ul>
+
+<p>This smart multi-link scraping approach powers our real-time insights across 50+ articles per query.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>// Step 1: Navigate to the target page (homepage or search results)
+await runToolCall("scraping_browser_navigate", {
+  url: "https://www.newswebsite.com/",
+});
+
+// Step 2: Wait for articles to load on the page
+await runToolCall("scraping_browser_wait_for", {
+  selector: "article a[href]",
+  timeout: 10000,
+});
+
+// Step 3: Extract all article links
+const linksResult = await runToolCall("scraping_browser_links", {});
+
+// Step 4: Iterate through each link and trigger detailed article scraping
+for (const link of linksResult.links) {
+  await runToolCall("scrape_as_article", { url: link });
+}
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<h3>
+  <a name="3-extract" href="#3-extract">
+  </a>
+  3. Extract
+</h3>
+
+<p>We extract detailed article metadata, including:<br>
+    • title, content, url, published date, author, source, and image</p>
+
+<p>Bright Data supports extraction via:</p>
+
+<ul>
+<li>✅ <strong>rawHtml</strong> – full HTML of the scraped content</li>
+<li>✅ <strong>markdown</strong> – clean, AI-friendly summary format
+</li>
+</ul>
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>server.addTool({
+  name: "scrape_a_homepage",
+  description:
+    "Scrape a single webpage URL with advanced options for " +
+    "content extraction and get back the results in MarkDown language. " +
+    "This tool can unlock any webpage even if it uses bot detection or " +
+    "CAPTCHA.",
+  parameters: z.object({ url: z.string().url() }),
+  execute: tool_fn("scrape_a_homepage", async ({ url }) =&gt; {
+    let response = await axios({
+      url: "https://api.brightdata.com/request",
+      method: "POST",
+      data: {
+        url,
+        zone: unlocker_zone,
+        format: "raw",
+        data_format: "markdown",
+      },
+      headers: api_headers(),
+      responseType: "text",
+    });
+    return response.data;
+  }),
+});
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+<p>We utilized a combination of <strong>custom and prebuilt functions</strong> to clean the raw data and extract the necessary information for analysis.</p>
+<h3>
+  <a name="4-interact" href="#4-interact">
+  </a>
+  4. Interact
+</h3>
+
+<p>This is where <strong>Bright Data’s full capabilities come to life</strong>. In the search_via_bing method, we simulate a full browser interaction flow using MCP tools:</p>
+
+<ol>
+<li>Navigate to Bing.com</li>
+<li>Wait for the page to load</li>
+<li>Clear the input field</li>
+<li>Enter the search text</li>
+<li>Press Enter</li>
+<li>Wait ~5 seconds</li>
+<li>Wait for a result-related HTML selector to appear</li>
+<li>Scrape result links using scraping_browser_links</li>
+</ol>
+
+<p>This closely <strong>mimics human behavior</strong>, allowing us to pull data from otherwise inaccessible or JS-heavy websites.<br>
+</p>
+
+<div class="highlight js-code-highlight">
+<pre class="highlight plaintext"><code>const url = "https://www.bing.com/news";
+  const searchSelector = "input#sb_form_q";
+  const searchText = query;
+  const processedResults = [];
+
+
+    // Navigate to the webpage using scraping_browser_navigate
+    await runToolCall("scraping_browser_navigate", {
+      url,
+    });
+
+    await runToolCall("scraping_browser_wait_for", {
+      selector: searchSelector,
+      timeout: 10000,
+    });
+
+    // Clear the search field first using scraping_browser_type
+    await runToolCall("scraping_browser_type", {
+      selector: searchSelector,
+      text: "",
+      submit: false,
+    });
+    // Type the search text using scraping_browser_type
+    await runToolCall("scraping_browser_type", {
+      selector: searchSelector,
+      text: searchText,
+      submit: false,
+    });
+    // Press Enter to submit the search
+    await runToolCall("scraping_browser_press", {
+      key: "Enter",
+    });
+    // Wait for the search results to load
+    // First wait for network to be idle
+    await new Promise((resolve) =&gt; setTimeout(resolve, 3000));
+
+    // Wait for search results container
+    await runToolCall("scraping_browser_wait_for", {
+      selector: 'a.linkBtn[aria-label="Best match"]',
+      timeout: 50000,
+    });
+    // Additional wait for search results to be fully loaded
+    await new Promise((resolve) =&gt; setTimeout(resolve, 2000));
+    // Wait for article links to be present
+    await runToolCall("scraping_browser_wait_for", {
+      selector: "article a[href*='/articles/']",
+      timeout: 5000,
+    });
+    // Get all links from the page using scraping_browser_links
+    const linksResult = await runToolCall("scraping_browser_links", {});
+</code></pre>
+<div class="highlight__panel js-actions-panel">
+<div class="highlight__panel-action js-fullscreen-code-action">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-on"><title>Enter fullscreen mode</title>
+    <path d="M16 3h6v6h-2V5h-4V3zM2 3h6v2H4v4H2V3zm18 16v-4h2v6h-6v-2h4zM4 19h4v2H2v-6h2v4z"></path>
+</svg>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewbox="0 0 24 24" class="highlight-action crayons-icon highlight-action--fullscreen-off"><title>Exit fullscreen mode</title>
+    <path d="M18 7h4v2h-6V3h2v4zM8 9H2V7h4V3h2v6zm10 8v4h-2v-6h6v2h-4zM8 15v6H6v-4H2v-2h6z"></path>
+</svg>
+
+</div>
+</div>
+</div>
+
+
+
+<h2>
+  <a name="performance-improvements" href="#performance-improvements">
+  </a>
+  Performance Improvements
+</h2>
+
+<p>Before integrating Bright Data’s MCP server, our initial architecture relied on:</p>
+
+<ul>
+<li>
+<strong>Sequential proxy rotation</strong> using Bright Data’s Residential, Web Unlocker, and Mobile proxies</li>
+<li><strong>Headless browser automation via Puppeteer</strong></li>
+<li>Custom code for region-based rotation and JavaScript-rendered scraping</li>
+</ul>
+
+<p>While functional, this method had <strong>significant drawbacks</strong>:</p>
+
+<ul>
+<li>High latency per article (6–12 seconds)</li>
+<li>Increased code complexity and maintenance overhead</li>
+<li>Failures on JS-heavy or protected pages</li>
+</ul>
+
+<h3>
+  <a name="transition-to-bright-data-mcp-fastmcp-server" href="#transition-to-bright-data-mcp-fastmcp-server">
+  </a>
+  🚀 Transition to Bright Data MCP (FastMCP Server)
+</h3>
+
+<p>By switching to the Fast MCP server, we achieved:</p>
+
+<ul>
+<li>⏱ <strong>~80% reduction in scraping latency</strong> per article</li>
+<li>💡 Seamless access to protected and JavaScript-heavy sites with zero-code browser interaction</li>
+<li>⚙️ Lightweight, declarative scraping powered by <strong>STDIO</strong> communication between our Node.js backend and MCP server</li>
+<li>📦 Simplified architecture (less boilerplate, no Puppeteer or manual proxy handling)</li>
+<li>✅ Greater reliability across countries and site types — with support for region-specific scraping</li>
+</ul>
+
+<p><strong>We are now scraping 50+ articles across multiple countries in real time without bottlenecks or rate-limiting issues.</strong></p>
+
+<p>You can even compare our old Puppeteer-based proxy project here:<br>
+👉 Legacy Puppeteer Proxy Scraper <a href="https://inspiring-taffy-5808f5.netlify.app/" target="_blank" rel="noopener noreferrer">https://inspiring-taffy-5808f5.netlify.app/</a><br>
+And see how Bright Data MCP gave us a 10x better development and performance experience.</p>
+
+<h2>
+  <a name="future-improvements" href="#future-improvements">
+  </a>
+  Future Improvements
+</h2>
+
+<p>We built NewsPulse AI to meet hackathon goals with a real-time, stateless architecture. For the next phase, we plan to:</p>
+
+<ul>
+<li>
+<strong>Integrate a Vector DB</strong> (like Pinecone or Qdrant) to enable semantic search and avoid redundant scraping.</li>
+<li>
+<strong>Add a Scalable Job Queue</strong> for handling spikes using tools like BullMQ or Redis.</li>
+<li>
+<strong>Implement Auth &amp; API Keys</strong> to support user-specific usage and rate-limiting.</li>
+<li>
+<strong>Secure Secrets Properly</strong>, moving all credentials to secret managers for a real deployment.</li>
+<li>
+<strong>Improve UX</strong> with features like sentiment trend visualizations, historical comparisons, and saved analyses.</li>
+</ul>
+
+<p>These updates will make the platform more robust, scalable, and production-ready.</p>
+
+<h2>
+  <a name="final-notes" href="#final-notes">
+  </a>
+  Final Notes
+</h2>
+
+<p>NewsPulse AI showcases how powerful AI agents become when paired with open, real-time, structured web data. We didn’t just build a tool—we built a thinking system that mimics human research patterns at internet speed.</p>
+
+<p><strong><em>Lovingly crafted by Suman and his wife Sarita. 💫</em></strong></p>
+
+<p>🙌 Shoutout<br>
+Big thanks to the team at Bright Data! Loved integrating your MCP platform.</p>
+
+<p>If you're reading this and found Bright Data useful, give their repo some love:<br>
+🌟 <a href="https://github.com/luminati-io/brightdata-mcp" target="_blank" rel="noopener noreferrer">https://github.com/luminati-io/brightdata-mcp</a></p>
+
+
+</article>
