@@ -5,6 +5,7 @@ import {
   INLINE_TOOLS,
   MAX_LOCAL_UPLOAD_BYTES,
   type BuiltInToolName,
+  type ParseMode,
 } from "genesis-editor";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,10 @@ export type PlaygroundOptions = {
   /** Adds the example callout plugin. */
   callout: boolean;
   toolbarPlacement: "floating" | "fixed";
+  /** `htmlMode` for pastes and Paste HTML. */
+  htmlMode: ParseMode;
+  /** `clean.noise`: remove page furniture (share bars, navigation, related posts) from pasted HTML. */
+  cleanNoise: boolean;
 };
 
 export const ALL_TOOLS: BuiltInToolName[] = [...BLOCK_TOOLS, ...INLINE_TOOLS];
@@ -99,6 +104,37 @@ export function OptionsPanel({
       <Separator />
 
       <ToolsFieldset options={options} onChange={onChange} />
+
+      <Separator />
+
+      <fieldset className="grid gap-3" data-testid="html-import-options">
+        <legend className="mb-3 font-medium">HTML import</legend>
+        <div className="grid gap-2">
+          <Label htmlFor="option-html-mode">htmlMode</Label>
+          <Select
+            value={options.htmlMode}
+            onValueChange={(htmlMode) => onChange({ ...options, htmlMode: htmlMode as ParseMode })}
+          >
+            <SelectTrigger id="option-html-mode" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="clean">Clean (keep custom colours)</SelectItem>
+              <SelectItem value="strict">Strict (palette only, text of unknown elements)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="option-clean-noise" className="font-normal">
+            Remove page furniture
+          </Label>
+          <Switch
+            id="option-clean-noise"
+            checked={options.cleanNoise}
+            onCheckedChange={(cleanNoise) => onChange({ ...options, cleanNoise })}
+          />
+        </div>
+      </fieldset>
 
       <Separator />
 

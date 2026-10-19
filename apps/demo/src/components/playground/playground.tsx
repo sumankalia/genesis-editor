@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { calloutPlugin } from "@/components/examples/callout-plugin";
 import { ClientCode } from "@/components/playground/client-code";
+import { PasteHtmlPanel } from "@/components/playground/paste-html-panel";
 import {
   ALL_TOOLS,
   OptionsPanel,
@@ -22,6 +23,7 @@ import {
 import { SaveIndicator } from "@/components/playground/save-indicator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { prettyHTML } from "@/lib/pretty-html";
 import { starterDocument } from "@/lib/starter-document";
 import {
   demoUploadFile,
@@ -42,9 +44,12 @@ export default function Playground() {
     tools: [...ALL_TOOLS],
     callout: false,
     toolbarPlacement: "floating",
+    htmlMode: "clean",
+    cleanNoise: true,
   }));
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [markdown, setMarkdown] = useState("");
+  const [html, setHtml] = useState("");
   const siteTheme = useSiteTheme();
 
   const { uploads } = options;
@@ -69,6 +74,7 @@ export default function Playground() {
       if (!editor) return;
       setBlocks(editor.getBlocks());
       setMarkdown(editor.getMarkdown());
+      setHtml(editor.getHTML());
     }, 250);
   }, []);
 
@@ -113,9 +119,11 @@ export default function Playground() {
     () => (options.toolbarPlacement === "fixed" ? { placement: "fixed" as const } : undefined),
     [options.toolbarPlacement],
   );
+  const clean = useMemo(() => (options.cleanNoise ? undefined : { noise: false }), [options.cleanNoise]);
 
   const editorTheme = options.theme === "site" ? siteTheme : options.theme;
   const json = useMemo(() => JSON.stringify(blocks, shortenDataUrls, 2), [blocks]);
+  const prettyHtml = useMemo(() => prettyHTML(html), [html]);
   const code = useMemo(() => generateCode(options), [options]);
 
   return (
@@ -147,6 +155,8 @@ export default function Playground() {
               tools={tools}
               toolbar={toolbar}
               plugins={plugins}
+              htmlMode={options.htmlMode}
+              clean={clean}
               uploadFile={uploads.mode === "custom" ? demoUploadFile : undefined}
               uploadUrl={serverMode ? uploadUrl : undefined}
               mapUploadResponse={serverMode ? mapUploadResponse : undefined}
@@ -164,10 +174,16 @@ export default function Playground() {
 
       <section aria-label="Output">
         <Tabs defaultValue="code" className="gap-4">
-          <TabsList variant="line">
+          <TabsList
+            variant="line"
+            data-testid="output-tabs"
+            className="w-full justify-start overflow-x-auto overflow-y-hidden pb-[6px] [scrollbar-width:none] [&>*]:flex-none"
+          >
             <TabsTrigger value="code">Code</TabsTrigger>
             <TabsTrigger value="json">JSON</TabsTrigger>
             <TabsTrigger value="markdown">Markdown</TabsTrigger>
+            <TabsTrigger value="html">HTML</TabsTrigger>
+            <TabsTrigger value="paste-html">Paste HTML</TabsTrigger>
           </TabsList>
           <TabsContent value="code" data-testid="output-code">
             <ClientCode code={code} lang="tsx" />
@@ -177,6 +193,12 @@ export default function Playground() {
           </TabsContent>
           <TabsContent value="markdown" data-testid="output-markdown">
             <ClientCode code={markdown || "\n"} lang="md" />
+          </TabsContent>
+          <TabsContent value="html" data-testid="output-html">
+            <ClientCode code={prettyHtml || "\n"} lang="html" />
+          </TabsContent>
+          <TabsContent value="paste-html" forceMount className="data-[state=inactive]:hidden">
+            <PasteHtmlPanel editorRef={editorRef} />
           </TabsContent>
         </Tabs>
       </section>
@@ -212,7 +234,7 @@ function arrayProp(name: string, values: readonly string[]) {
 }
 
 function generateCode(options: PlaygroundOptions) {
-  const { theme, editable, uploads, callout, toolbarPlacement } = options;
+  const { theme, editable, uploads, callout, toolbarPlacement, htmlMode, cleanNoise } = options;
   const props = [`persist={{ key: "my-document" }}`];
   if (theme === "site") props.push(`theme={resolvedTheme} // "light" | "dark" from your app`);
   else if (theme !== "system") props.push(`theme="${theme}"`);
@@ -222,6 +244,8 @@ function generateCode(options: PlaygroundOptions) {
   if (tools) props.push(arrayProp("tools", tools));
   if (toolbarPlacement === "fixed") props.push(`toolbar={{ placement: "fixed" }}`);
   if (callout) props.push("plugins={[calloutPlugin]}");
+  if (htmlMode === "strict") props.push(`htmlMode="strict"`);
+  if (!cleanNoise) props.push("clean={{ noise: false }}");
 
   const url = uploads.uploadUrl.trim();
   const path = uploads.responsePath.trim();

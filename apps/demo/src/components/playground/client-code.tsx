@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { HighlightedCode } from "@/components/site/highlighted-code";
 
-type Lang = "tsx" | "json" | "md";
+type Lang = "tsx" | "json" | "md" | "html";
 
 function escapeHtml(code: string) {
   return code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
