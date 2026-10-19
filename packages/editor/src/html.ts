@@ -2,6 +2,7 @@ import type { Block, BlockNoteEditor, BlockNoteEditorOptions, PartialBlock } fro
 import { TextSelection } from "prosemirror-state";
 
 import { embedForMarkup, embedForUrl, type EmbedOptions, type EmbedProvider } from "./parser/embeds";
+import { decodeEscapedHTML } from "./parser/escaped";
 import { metaFromProps } from "./parser/meta";
 import { parseHTML } from "./parser/parse";
 import { toHTML } from "./parser/serialize";
@@ -159,6 +160,9 @@ export function createPasteHandler(
     let html = types.includes("text/html") ? data.getData("text/html") : "";
     const plain = types.includes("text/plain") ? data.getData("text/plain") : "";
     const embeds = "embed" in editor.schema.blockSchema;
+    // HTML copied as JSON text (an API response, DevTools, a .json file): import the HTML it encodes.
+    const decoded = plain ? decodeEscapedHTML(plain) : null;
+    if (decoded) html = decoded;
     // Embed code copied as text (a site's "Copy code" button, or code shown highlighted): import the code itself.
     if (embeds && isEmbedCode(plain, editor) && !(html && isEmbedCode(html, editor, true))) html = plain;
     if (!html) {

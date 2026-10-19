@@ -18,6 +18,7 @@ import {
   type EmbedRegistry,
   type ResolvedEmbed,
 } from "./embeds";
+import { decodeEscapedHTML } from "./escaped";
 import {
   finalizeRuns,
   inlineText,
@@ -128,6 +129,11 @@ const elementChildren = (el: Element) => Array.from(el.childNodes).filter((n): n
 export function parseHTML(html: string, options: ParseOptions = {}): ParseResult {
   const mode = options.mode ?? "clean";
   const report = new ReportBuilder();
+  const decoded = options.decodeEscaped === false ? null : decodeEscapedHTML(html);
+  if (decoded !== null) {
+    html = decoded;
+    report.warn("The input was JSON-encoded HTML; it was decoded before parsing.");
+  }
   const maxLength = options.maxLength ?? 10 * 1024 * 1024;
   if (html.length > maxLength) {
     html = html.slice(0, maxLength);

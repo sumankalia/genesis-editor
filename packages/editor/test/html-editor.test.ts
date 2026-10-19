@@ -205,6 +205,17 @@ describe("paste handler", () => {
     expect(onImport).not.toHaveBeenCalled();
   });
 
+  it("imports the HTML inside JSON copied as text, instead of its escapes", () => {
+    const { editor, onImport, paste } = setup();
+    const json = JSON.stringify({ HTML: '<h2 class="x">Title</h2>\n<p>Body</p>' });
+    expect(paste({ "text/html": `<pre>${json.replace(/</g, "&lt;")}</pre>`, "text/plain": json })).toBe(true);
+    expect(editor.document.slice(0, 2).map((b) => [b.type, (b.content as { text: string }[])[0]?.text])).toEqual([
+      ["heading", "Title"],
+      ["paragraph", "Body"],
+    ]);
+    expect(onImport.mock.calls[0][1]).toBe('<h2 class="x">Title</h2>\n<p>Body</p>');
+  });
+
   it("falls back to the default handler when the HTML has no content", () => {
     const { defaultPasteHandler, paste } = setup();
     paste({ "text/html": "<meta charset='utf-8'><span></span>", "text/plain": "" });

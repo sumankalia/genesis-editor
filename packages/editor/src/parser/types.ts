@@ -107,6 +107,12 @@ export type ParseOptions = {
   embedProviders?: readonly EmbedProvider[];
   /** Longer input is truncated, with a warning. Defaults to 10 MB. */
   maxLength?: number;
+  /**
+   * Decode HTML that arrives JSON-encoded (a quoted JSON string, JSON holding HTML strings, or a string's
+   * escaped inside such as `<p class=\"x\">a</p>\n`), with a warning, instead of showing its escapes as text.
+   * Only clear cases are decoded. Defaults to `true`.
+   */
+  decodeEscaped?: boolean;
   /** Deeper elements are ignored, with a warning. Defaults to 512. */
   maxDepth?: number;
 };
