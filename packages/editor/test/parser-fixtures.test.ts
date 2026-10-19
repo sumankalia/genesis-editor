@@ -73,20 +73,29 @@ function normalizeTable(content: { type: "tableContent"; columnWidths: (number |
 }
 
 describe("performance", () => {
-  it("parses 1 MB / 5,000+ blocks within the Node budget", () => {
+  it("parses 1 MB / 5,000+ blocks in time linear in the input", () => {
     const unit = samples.find((s) => s.name === "wordpress-gutenberg")!.html.replace(/^[\s\S]*<body[^>]*>|<\/body>[\s\S]*$/g, "");
-    const html = unit.repeat(Math.ceil((1024 * 1024) / unit.length));
-    parseHTML(html, { dom: linkedomDom });
-    // Best of three: other test files run in parallel and compete for the CPU.
-    let ms = Infinity;
-    let blocks: HtmlBlock[] = [];
+    const sized = (bytes: number) => unit.repeat(Math.ceil(bytes / unit.length));
+    const quarter = { html: sized(256 * 1024), ms: Infinity };
+    const full = { html: sized(1024 * 1024), ms: Infinity, blocks: [] as HtmlBlock[] };
+    parseHTML(quarter.html, { dom: linkedomDom });
+    // Best of three, alternating sizes: other test files run in parallel and compete for the CPU,
+    // and alternating gives both sizes the same share of that.
     for (let run = 0; run < 3; run++) {
-      const start = performance.now();
-      blocks = parseHTML(html, { dom: linkedomDom }).blocks;
-      ms = Math.min(ms, performance.now() - start);
+      let start = performance.now();
+      parseHTML(quarter.html, { dom: linkedomDom });
+      quarter.ms = Math.min(quarter.ms, performance.now() - start);
+      start = performance.now();
+      full.blocks = parseHTML(full.html, { dom: linkedomDom }).blocks;
+      full.ms = Math.min(full.ms, performance.now() - start);
     }
-    console.log(`perf: ${(html.length / 1024).toFixed(0)} KB, ${blocks.length} blocks, ${ms.toFixed(0)} ms (linkedom)`);
-    expect(blocks.length).toBeGreaterThan(5000);
-    expect(ms).toBeLessThan(600);
-  });
+    const growth = full.ms / quarter.ms;
+    console.log(`perf: 1024 KB, ${full.blocks.length} blocks, ${full.ms.toFixed(0)} ms; 4× input took ${growth.toFixed(1)}× as long (linkedom)`);
+    expect(full.blocks.length).toBeGreaterThan(5000);
+    // Wall-clock budgets depend on the machine (about 0.4 s on an M-series Mac, 1.1 s on a GitHub
+    // runner), so the tight check is on growth: linear is about 4× (up to 6.5× on a loaded CPU),
+    // quadratic about 16×.
+    expect(growth).toBeLessThan(10);
+    expect(full.ms).toBeLessThan(3000);
+  }, 30_000);
 });
