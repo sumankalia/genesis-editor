@@ -39,7 +39,10 @@ The browser checks in `apps/demo/e2e` drive the site with Playwright: `editor.mj
 and playground options. They use
 Playwright's Chromium (`pnpm --filter demo exec playwright-core install chromium`),
 or an installed Chrome with `E2E_CHANNEL=chrome`. Point them at another server
-with `E2E_BASE_URL`. Screenshots go to `apps/demo/e2e/screenshots/`.
+with `E2E_BASE_URL`. Screenshots go to `apps/demo/e2e/screenshots/`. Against a
+production build (`pnpm --filter demo start`), start the server with
+`GENESIS_DEMO_ALLOW_LOOPBACK=1`: the re-host checks copy images from 127.0.0.1,
+which the mock `uploadFromUrl` endpoint otherwise refuses outside development.
 
 `pnpm --filter genesis-editor test:node` packs the package, installs the tarball
 into a scratch app for each Node 18, 20 and 22 it finds under `~/.nvm` (or the

@@ -46,6 +46,9 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter demo exec playwright-core install --with-deps chromium
       - name: Start the demo
+        env:
+          # The re-host checks copy images from 127.0.0.1, which the production server refuses.
+          GENESIS_DEMO_ALLOW_LOOPBACK: "1"
         run: |
           pnpm --filter demo start > demo.log 2>&1 &
           npx --yes wait-on --timeout 60000 http://localhost:4317

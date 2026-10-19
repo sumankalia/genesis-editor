@@ -4,6 +4,11 @@ import { chromium } from "playwright-core";
 
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
+// The example serves its "remote" images from 127.0.0.1 when the page is on localhost.
+const PAGE_ORIGIN = new URL(BASE_URL).origin;
+const REMOTE_ORIGIN = PAGE_ORIGIN.replace("//localhost", "//127.0.0.1");
+const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok });
@@ -52,8 +57,8 @@ await demo.getByRole("button", { name: "Save when uploads finish" }).click();
 const saved = demo.getByTestId("rehost-saved");
 await saved.filter({ hasText: "<img" }).waitFor({ timeout: 15000 });
 const html = await saved.innerText();
-check("uploadsSettled() waits for every copy", !html.includes(' src="http://127.0.0.1') && (html.match(/src="http:\/\/localhost:4317\/api\/mock-upload\//g) ?? []).length === 3, html.slice(0, 400));
-check("export keeps the source as data-original-src", html.includes('data-original-src="http://127.0.0.1:4317/examples/dunes.png"'));
+check("uploadsSettled() waits for every copy", !html.includes(' src="http://127.0.0.1') && (html.match(new RegExp(`src="${escape(PAGE_ORIGIN)}/api/mock-upload/`, "g")) ?? []).length === 3, html.slice(0, 400));
+check("export keeps the source as data-original-src", html.includes(`data-original-src="${REMOTE_ORIGIN}/examples/dunes.png"`));
 check("the same image is copied once", copies.length === 2, `${copies.length} requests`);
 const done = await srcs();
 check("blocks show the copies", done.every((s) => s.includes("/api/mock-upload/")), done.join(", "));

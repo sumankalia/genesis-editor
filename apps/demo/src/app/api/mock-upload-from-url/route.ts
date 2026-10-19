@@ -17,9 +17,10 @@ function isPrivateAddress(address: string) {
     (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
 }
 
-// The docs site runs locally, and its e2e serves "remote" images from 127.0.0.1, so loopback is
-// allowed outside production. Never relax this on a deployed server.
-const allowLoopback = process.env.NODE_ENV !== "production";
+// The e2e serves "remote" images from 127.0.0.1, so loopback is allowed in development, and in a
+// local production build (CI's browser checks) with GENESIS_DEMO_ALLOW_LOOPBACK=1. Never on Vercel.
+const allowLoopback =
+  !process.env.VERCEL && (process.env.NODE_ENV !== "production" || process.env.GENESIS_DEMO_ALLOW_LOOPBACK === "1");
 
 async function assertPublic(url: URL) {
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Only http(s) URLs can be copied.");
