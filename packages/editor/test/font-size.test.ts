@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseHTML, toHTML, type HtmlBlock, type HtmlInline, type HtmlText, type ParseOptions } from "../src/parser";
-import { isFontSize, snapFontSize, stepFontSize } from "../src/parser/font-size";
+import { FONT_SIZES, TOOLBAR_FONT_SIZES, isFontSize, snapFontSize, stepFontSize } from "../src/parser/font-size";
 import { linkedomDom } from "../src/parser/linkedom";
 
 const parse = (html: string, options: ParseOptions = {}) => parseHTML(html, { dom: linkedomDom, ...options });
@@ -15,20 +15,24 @@ describe("steps", () => {
     for (const value of ["16px", "15px", "14", "14.0px", "1.2em", 14]) expect(isFontSize(value)).toBe(false);
   });
 
-  it("snaps to the nearest step, rounding ties up, and clamps to 6–20", () => {
+  it("snaps to the nearest step, rounding ties up, and clamps to 6–72", () => {
+    expect(FONT_SIZES[FONT_SIZES.length - 1]).toBe(72);
+    expect([...TOOLBAR_FONT_SIZES]).toEqual([6, 8, 10, 12, 14, 16, 18, 20]);
     expect(snapFontSize(13)).toEqual({ size: "14px", clamped: false });
     expect(snapFontSize(15)).toEqual({ size: undefined, clamped: false });
     expect(snapFontSize(16.4)).toEqual({ size: undefined, clamped: false });
     expect(snapFontSize(19)).toEqual({ size: "20px", clamped: false });
-    expect(snapFontSize(32)).toEqual({ size: "20px", clamped: true });
+    expect(snapFontSize(32)).toEqual({ size: "32px", clamped: false });
     expect(snapFontSize(3)).toEqual({ size: "6px", clamped: true });
+    expect(snapFontSize(80)).toEqual({ size: "72px", clamped: true });
   });
 
   it("steps up and down, stopping at the ends", () => {
     expect(stepFontSize(undefined, 1)).toBe("18px");
     expect(stepFontSize(undefined, -1)).toBe("14px");
     expect(stepFontSize("18px", -1)).toBeUndefined();
-    expect(stepFontSize("20px", 1)).toBe("20px");
+    expect(stepFontSize("20px", 1)).toBe("24px");
+    expect(stepFontSize("72px", 1)).toBe("72px");
     expect(stepFontSize("6px", -1)).toBe("6px");
   });
 });
@@ -59,22 +63,47 @@ describe("paste mapping", () => {
     ]);
   });
 
-  it("clamps and reports sizes outside 6–20", () => {
+  it("clamps and reports sizes outside 6–72", () => {
     const { blocks, report } = parse(`<p>${BODY}</p><p><span style="font-size:48px">Huge</span> <span style="font-size:2px">tiny</span></p>`);
     expect(sizes(blocks[1])).toEqual([
-      ["Huge", "20px"],
+      ["Huge", "48px"],
       [" ", undefined],
       ["tiny", "6px"],
     ]);
-    expect(report.fontSizes.clamped).toBe(2);
+    expect(report.fontSizes.clamped).toBe(1);
   });
 
-  it("headings, code blocks and inline code keep no size", () => {
+  it("keeps heading sizes and drops code sizes", () => {
     const html = `<p>${BODY}</p><h2><span style="font-size:10px">Title</span></h2><pre><code style="font-size:10px">x = 1</code></pre><p><code style="font-size:10px">y</code></p>`;
     const { blocks } = parse(html);
-    expect(texts(blocks[1])[0].styles.fontSize).toBeUndefined();
+    expect(texts(blocks[1])[0].styles.fontSize).toBe("10px");
     expect(texts(blocks[2])[0].styles.fontSize).toBeUndefined();
     expect(texts(blocks[3])[0].styles).toEqual({ code: true });
+  });
+
+  it("keeps a Google Docs-like paste hierarchy after relative mapping", () => {
+    const html = `
+      <p><span style="color:#6d64e8;font-size:20pt;font-weight:700">Your Company</span></p>
+      <p><span style="color:#666666;font-size:10pt">Address line</span></p>
+      <p><span style="color:#283592;font-size:34pt">Product Brochure</span></p>
+      <p><span style="color:#e01b84;font-size:11pt">October 2026</span></p>
+      <h1><span style="font-size:21pt">Product Overview</span></h1>
+      <h2><span style="font-size:16pt">Lorem ipsum</span></h2>
+      <h3><span style="color:#e01b84;font-size:12pt">Accent</span></h3>
+      <p><span style="color:#666666;font-size:11pt">${BODY}</span></p>`;
+    const { blocks, report } = parse(html);
+    const byText = Object.fromEntries(blocks.flatMap((b) => texts(b).map((t) => [t.text, { type: b.type, level: b.props?.level, ...t.styles }])));
+    expect(byText["Your Company"]).toMatchObject({ type: "heading", level: 3, textColor: "#6d64e8", fontSize: "28px" });
+    expect(byText["Address line"]).toMatchObject({ type: "paragraph", textColor: "#666666", fontSize: "14px" });
+    expect(byText["Product Brochure"]).toMatchObject({ type: "paragraph", textColor: "#283592", fontSize: "48px" });
+    expect(byText["October 2026"]).toMatchObject({ type: "paragraph", textColor: "#e01b84" });
+    expect(byText["October 2026"].fontSize).toBeUndefined();
+    expect(byText["Product Overview"]).toMatchObject({ type: "heading", level: 1, fontSize: "32px" });
+    expect(byText["Lorem ipsum"]).toMatchObject({ type: "heading", level: 2, fontSize: "24px" });
+    expect(byText["Accent"]).toMatchObject({ type: "heading", level: 3, textColor: "#e01b84", fontSize: "18px" });
+    expect(byText[BODY]).toMatchObject({ type: "paragraph", textColor: "#666666" });
+    expect(byText[BODY].fontSize).toBeUndefined();
+    expect(report.fontSizes.clamped).toBe(0);
   });
 
   it("keeps sizes in table cells", () => {

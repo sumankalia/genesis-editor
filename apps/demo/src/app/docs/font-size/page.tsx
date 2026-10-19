@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FONT_SIZES } from "genesis-editor/parser";
+import { FONT_SIZES, TOOLBAR_FONT_SIZES } from "genesis-editor/parser";
 
 import { CodeBlock } from "@/components/site/code-block";
 import { DocsHeader, H2 } from "@/components/site/docs";
@@ -19,15 +19,17 @@ const exported = `<span style="font-size:12px" data-font-size="12px">Small print
 export default function FontSizePage() {
   return (
     <>
-      <DocsHeader title="Font size" description="A size dropdown in the selection toolbar, with sizes from 6 to 20 px." />
+      <DocsHeader title="Font size" description="A size dropdown in the selection toolbar. The menu is 6–20 px; paste and import can keep larger steps through 72." />
 
       <Example name="font-size" minHeight={380} />
 
       <H2>Sizes</H2>
       <p>
-        The dropdown offers <code>{FONT_SIZES.join(", ")}</code> px. 16 is the editor&apos;s body
-        size: it&apos;s labelled <strong>Default</strong> and stores nothing. When the selection has
-        more than one size, the dropdown shows <strong>—</strong>.
+        The dropdown offers <code>{TOOLBAR_FONT_SIZES.join(", ")}</code> px. Paste and import can
+        keep a larger step from <code>{FONT_SIZES.join(", ")}</code>; the label shows it even
+        when the menu doesn&apos;t list it. 16 is the editor&apos;s body size: it&apos;s labelled{" "}
+        <strong>Default</strong> and stores nothing. When the selection has more than one size, the
+        dropdown shows <strong>—</strong>.
       </p>
       <ul>
         <li>
@@ -35,8 +37,8 @@ export default function FontSizePage() {
           <kbd>⌘⇧,</kbd> / <kbd>Ctrl+Shift+,</kbd> steps it down.
         </li>
         <li>
-          Headings and code blocks don&apos;t take a size: their level or style owns it, and the
-          dropdown hides there.
+          Headings keep a pasted or imported size so a title stays larger than later headings. Code
+          blocks don&apos;t take a size, and the dropdown hides there.
         </li>
       </ul>
       <CodeBlock code={setup} />
@@ -59,7 +61,7 @@ export default function FontSizePage() {
           Default, not as 14 px, and its 9 pt text as 14 px.
         </li>
         <li>
-          The result is limited to 6–20 px and rounded to the nearest step (ties go up). Sizes
+          The result is limited to 6–72 px and rounded to the nearest step (ties go up). Sizes
           outside the range count as <code>fontSizes.clamped</code> in the{" "}
           <Link href="/docs/html">import report</Link>.
         </li>

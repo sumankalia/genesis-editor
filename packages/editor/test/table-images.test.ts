@@ -126,7 +126,7 @@ describe("browser clipboard HTML (dev.to)", () => {
   });
 
   it("drops the heading's empty anchor, the self-link and the empty ad slots", () => {
-    expect(blocks.find((b) => b.type === "heading")?.content).toEqual([{ type: "text", text: "Why I'm Revisiting Browser AI", styles: {} }]);
+    expect(blocks.find((b) => b.type === "heading")?.content).toEqual([{ type: "text", text: "Why I'm Revisiting Browser AI", styles: { fontSize: "24px" } }]);
     const image = blocks.find((b) => b.type === "image");
     expect(image?.props).toMatchObject({ url: `${ORIGIN}/examples/dunes.png` });
     expect(image?.props?.href).toBeUndefined();

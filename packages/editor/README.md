@@ -311,7 +311,7 @@ a block needs it) and a language picker. HTML is still
 `js` are stored as `typescript` and `javascript`.
 
 `colors` stores theme-aware palette names, your brand swatches, or exact hex;
-`fontSize` adds a 6–20 px dropdown to the selection toolbar:
+`fontSize` adds a 6–20 px dropdown to the selection toolbar (imported sizes can be 24–72):
 
 ```tsx
 <BlockEditor

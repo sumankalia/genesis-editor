@@ -27,7 +27,7 @@ const parserExports: [string, string][] = [
   ["editorColor(value, kind, options?)", "Maps any CSS colour to what the editor stores: a palette or swatch name when it's within ΔE2000 3, else lowercase hex. Default-looking colours give undefined."],
   ["isStoredColor(value, kind, swatches?)", "Whether a value is a stored colour: default, a palette or swatch name, #rrggbb, or #rrggbbaa for backgrounds."],
   ["contrastRatio(a, b) / withContrast(hex, background, min?)", "WCAG contrast between two hex colours, and a colour moved toward black or white until it reaches min (3) against background."],
-  ["FONT_SIZES / isFontSize(value) / snapFontSize(px)", "The fontSize steps (6–20 px), whether a value is a stored size, and the step for any px size (clamped, ties up)."],
+  ["FONT_SIZES / TOOLBAR_FONT_SIZES / isFontSize(value) / snapFontSize(px)", "The stored fontSize steps (6–72 px), the toolbar menu (6–20 px), whether a value is a stored size, and the step for any px size (clamped, ties up)."],
   ["embedRegistry(options?, providers?, context?)", "The enabled providers and whether generic iframes are allowed, from an EmbedOptions policy."],
   ["embedForUrl(url, registry) / embedForIframe(src, registry)", "Resolve a page URL or a pasted iframe src to a provider (or sandboxed generic) embed, or null."],
   ["embedForSnippet(el, registry) / embedForMarkup(root, registry)", "A site's embed code (blockquote, div, link or script element), or the first embed in pasted code, as { resolved, fallback, size }. Nothing is run. embedForElement is the deprecated form."],

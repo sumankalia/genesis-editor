@@ -15,7 +15,7 @@ export {
   type ColorToolOptions,
   type PaletteName,
 } from "./colors";
-export { FONT_SIZES, isFontSize, snapFontSize } from "./font-size";
+export { FONT_SIZES, TOOLBAR_FONT_SIZES, isFontSize, snapFontSize } from "./font-size";
 export { CODE_LANGUAGES, canonicalizeCodeLanguage, storedCodeLanguage } from "./code-languages";
 export type { CodeLanguageInfo } from "./code-languages";
 export { detectDocumentFormat, importDocument, DocumentImportError } from "./document-import";

@@ -155,7 +155,7 @@ export type FidelityReport = {
   downgrades: { from: string; to: string; count: number }[];
   colors: { palette: number; hex: number };
   headings: { promoted: number; dropped: number };
-  /** Text that kept a font size (`sized`), and sizes outside 6–20 px moved to the nearest end (`clamped`). */
+  /** Text that kept a font size (`sized`), and sizes outside 6–72 px moved to the nearest end (`clamped`). */
   fontSizes: { sized: number; clamped: number };
   images: {
     total: number;

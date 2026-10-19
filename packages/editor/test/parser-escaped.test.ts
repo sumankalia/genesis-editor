@@ -29,7 +29,7 @@ describe("JSON-encoded HTML", () => {
     expect(blocks.find((b) => b.type === "codeBlock")?.content).toEqual([t("const a = 1;\n  b();")]);
     expect(JSON.stringify(blocks)).not.toMatch(/\\\\[ntr"]/);
     expect(blocks[0].props?.alt).toBe("A garden");
-    expect(blocks.find((b) => b.type === "heading")?.content).toEqual([t("Planting")]);
+    expect(blocks.find((b) => b.type === "heading")?.content).toEqual([t("Planting", { fontSize: "20px" })]);
   });
 
   it("decodes escaped slashes and unicode-escaped tags, and HTML encoded twice", () => {

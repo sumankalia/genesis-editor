@@ -1,3 +1,4 @@
+import { docxFilesToHtml } from "./docx-html";
 import { parseHTML } from "./parse";
 import type { ParseOptions, ParseResult } from "./types";
 
@@ -90,13 +91,23 @@ async function markdownToHTML(markdown: string): Promise<string> {
   return (typeof html === "string" ? html : "").trim();
 }
 
-async function docxToHTML(bytes: Uint8Array): Promise<string> {
+const DOCX_WALK_NOTE = "Converted Word (.docx) to HTML with inline color and size, then parsed.";
+const DOCX_MAMMOTH_NOTE = "Converted Word (.docx) to HTML with mammoth (BSD-2-Clause), then parsed.";
+
+async function docxToHTML(bytes: Uint8Array): Promise<{ html: string; note: string }> {
+  try {
+    const files = await unzip(bytes);
+    const walked = docxFilesToHtml(files);
+    if (walked.trim()) return { html: walked, note: DOCX_WALK_NOTE };
+  } catch {
+    // Unusual packages still go through mammoth.
+  }
   const loaded = await import("mammoth");
   const convertToHtml = loaded.convertToHtml ?? loaded.default.convertToHtml;
   // Node mammoth reads `buffer`; the browser build reads `arrayBuffer`.
   const copy = bytes.slice();
   const result = await convertToHtml({ buffer: copy, arrayBuffer: copy.buffer } as never);
-  return result.value ?? "";
+  return { html: result.value ?? "", note: DOCX_MAMMOTH_NOTE };
 }
 
 function txtToHTML(text: string): string {
@@ -246,7 +257,7 @@ const FORMAT_NOTE: Record<DocumentFormat, string> = {
   html: "Imported HTML through the genesis engine.",
   markdown: "Converted Markdown to HTML with marked (MIT), then parsed.",
   txt: "Imported plain text as paragraphs.",
-  docx: "Converted Word (.docx) to HTML with mammoth (BSD-2-Clause), then parsed.",
+  docx: DOCX_WALK_NOTE,
   odt: "Converted OpenDocument text to HTML, then parsed.",
   rtf: "Converted RTF to HTML, then parsed.",
 };
@@ -262,13 +273,17 @@ export async function importDocument(source: DocumentSource, options?: ParseOpti
     throw new DocumentImportError(`Can't import "${source.name}". Use Word (.docx), OpenDocument (.odt), RTF, HTML, Markdown, or plain text.`, "unsupported");
   }
   let html = "";
+  let note = FORMAT_NOTE[format];
   if (format === "html") html = decodeText(source.bytes);
   else if (format === "txt") html = txtToHTML(decodeText(source.bytes));
   else if (format === "markdown") html = await markdownToHTML(decodeText(source.bytes));
   else if (format === "rtf") html = rtfToHTML(decodeText(source.bytes));
-  else if (format === "docx") html = await docxToHTML(source.bytes);
-  else html = await odtToHTML(source.bytes);
+  else if (format === "docx") {
+    const converted = await docxToHTML(source.bytes);
+    html = converted.html;
+    note = converted.note;
+  } else html = await odtToHTML(source.bytes);
   const result = parseHTML(html, options);
-  result.report.warnings.unshift(FORMAT_NOTE[format]);
+  result.report.warnings.unshift(note);
   return { ...result, format };
 }

@@ -126,11 +126,11 @@ export function swatchCss(scope: string, swatches: readonly { name: string; hex:
     .join("\n");
 }
 
-/** Block content types whose text takes no font size (§5). */
-const UNSIZED_BLOCKS = new Set(["heading", "codeBlock"]);
+/** Block content types whose text takes no font size (§5). Headings keep imported sizes. */
+const UNSIZED_BLOCKS = new Set(["codeBlock"]);
 
 /**
- * The font sizes in the selection (`undefined` = default), or `null` when it touches a heading or code
+ * The font sizes in the selection (`undefined` = default), or `null` when it touches a code
  * block. An empty selection gives the size typing would use.
  */
 export function selectionFontSizes(state: EditorState): (string | undefined)[] | null {

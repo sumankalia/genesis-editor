@@ -210,11 +210,6 @@
   color: var(--genesis-text-dark) !important;
 }
 
-/* A heading's level owns its size (§5). */
-.genesis-editor [data-content-type="heading"] [data-style-type="fontSize"] {
-  font-size: inherit !important;
-}
-
 .genesis-editor-dialog::backdrop {
   background: rgb(0 0 0 / 0.3);
 }

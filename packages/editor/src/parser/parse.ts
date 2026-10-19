@@ -1665,7 +1665,7 @@ function dominantSize(state: State) {
 
 /**
  * §5: source sizes become steps relative to the source's body size (the dominant size by text length
- * becomes 16), clamped to 6–20. Headings and code keep no size; `data-font-size` steps are kept as is.
+ * becomes 16), clamped to 6–72. Code blocks keep no size; headings keep theirs. `data-font-size` steps are kept as is.
  */
 function normalizeFontSizes(blocks: HtmlBlock[], state: State): HtmlBlock[] {
   const body = dominantSize(state);
@@ -1690,7 +1690,7 @@ function normalizeFontSizes(blocks: HtmlBlock[], state: State): HtmlBlock[] {
   const walk = (list: HtmlBlock[]): HtmlBlock[] =>
     list.map((block) => {
       let next = block;
-      const keep = block.type !== "heading" && block.type !== "codeBlock";
+      const keep = block.type !== "codeBlock";
       if (Array.isArray(block.content)) next = { ...block, content: count(sized(block.content as HtmlInline[], keep)) };
       else if (block.content?.type === "tableContent") {
         const table = block.content;
