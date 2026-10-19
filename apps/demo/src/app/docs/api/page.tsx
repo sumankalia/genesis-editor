@@ -29,6 +29,8 @@ const parserExports: [string, string][] = [
   ["resolveEmbedBlock(props, registry)", "How a stored embed block may be drawn: provider frames rebuilt from url, generic ones validated again."],
   ["BUILT_IN_EMBED_PROVIDERS / defineEmbedProvider / getEmbedFrameSrc / getEmbedScriptSrc", "Also exported from genesis-editor, see below."],
   ["linkedomDom (genesis-editor/parser/linkedom)", "A DOM adapter for Node and workers, using the optional linkedom peer."],
+  ["jsdomDom (genesis-editor/parser/jsdom)", "A DOM adapter for Node, using the optional jsdom peer."],
+  ["toDomAdapter(dom)", "Normalizes a dom option (an adapter, a function returning a Document, or a DOMParser instance or class) into { parse(html) }. Fragments are wrapped in a full document."],
 ];
 
 const otherExports: [string, string][] = [

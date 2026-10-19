@@ -54,9 +54,13 @@ const metaShape = `{
 
 const serverUse = `import { parseHTML, toHTML } from "genesis-editor/parser";
 import { linkedomDom } from "genesis-editor/parser/linkedom";
+// or: import { jsdomDom } from "genesis-editor/parser/jsdom";
 
 const { blocks, report } = parseHTML(html, { dom: linkedomDom, tools: ["heading", "bold", "link"] });
-const clean = toHTML(blocks);`;
+const clean = toHTML(blocks);
+
+// Any DOM library works: a DOMParser class or instance, or a function returning a Document.
+parseHTML(html, { dom: (doc) => new JSDOM(doc).window.document });`;
 
 export default function HtmlPage() {
   return (
@@ -182,8 +186,9 @@ export default function HtmlPage() {
       <H2>On the server</H2>
       <p>
         The parser is a separate entry point without React or BlockNote, so it also runs in Node,
-        workers, and edge functions. Pass a DOM implementation, such as the optional{" "}
-        <code>linkedom</code> peer:
+        workers, and edge functions, from <code>import</code> or <code>require</code> on Node 18
+        and newer. Pass a DOM implementation, such as the optional <code>linkedom</code> or{" "}
+        <code>jsdom</code> peer:
       </p>
       <CodeBlock code={serverUse} />
       <p>

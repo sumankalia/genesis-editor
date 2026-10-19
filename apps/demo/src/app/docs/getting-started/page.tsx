@@ -9,13 +9,8 @@ export const metadata: Metadata = { title: "Getting started" };
 
 const nextjs = `"use client";
 
-import dynamic from "next/dynamic";
+import { BlockEditor } from "genesis-editor";
 import "genesis-editor/style.css";
-
-const BlockEditor = dynamic(
-  () => import("genesis-editor").then((m) => m.BlockEditor),
-  { ssr: false },
-);
 
 export function Editor() {
   return <BlockEditor persist />;
@@ -51,13 +46,16 @@ export default function GettingStartedPage() {
 
       <H2>Next.js and SSR</H2>
       <p>
-        The editor needs the DOM. The package is marked <code>&quot;use client&quot;</code>, and in
-        the Next.js App Router you load it without server rendering:
+        The package is marked <code>&quot;use client&quot;</code> and is safe to render on the
+        server: server rendering and hydration draw an empty <code>.genesis-editor</code> root, and
+        the editor mounts in the browser right after. In the Next.js App Router, use it from a
+        client component:
       </p>
       <CodeBlock code={nextjs} title="components/editor.tsx" />
       <Callout>
         Vite, Create React App, Remix SPA mode, and other client-rendered setups can import{" "}
-        <code>BlockEditor</code> directly.
+        <code>BlockEditor</code> directly. To keep the editor out of the server bundle, load it with{" "}
+        <code>next/dynamic</code> and <code>ssr: false</code>.
       </Callout>
 
       <H2>Next steps</H2>
