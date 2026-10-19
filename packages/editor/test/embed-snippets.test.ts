@@ -28,7 +28,7 @@ const el = (html: string) => body(html).firstElementChild!;
 /** fixture → provider, page URL, first fallback line (or "" for none). */
 const fixtures: [string, string, string, string][] = [
   ["twitter", "twitter", "https://x.com/jack/status/20?ref_src=twsrc%5Etfw", "just setting up my twttr"],
-  ["instagram", "instagram", "https://www.instagram.com/p/CuE2WNQs6vH/?utm_source=ig_embed&utm_campaign=loading", "View this post on Instagram"],
+  ["instagram", "instagram", "https://www.instagram.com/p/CuE2WNQs6vH/", "View this post on Instagram"],
   ["tiktok", "tiktok", "https://www.tiktok.com/@scout2015/video/6718335390845095173", "@scout2015 Scramble up ur name & I’ll try to guess it😍❤️ #foryoupage ♬ original sound - tiff"],
   ["threads", "threads", "https://www.threads.net/@_edent_/post/C-3dQXkOq6Q", "Post by @_edent_"],
   ["bluesky", "bluesky", "https://bsky.app/profile/did:plc:z72i7hdynmk6r22z27h6tvur/post/3my43eyfzs225", "no kings includes billionaires who think they’re kings"],

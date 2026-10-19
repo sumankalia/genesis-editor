@@ -67,14 +67,22 @@ const tiktok: EmbedProvider = {
   toEmbed: (_url, m) => ({ src: `https://www.tiktok.com/embed/v2/${m[1]}`, aspectRatio: "9/16", maxWidth: 325 }),
 };
 
+const INSTAGRAM_POST = /^https?:\/\/(?:www\.)?instagram\.com\/(?:[\w.]+\/)?(p|reel|tv)\/([\w-]{5,40})/;
+/** The bare post URL. Embed `src`s and permalinks carry tracking queries, including the embedding page's URL (`rd`, `rp`). */
+const instagramPost = (url: string | null | undefined) => {
+  const m = url ? INSTAGRAM_POST.exec(url) : null;
+  return m ? `https://www.instagram.com/${m[1]}/${m[2]}/` : url;
+};
+
 const instagram: EmbedProvider = {
   name: "instagram",
   label: "Instagram",
-  match: [/^https?:\/\/(?:www\.)?instagram\.com\/(?:[\w.]+\/)?(p|reel|tv)\/([\w-]{5,40})/],
+  match: [INSTAGRAM_POST],
   frameOrigins: ["https://www.instagram.com"],
+  fromIframe: (src) => (/^(?:www\.)?instagram\.com$/.test(src.host) ? instagramPost(src.href) : null),
   snippet: {
     selector: "blockquote.instagram-media",
-    url: (el) => el.getAttribute("data-instgrm-permalink") ?? linkIn(el, /instagram\.com\/(?:[\w.]+\/)?(?:p|reel|tv)\//),
+    url: (el) => instagramPost(el.getAttribute("data-instgrm-permalink") ?? linkIn(el, /instagram\.com\/(?:[\w.]+\/)?(?:p|reel|tv)\//)),
     toHTML: (url, body) => `<blockquote class="instagram-media" data-instgrm-permalink="${attr(url)}" data-instgrm-version="14">${body}</blockquote>`,
     script: "https://www.instagram.com/embed.js",
   },

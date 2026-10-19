@@ -25,6 +25,17 @@ describe("iframes", () => {
     expect(report.embeds).toEqual({ provider: 1, generic: 0, blocked: 0 });
   });
 
+  it("Instagram iframes keep only the post URL, not the tracking query or the embedding page", () => {
+    const src = (path: string) =>
+      `https://www.instagram.com/${path}/embed/captioned/?cr=1&amp;v=14&amp;wp=1080&amp;rd=https%3A%2F%2Fcms.example&amp;rp=%2Fedit-article%2Fsecret-draft-42`;
+    const { blocks } = parse(`<iframe src="${src("p/AbCdE123_x")}"></iframe><iframe src="${src("someone/reel/ZyX-98765")}"></iframe>`);
+    expect(blocks.map((b) => b.props?.url)).toEqual(["https://www.instagram.com/p/AbCdE123_x/", "https://www.instagram.com/reel/ZyX-98765/"]);
+    expect(blocks[0].props?.embedUrl).toBe("https://www.instagram.com/p/AbCdE123_x/embed");
+    const html = toHTML(blocks);
+    expect(html).not.toContain("edit-article");
+    expect(html).not.toContain("cms.example");
+  });
+
   it("unknown https iframes become sandboxed generic embeds sized from width/height", () => {
     expect(first('<iframe src="https://widgets.example.org/poll?id=3" width="600" height="400"></iframe>')).toEqual({
       type: "embed",
