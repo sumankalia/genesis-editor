@@ -48,7 +48,7 @@ export function AltTextButton() {
         />
       </Components.Generic.Popover.Trigger>
       <Components.Generic.Popover.Content className="bn-popover-content bn-form-popover" variant="form-popover">
-        <Components.Generic.Form.Root onSubmit={() => setOpen(false)}>
+        <Components.Generic.Form.Root onSubmit={() => setOpen(false)} submitButton="none">
           <Components.Generic.Form.TextInput
             name="image-alt"
             icon={<ImageIcon size={16} />}
