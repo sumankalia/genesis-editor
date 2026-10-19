@@ -47,6 +47,7 @@ const pages = [
   ["api", "API reference"],
   ["shortcuts", "Keyboard shortcuts"],
   ["markdown", "Markdown"],
+  ["columns", "Columns"],
 ];
 for (const [slug, title] of pages) {
   const response = await page.goto(`${BASE_URL}/docs/${slug}`);

@@ -48,6 +48,15 @@ import {
 import { isSafeUrl, sanitizeTree } from "./sanitize";
 import { storedCodeLanguage } from "./code-languages";
 import { nearestLevel, resolveTools, type ParserTools } from "./tools";
+import {
+  columnBlock,
+  columnListBlock,
+  floatLayoutRun,
+  layoutTable,
+  layoutWidths,
+  type FloatRun,
+  type LayoutTable,
+} from "./columns";
 import type {
   HtmlBlock,
   HtmlInline,
@@ -62,7 +71,7 @@ import type {
 import { cleanHref, cleanSrcset, dataUrlBytes, isTrackerUrl, largestSrcsetCandidate, resolveUrl } from "./urls";
 
 type Alignment = "left" | "center" | "right" | "justify";
-type Container = "root" | "list" | "quote" | "cell" | "heading";
+type Container = "root" | "list" | "quote" | "cell" | "heading" | "column";
 
 /** Formatting in effect while walking. `false` cancels an inherited toggle (Docs' `font-weight:400`). */
 type Ctx = {
@@ -176,6 +185,7 @@ export function parseHTML(html: string, options: ParseOptions = {}): ParseResult
   blocks = clampListDepth(blocks, 6);
   blocks = emptyWhitespaceOnly(blocks);
   if (options.clean?.emptyParagraphs !== "keep") blocks = collapseEmptyParagraphs(blocks, report);
+  if (state.tools.has("columns")) blocks = ensureColumns(blocks);
   if (state.tools.has("fontSize")) blocks = normalizeFontSizes(blocks, state);
   else countFontSizes(blocks, state);
   if (options.trackProvenance) {
@@ -360,7 +370,19 @@ class CellSink extends Sink {
 // Walk.
 
 function flow(node: Node, ctx: Ctx, sink: Sink, state: State) {
-  for (let child = node.firstChild; child; child = child.nextSibling) visit(child, ctx, sink, state);
+  for (let child = node.firstChild; child; ) {
+    if (state.tools.has("columns") && ctx.container === "root") {
+      const run = floatLayoutRun(child, node);
+      if (run) {
+        emitFloatColumns(run, ctx, sink, state);
+        child = run.nodes[run.nodes.length - 1].nextSibling;
+        continue;
+      }
+    }
+    const next = child.nextSibling;
+    visit(child, ctx, sink, state);
+    child = next;
+  }
 }
 
 function visit(node: Node, ctx: Ctx, sink: Sink, state: State) {
@@ -1028,6 +1050,49 @@ function tableRows(table: Element) {
   return rows;
 }
 
+function parseColumnChildren(el: Element, ctx: Ctx, state: State): HtmlBlock[] {
+  const sub = new Sink(state, paragraphMaker(state, {}, false), { synthetic: true });
+  flow(el, { ...blockChildCtx(el, parseStyle(el.getAttribute("style")), ctx, state), container: "column" }, sub, state);
+  sub.flush();
+  return sub.blocks;
+}
+
+function emitLayoutColumns(layout: LayoutTable, ctx: Ctx, sink: Sink, state: State) {
+  const parsed = layout.cells.map((cell) => parseColumnChildren(cell, ctx, state));
+  const drafted = parsed.map((children, i) => columnBlock(layout.widths[i], children));
+  const widths = layout.marked ? layout.widths : layoutWidths(drafted);
+  state.report.mapped++;
+  sink.push(columnListBlock(drafted.map((column, i) => columnBlock(widths[i], column.children ?? []))));
+}
+
+function emitFloatColumns(run: FloatRun, ctx: Ctx, sink: Sink, state: State) {
+  sink.flush();
+  const mediaSink = new Sink(state, paragraphMaker(state, {}, false), { synthetic: true });
+  visit(run.media, { ...ctx, container: "column" }, mediaSink, state);
+  mediaSink.flush();
+
+  const rest: Node[] = [];
+  if (run.nodes.length === 1 && run.nodes[0] !== run.media && run.nodes[0].nodeType === ELEMENT_NODE) {
+    const wrapper = run.nodes[0] as Element;
+    for (let child = wrapper.firstChild; child; child = child.nextSibling) {
+      if (child === run.media || (child.nodeType === ELEMENT_NODE && (child as Element).contains(run.media))) continue;
+      rest.push(child);
+    }
+  } else {
+    rest.push(...run.nodes.slice(1));
+  }
+  const textSink = new Sink(state, paragraphMaker(state, {}, false), { synthetic: true });
+  for (const node of rest) visit(node, { ...ctx, container: "column" }, textSink, state);
+  textSink.flush();
+
+  const imageCol = columnBlock(40, mediaSink.blocks);
+  const textCol = columnBlock(60, textSink.blocks);
+  const drafted = run.side === "right" ? [textCol, imageCol] : [imageCol, textCol];
+  const widths = layoutWidths(drafted);
+  state.report.mapped++;
+  sink.push(columnListBlock(drafted.map((column, i) => columnBlock(widths[i], column.children ?? []))));
+}
+
 function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: State) {
   sink.flush();
   reportStyles(el, decl, state);
@@ -1038,6 +1103,18 @@ function table(el: Element, decl: Declarations, ctx: Ctx, sink: Sink, state: Sta
   while (rows.length > 1 && (rows[0].head || cellsOf(rows[0].tr).every((c) => lower(c) === "th")) && cellsOf(rows[0].tr).every(blank)) {
     rows.shift();
     state.report.drop("thead", "noise", "empty header row");
+  }
+  const layout = ctx.container !== "column" && ctx.container !== "cell" ? layoutTable(el, rows) : null;
+  if (layout) {
+    if (!state.tools.has("columns")) {
+      state.report.unwrap("table(columns)");
+      for (const cell of layout.cells) {
+        flow(cell, wrapperCtx(cell, parseStyle(cell.getAttribute("style")), ctx, state), sink, state);
+        sink.flush();
+      }
+      return;
+    }
+    return emitLayoutColumns(layout, ctx, sink, state);
   }
   const single = rows.length === 1 && cellsOf(rows[0].tr).length === 1;
   if (el.getAttribute("role") === "presentation" || single || rows.length === 0) {
@@ -1667,6 +1744,23 @@ function emptyWhitespaceOnly(blocks: HtmlBlock[]): HtmlBlock[] {
 function isEmptyParagraph(block: HtmlBlock) {
   const content = block.content;
   return block.type === "paragraph" && (!content || (Array.isArray(content) && !content.length)) && !block.children?.length;
+}
+
+/** Keeps each column at 2–3 children of type `column`, never empty. */
+function ensureColumns(blocks: HtmlBlock[]): HtmlBlock[] {
+  return blocks.map((block) => {
+    if (block.type === "columnList") {
+      const cols = (block.children ?? [])
+        .filter((child) => child.type === "column")
+        .slice(0, 3)
+        .map((col) => {
+          const kids = col.children?.length ? ensureColumns(col.children) : [];
+          return { ...col, children: kids.length ? kids : [{ type: "paragraph" as const, content: [] }] };
+        });
+      return { ...block, children: cols };
+    }
+    return block.children?.length ? { ...block, children: ensureColumns(block.children) } : block;
+  });
 }
 
 /** Trims empty paragraphs at the edges of each block list and collapses runs of them into one. */

@@ -38,7 +38,7 @@ describe("resolveEditorSetup", () => {
     const { setup, editor } = editorFor();
     expect([...setup.tools]).toEqual([...BUILT_IN_TOOLS]);
     expect(Object.keys(editor.schema.blockSchema)).toEqual(
-      expect.arrayContaining(["paragraph", "heading", "image", "table", "codeBlock", "checkListItem"]),
+      expect.arrayContaining(["paragraph", "heading", "image", "table", "columnList", "column", "codeBlock", "checkListItem"]),
     );
     expect(Object.keys(editor.schema.styleSchema)).toEqual(
       expect.arrayContaining(["bold", "italic", "underline", "strike", "code", "textColor", "backgroundColor"]),

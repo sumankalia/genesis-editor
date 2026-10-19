@@ -19,6 +19,9 @@ Tailwind or shadcn/ui in your app.
   ```` ``` ```` code, `---` dividers
 - Images by URL or upload (picker, drop, paste) to your server or your own function,
   with optional re-hosting of pasted images; alt text, captions, and alignment in the toolbar
+- Two- and three-column layouts (`/Columns`), resized by dragging; pasted
+  Google Docs / Word image-beside-text wraps become columns, exported as an
+  email-safe `<table data-genesis-columns>`
 - HTML in and out (`format="html"`, `getHTML`/`setHTML`), Markdown in
   (`format="markdown"`, `setMarkdown`, Markdown paste), and pastes from Google
   Docs, Word, WordPress and web pages cleaned into blocks, including images inside
@@ -181,7 +184,10 @@ browser, `dom` defaults to the page's `DOMParser`.
 - `<img>` in a table cell (or a paragraph) is kept as an inline image, with the
   same URL, upload and re-hosting as image blocks. Export is
   `<td><img data-genesis-inline>`. Empty header rows of empty `<th>`s are
-  dropped; an image that links to itself loses the link.
+  dropped; an image that links to itself loses the link. A one-row image-beside-
+  text table, or a floated image with wrapping copy, becomes a `columnList`
+  instead of a data table; export is an email-safe
+  `<table data-genesis-columns role="presentation">`.
 
 ## Image uploads
 
@@ -293,7 +299,7 @@ menu, Markdown shortcuts, the formatting toolbar, the mobile toolbar, and paste
 ```
 
 Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
-`toggleList`, `quote`, `codeBlock`, `divider`, `table`, `image`, `video`,
+`toggleList`, `quote`, `codeBlock`, `divider`, `table`, `columns`, `image`, `video`,
 `audio`, `file`, `embed`, `linkPreview`. Inline tools: `bold`, `italic`, `underline`, `strike`,
 `code`, `link`, `colors`, `fontSize`. They're exported as `BLOCK_TOOLS`,
 `INLINE_TOOLS`, and `BUILT_IN_TOOLS`, so "everything except tables" is
@@ -323,7 +329,8 @@ fallback, and `getHTML()` writes them back as the site's embed code
 
 Existing content that uses a disabled tool is converted when it loads: unknown
 blocks become paragraphs that keep their text, tables become one paragraph per
-row, and headings move to the nearest allowed level.
+row, columns flatten to their inner blocks, and headings move to the nearest
+allowed level.
 
 ### Toolbar
 
@@ -336,9 +343,9 @@ of showing it on selection, and `toolbar={false}` removes it.
 <BlockEditor toolbar={{ placement: "fixed", items: ["blockType", "bold", "italic", "link"] }} />
 ```
 
-The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `file`,
-`imageLink`, `inlineImage`, `bold`, `italic`, `underline`, `strike`, `code`,
-`alignLeft`, `alignCenter`, `alignRight`, `fontSize`, `colors`, `nest`,
+The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `columns`,
+`file`, `imageLink`, `inlineImage`, `bold`, `italic`, `underline`, `strike`,
+`code`, `alignLeft`, `alignCenter`, `alignRight`, `fontSize`, `colors`, `nest`,
 `unnest`, `link`, `linkPreview`, followed by plugin items.
 
 ### Plugins

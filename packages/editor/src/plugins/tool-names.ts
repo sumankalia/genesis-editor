@@ -23,6 +23,7 @@ export const BLOCK_TOOLS = [
   "codeBlock",
   "divider",
   "table",
+  "columns",
   "image",
   "video",
   "audio",
@@ -44,6 +45,7 @@ export type BuiltInToolName = (typeof BUILT_IN_TOOLS)[number];
 export const DEFAULT_TOOLBAR = [
   "blockType",
   "tableMerge",
+  "columns",
   "file",
   "imageLink",
   "inlineImage",

@@ -697,3 +697,87 @@
 .genesis-editor .bn-block-content[data-content-type="codeBlock"] span {
   color: var(--shiki-dark, inherit);
 }
+
+/* Columns: a columnList's children sit in a row; each column's empty content node is a resize overlay. */
+.genesis-editor .bn-block:has(> [data-content-type="columnList"]) > .bn-block-group {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.genesis-editor .bn-block:has(> [data-content-type="columnList"]) > .bn-block-group > .bn-block-outer::before {
+  display: none;
+}
+
+.genesis-editor [data-content-type="columnList"] {
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.genesis-editor .bn-block-outer:has(> .bn-block > [data-content-type="column"]) {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+}
+
+.genesis-editor .bn-block:has(> [data-content-type="column"]) {
+  position: relative;
+}
+
+.genesis-editor .bn-block:has(> [data-content-type="column"]) > .bn-block-group {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.genesis-editor .bn-block:has(> [data-content-type="column"]) > .bn-block-group > .bn-block-outer::before {
+  display: none;
+}
+
+.genesis-editor [data-content-type="column"] {
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.genesis-editor .genesis-column-resize {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -6px;
+  z-index: 3;
+  width: 10px;
+  cursor: col-resize;
+}
+
+.genesis-editor .genesis-column-resize:hover,
+.genesis-editor .genesis-column-resize:active {
+  background: color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.genesis-editor .bn-block-group > .bn-block-outer:last-child .genesis-column-resize {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .genesis-editor .bn-block:has(> [data-content-type="columnList"]) > .bn-block-group {
+    flex-direction: column;
+  }
+
+  .genesis-editor .bn-block-outer:has(> .bn-block > [data-content-type="column"]) {
+    flex: 1 1 auto !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .genesis-editor .genesis-column-resize {
+    display: none;
+  }
+}

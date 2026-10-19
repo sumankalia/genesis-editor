@@ -4,6 +4,7 @@ import { embedRegistry } from "./embeds";
 import { serializeEmbed, type EmbedEnv } from "./serialize-embed";
 import { serializeLinkPreview } from "./serialize-link-preview";
 import { serializeFile, serializeMedia, serializeTable } from "./serialize-media";
+import { columnWidthOf, normalizeWidths } from "./columns";
 import type { HtmlBlock, HtmlTableContent, ToHTMLOptions } from "./types";
 
 const LIST_TAGS: Record<string, "ul" | "ol"> = {
@@ -106,9 +107,34 @@ function serializeBlock(block: HtmlBlock): string {
       return serializeEmbed(props, attrs, env) + nested;
     case "linkPreview":
       return serializeLinkPreview(props, attrs) + nested;
+    case "columnList":
+      return serializeColumnList(block);
+    case "column":
+      return serializeBlocks(block.children ?? []);
     default:
       return `<p${attrs}>${inline(block.content)}</p>${nested}`;
   }
+}
+
+/**
+ * Email-safe presentation table. `data-genesis-columns` is how parseHTML reads it back as columns
+ * rather than a data table; Gmail and Word keep `<table role="presentation">`.
+ */
+function serializeColumnList(block: HtmlBlock): string {
+  const columns = (block.children ?? []).filter((child) => child.type === "column").slice(0, 3);
+  if (columns.length < 2) return serializeBlocks(columns.flatMap((column) => column.children ?? []));
+  const widths = normalizeWidths(columns.map(columnWidthOf), columns.length);
+  const marked = widths.join(",");
+  const colgroup = `<colgroup>${widths.map((width) => `<col style="width:${width}%">`).join("")}</colgroup>`;
+  const cells = columns
+    .map((column, i) => {
+      const pad = i < columns.length - 1 ? "padding:0 12px 0 0;" : "padding:0;";
+      const body = serializeBlocks(column.children ?? []) || "<p></p>";
+      return `<td style="width:${widths[i]}%;vertical-align:top;${pad}">${body}</td>`;
+    })
+    .join("");
+  const meta = metaAttrs(block.meta);
+  return `<table data-genesis-columns="${columns.length}" data-genesis-column-widths="${escapeAttr(marked)}" role="presentation" style="width:100%;border-collapse:collapse;table-layout:fixed"${meta}>${colgroup}<tbody><tr>${cells}</tr></tbody></table>`;
 }
 
 const isAttribution = (block: HtmlBlock) => block.type === "paragraph" && block.meta?.source?.tag === "cite";

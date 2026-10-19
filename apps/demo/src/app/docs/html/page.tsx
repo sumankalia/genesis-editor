@@ -189,7 +189,8 @@ export default function HtmlPage() {
         article (Chrome/Safari/Firefox), <code>&lt;picture&gt;</code>/<code>srcset</code>, and lazy{" "}
         <code>data-src</code> are recovered. An empty header row of empty <code>&lt;th&gt;</code>s
         is dropped as noise, an image that links to itself loses the link, and empty heading
-        anchors are dropped.
+        anchors are dropped. A one-row image-beside-text table, or a floated image with wrapping
+        copy, becomes a <Link href="/docs/columns">columns</Link> block instead of a data table.
       </p>
 
       <H2>On the server</H2>
