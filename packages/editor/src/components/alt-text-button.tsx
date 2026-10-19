@@ -50,7 +50,7 @@ export function AltTextButton() {
           label="Alt text"
           mainTooltip="Alt text"
           icon={<ImageIcon size={16} />}
-          isSelected={alt.length > 0}
+          onClick={() => setOpen(!open)}
         />
       </Components.Generic.Popover.Trigger>
       <Components.Generic.Popover.Content className="bn-popover-content bn-form-popover" variant="form-popover">
