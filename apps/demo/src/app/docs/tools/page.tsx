@@ -44,7 +44,7 @@ const toolDescriptions: Record<string, string> = {
   checkList: "To-do lists. Shortcut [] or [x].",
   toggleList: "Collapsible toggle lists.",
   quote: "Block quotes. Shortcut >.",
-  codeBlock: "Code blocks with a language picker and syntax highlighting. Shortcut ```. HTML: <pre><code class=\"language-x\">.",
+  codeBlock: "Code blocks with a language picker and syntax highlighting. Shortcut ```.",
   divider: "Horizontal dividers. Shortcut ---.",
   table: "Tables.",
   image: "Images: by URL, upload, paste, or drop.",
