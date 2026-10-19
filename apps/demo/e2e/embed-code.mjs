@@ -32,6 +32,7 @@ const frameInfo = () =>
 await frames().nth(2).waitFor({ timeout: 10000 });
 let info = await frameInfo();
 check("loaded embed code becomes 3 embeds", info.length === 3, `${info.length}`);
+check("default has no Load button", (await editor.locator("[data-testid='embed-load']").count()) === 0);
 check("X post in our own frame", info[0]?.src === "https://platform.twitter.com/embed/Tweet.html?id=20");
 check("Bluesky post in our own frame", info[1]?.src === "https://embed.bsky.app/embed/did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3my43eyfzs225");
 check("Threads post in our own frame", info[2]?.src === "https://www.threads.net/@_edent_/post/C-3dQXkOq6Q/embed/");

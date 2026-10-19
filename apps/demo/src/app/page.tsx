@@ -74,8 +74,8 @@ export default function HomePage() {
               {site.name}
             </h1>
             <p className="max-w-xl text-lg text-pretty text-muted-foreground">
-              A Notion-style block editor for React. Slash menu, drag handles, nesting, Markdown
-              shortcuts, and image uploads in one component.
+              A block editor for content that already exists. Paste HTML in, edit, HTML out. Genesis
+              edits; the host app stores. Slash menu, drag handles, and uploads in one component.
             </p>
             <div className="flex w-full max-w-md items-center gap-2 rounded-lg border bg-muted/40 py-1 pr-1 pl-4 font-mono text-sm">
               <span className="text-muted-foreground select-none">$</span>
@@ -86,11 +86,14 @@ export default function HomePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="lg">
-                <Link href="/docs/getting-started">
-                  Get started <ArrowRightIcon data-icon="inline-end" />
+                <Link href="/paste">
+                  Paste HTML <ArrowRightIcon data-icon="inline-end" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
+                <Link href="/docs/getting-started">Get started</Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost">
                 <Link href="/playground">Playground</Link>
               </Button>
               <Button asChild size="lg" variant="ghost">

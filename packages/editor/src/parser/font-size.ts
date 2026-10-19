@@ -1,5 +1,8 @@
-/** The sizes the `fontSize` tool offers, in px (§5). 16 is the default and stores no mark. */
-export const FONT_SIZES = [6, 8, 10, 12, 14, 16, 18, 20] as const;
+/** Display ladder for stored `fontSize` marks, in px. 16 is the default and stores no mark. */
+export const FONT_SIZES = [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72] as const;
+
+/** Sizes the selection toolbar menu offers. The label can still show a larger imported step. */
+export const TOOLBAR_FONT_SIZES = [6, 8, 10, 12, 14, 16, 18, 20] as const;
 
 export const DEFAULT_FONT_SIZE = 16;
 
@@ -11,7 +14,7 @@ export function isFontSize(value: unknown): value is string {
 }
 
 /**
- * The step for an effective size in px: clamped to 6–20, then the nearest step, rounding ties up.
+ * The step for an effective size in px: clamped to 6–72, then the nearest step, rounding ties up.
  * `size` is `undefined` for the default.
  */
 export function snapFontSize(px: number): { size?: string; clamped: boolean } {

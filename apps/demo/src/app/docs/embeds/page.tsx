@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Embeds" };
 
 const policy = `<BlockEditor embeds={{ policy: "open" }} />        // providers + sandboxed generic iframes (default)
 <BlockEditor embeds={{ policy: "allowlist" }} />   // providers only; unknown iframes become links
-<BlockEditor embeds={{ clickToLoad: false }} />    // load iframes immediately (default waits for a click)
+<BlockEditor embeds={{ clickToLoad: true }} />     // wait for a click before loading the iframe
 <BlockEditor embeds={{ providers: ["youtube", "vimeo", "loom"] }} />`;
 
 const csp = `import { getEmbedFrameSrc } from "genesis-editor";
@@ -138,10 +138,9 @@ export default function EmbedsPage() {
         <code>previewWidth</code> and exported.
       </p>
       <p>
-        Iframes wait for a click before they load (<code>embeds.clickToLoad</code>, default{" "}
-        <code>true</code>), so a document full of videos doesn&apos;t talk to those sites until the
-        reader asks. Pass <code>clickToLoad: false</code> to restore 0.1.0&apos;s immediate load.
-        The examples on this page do that so you can see the frames.
+        Iframes load on their own. Pass <code>embeds.clickToLoad: true</code> if you want a
+        &quot;Load … embed&quot; button first, so a document full of videos doesn&apos;t talk to
+        those sites until the reader asks.
       </p>
 
       <H2 id="embed-code">Embed code</H2>

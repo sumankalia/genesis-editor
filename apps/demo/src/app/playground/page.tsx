@@ -10,9 +10,9 @@ export default function PlaygroundPage() {
       <div className="mb-6 grid gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Playground</h1>
         <p className="text-sm text-muted-foreground">
-          Try the props live. The document is saved to this browser, and the panel
-          below shows its JSON, Markdown, HTML, and the code for your configuration.
-          Paste HTML loads your own markup and reports what the engine kept.
+          Try the props live. Edit or Preview the same <code>getHTML()</code> a host would
+          store. The document is saved to this browser; the panel below shows JSON, Markdown,
+          HTML, and the code for your configuration.
         </p>
       </div>
       <PlaygroundLoader />

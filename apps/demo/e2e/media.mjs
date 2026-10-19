@@ -58,15 +58,10 @@ const input = playground.locator(".genesis-embed-input").last();
 await input.waitFor({ timeout: 5000 });
 await input.fill(YT);
 await playground.locator(".genesis-embed-submit").last().click();
-const load = playground.locator("[data-testid='embed-load']").last();
-const loadVisible = await load.waitFor({ timeout: 8000 }).then(() => true).catch(() => false);
-check("click-to-load shows a Load button", loadVisible && /Load YouTube embed/.test(await load.innerText().catch(() => "")));
-check("iframe is not loaded yet", (await playground.locator(".genesis-embed iframe").count()) === 0);
-if (loadVisible) {
-  await load.click();
-  await page.waitForTimeout(300);
-}
-check("Load click sets the YouTube iframe", (await playground.locator(".genesis-embed iframe").last().getAttribute("src").catch(() => "")) === "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+const iframe = playground.locator(".genesis-embed iframe").last();
+await iframe.waitFor({ timeout: 8000 });
+check("default has no Load button", (await playground.locator("[data-testid='embed-load']").count()) === 0);
+check("iframe loads immediately", (await iframe.getAttribute("src").catch(() => "")) === "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
 check("resize handle is present", (await playground.locator("[data-testid='embed-resize']").count()) >= 1);
 const embedCaption = playground.locator("[data-testid='embed-caption']").last();
 await embedCaption.evaluate((el) => {

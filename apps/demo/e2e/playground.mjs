@@ -25,6 +25,17 @@ await page.reload();
 const editor = page.locator(".playground-editor .bn-editor");
 await editor.waitFor({ timeout: 15000 });
 
+await page.getByTestId("playground-preview").click();
+const preview = page.getByTestId("article-preview");
+await preview.waitFor({ timeout: 5000 });
+check("Preview shows published HTML", (await preview.locator("h1").innerText()).includes("Welcome to Genesis"));
+check("Preview has no editor chrome", (await page.locator(".playground-editor .bn-editor").count()) === 0 || !(await page.locator(".playground-editor .bn-editor").isVisible()));
+check("Preview has no slash menu", (await page.locator(".bn-suggestion-menu").count()) === 0);
+await page.screenshot({ path: `${SHOTS}/playground-preview.png` });
+await page.getByTestId("playground-edit").click();
+await editor.waitFor({ timeout: 5000 });
+check("Edit restores the editor", await editor.isVisible());
+
 const tab = (name) => page.getByTestId("output-tabs").getByRole("tab", { name, exact: true });
 const htmlOutput = page.getByTestId("output-html");
 const htmlText = () => htmlOutput.locator("pre").innerText();

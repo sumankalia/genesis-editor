@@ -47,6 +47,7 @@ const toolDescriptions: Record<string, string> = {
   codeBlock: "Code blocks with a language picker and syntax highlighting. Shortcut ```.",
   divider: "Horizontal dividers. Shortcut ---.",
   table: "Tables.",
+  columns: "Two- or three-column layouts. Slash /Columns (2) or /3 columns; drag to resize.",
   image: "Images: by URL, upload, paste, or drop.",
   video: "Video files.",
   audio: "Audio files.",

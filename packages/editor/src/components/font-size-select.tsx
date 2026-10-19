@@ -8,7 +8,7 @@ import {
 } from "@blocknote/react";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
-import { DEFAULT_FONT_SIZE, FONT_SIZES } from "../parser/font-size";
+import { DEFAULT_FONT_SIZE, TOOLBAR_FONT_SIZES } from "../parser/font-size";
 import { selectionFontSizes, setFontSize } from "../plugins/text-styles";
 import type { AnyEditor } from "../plugins/types";
 
@@ -59,7 +59,7 @@ export function FontSizeSelect() {
         </Components.FormattingToolbar.Button>
       </Components.Generic.Menu.Trigger>
       <Components.Generic.Menu.Dropdown className="bn-menu-dropdown genesis-font-size-menu">
-        {FONT_SIZES.map((px) => {
+        {TOOLBAR_FONT_SIZES.map((px) => {
           const size = px === DEFAULT_FONT_SIZE ? undefined : `${px}px`;
           const selected = !mixed && current === size;
           // Not `checked`: in the shadcn skin that makes a Base UI checkbox item, which stays open on click.

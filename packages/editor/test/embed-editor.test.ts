@@ -17,7 +17,7 @@ function mounted(options: { tools?: ToolSelection; content?: PartialBlock[]; pol
   }) as unknown as BlockNoteEditor;
   registerEmbedRegistry(
     editor,
-    embedRegistry({ policy: options.policy, clickToLoad: options.clickToLoad ?? false }, [], { origin: "http://localhost:3000" }),
+    embedRegistry({ policy: options.policy, clickToLoad: options.clickToLoad }, [], { origin: "http://localhost:3000" }),
   );
   const root = document.createElement("div");
   document.body.append(root);
@@ -120,9 +120,18 @@ describe("embed block", () => {
     expect(box.style.height).toBe("640px");
   });
 
-  it("click-to-load waits for a click before setting iframe src", () => {
-    expect(embedRegistry().clickToLoad).toBe(true);
+  it("loads the iframe immediately by default", () => {
+    expect(embedRegistry().clickToLoad).toBe(false);
     expect(embedRegistry({ clickToLoad: false }).clickToLoad).toBe(false);
+    const { root } = mounted({
+      content: [{ type: "embed", props: { provider: "youtube", url: YT, aspectRatio: "16/9" } } as unknown as PartialBlock],
+    });
+    expect(root.querySelector("[data-testid='embed-load']")).toBeNull();
+    expect(root.querySelector<HTMLIFrameElement>("iframe")?.src).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+  });
+
+  it("click-to-load waits for a click before setting iframe src", () => {
+    expect(embedRegistry({ clickToLoad: true }).clickToLoad).toBe(true);
     const { root } = mounted({
       clickToLoad: true,
       content: [{ type: "embed", props: { provider: "youtube", url: YT, aspectRatio: "16/9" } } as unknown as PartialBlock],

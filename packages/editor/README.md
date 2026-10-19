@@ -19,13 +19,16 @@ Tailwind or shadcn/ui in your app.
   ```` ``` ```` code, `---` dividers
 - Images by URL or upload (picker, drop, paste) to your server or your own function,
   with optional re-hosting of pasted images; alt text, captions, and alignment in the toolbar
+- Two- and three-column layouts (`/Columns`), resized by dragging; pasted
+  Google Docs / Word image-beside-text wraps become columns, exported as an
+  email-safe `<table data-genesis-columns>`
 - HTML in and out (`format="html"`, `getHTML`/`setHTML`), Markdown in
   (`format="markdown"`, `setMarkdown`, Markdown paste), and pastes from Google
   Docs, Word, WordPress and web pages cleaned into blocks, including images inside
   table cells
 - Import a Word, OpenDocument, HTML, Markdown, or text file (`importFile`, `/import`)
 - Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
-  or a site's embed code, always in sandboxed frames; click-to-load, captions, and resize
+  or a site's embed code, always in sandboxed frames; captions, resize, and optional click-to-load
 - Text and background colours, font sizes, code-block syntax highlighting
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
@@ -181,7 +184,10 @@ browser, `dom` defaults to the page's `DOMParser`.
 - `<img>` in a table cell (or a paragraph) is kept as an inline image, with the
   same URL, upload and re-hosting as image blocks. Export is
   `<td><img data-genesis-inline>`. Empty header rows of empty `<th>`s are
-  dropped; an image that links to itself loses the link.
+  dropped; an image that links to itself loses the link. A one-row image-beside-
+  text table, or a floated image with wrapping copy, becomes a `columnList`
+  instead of a data table; export is an email-safe
+  `<table data-genesis-columns role="presentation">`.
 
 ## Image uploads
 
@@ -293,7 +299,7 @@ menu, Markdown shortcuts, the formatting toolbar, the mobile toolbar, and paste
 ```
 
 Block tools: `heading`, `bulletList`, `numberedList`, `checkList`,
-`toggleList`, `quote`, `codeBlock`, `divider`, `table`, `image`, `video`,
+`toggleList`, `quote`, `codeBlock`, `divider`, `table`, `columns`, `image`, `video`,
 `audio`, `file`, `embed`, `linkPreview`. Inline tools: `bold`, `italic`, `underline`, `strike`,
 `code`, `link`, `colors`, `fontSize`. They're exported as `BLOCK_TOOLS`,
 `INLINE_TOOLS`, and `BUILT_IN_TOOLS`, so "everything except tables" is
@@ -305,7 +311,7 @@ a block needs it) and a language picker. HTML is still
 `js` are stored as `typescript` and `javascript`.
 
 `colors` stores theme-aware palette names, your brand swatches, or exact hex;
-`fontSize` adds a 6–20 px dropdown to the selection toolbar:
+`fontSize` adds a 6–20 px dropdown to the selection toolbar (imported sizes can be 24–72):
 
 ```tsx
 <BlockEditor
@@ -323,7 +329,8 @@ fallback, and `getHTML()` writes them back as the site's embed code
 
 Existing content that uses a disabled tool is converted when it loads: unknown
 blocks become paragraphs that keep their text, tables become one paragraph per
-row, and headings move to the nearest allowed level.
+row, columns flatten to their inner blocks, and headings move to the nearest
+allowed level.
 
 ### Toolbar
 
@@ -336,9 +343,9 @@ of showing it on selection, and `toolbar={false}` removes it.
 <BlockEditor toolbar={{ placement: "fixed", items: ["blockType", "bold", "italic", "link"] }} />
 ```
 
-The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `file`,
-`imageLink`, `inlineImage`, `bold`, `italic`, `underline`, `strike`, `code`,
-`alignLeft`, `alignCenter`, `alignRight`, `fontSize`, `colors`, `nest`,
+The default order is `DEFAULT_TOOLBAR`: `blockType`, `tableMerge`, `columns`,
+`file`, `imageLink`, `inlineImage`, `bold`, `italic`, `underline`, `strike`,
+`code`, `alignLeft`, `alignCenter`, `alignRight`, `fontSize`, `colors`, `nest`,
 `unnest`, `link`, `linkPreview`, followed by plugin items.
 
 ### Plugins
@@ -402,7 +409,7 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | `googleDrive`           | `{ pickFile: () => Promise<File \| null> }`               | —          | Slash item that asks your app for a Drive file. No OAuth in genesis.                                |
 | `onImportError`         | `(error: DocumentImportError) => void`                    | —          | Pages files and unknown types.                                                                      |
 | `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
-| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). `clickToLoad` (default `true`) waits for a click before loading the iframe. Read once. |
+| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). `clickToLoad` (default `false`) waits for a click before loading the iframe. Read once. |
 | `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
 | `linkPreview`           | `LinkPreviewConfig`                                       | —          | Link preview cards: `{ endpoint, method?, headers? }` (answers `{ title, description, image, siteName, favicon }`) or `{ resolve(url, { signal }) }`. Without it URLs stay links. See [Link previews](#link-previews). |
 | `colorContrast`         | `"auto" \| "off"`                                         | `"off"`    | `"auto"` adjusts hex text below 3:1 contrast with the theme, at render time only.                     |

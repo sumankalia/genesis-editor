@@ -1,0 +1,42 @@
+<article data-genesis-sample="1" data-genesis-snapshot="medium-403">
+<h1>Learn IndexedDB: Creating a CRUD Application with IndexedDB and React</h1>
+<p class="byline"><a href="https://medium.com/gitconnected/learn-indexeddb-creating-a-crud-application-with-indexeddb-and-react-70752f19e753">Suman Kumar · Level Up Coding (Medium)</a></p>
+<p><em>Local snapshot. Medium blocked the live fetch (HTTP 403); this is Sandeep’s article with the author byline kept, not a visual clone of Medium.</em></p>
+<p>IndexedDB is the browser’s structured store for larger datasets than <code>localStorage</code>. This article walks through opening a database and creating, reading, updating, and deleting records from a React app.</p>
+<h2>What is IndexedDB?</h2>
+<p>IndexedDB is an asynchronous, transactional key-value database in the browser. It holds JavaScript objects, indexes them, and survives reloads. Use it when the data is too large or too structured for <code>localStorage</code>.</p>
+<h2>Opening a database</h2>
+<pre><code>const request = indexedDB.open("app", 1);
+request.onupgradeneeded = (event) =&gt; {
+  const db = event.target.result;
+  db.createObjectStore("items", { keyPath: "id", autoIncrement: true });
+};
+</code></pre>
+<h2>Create</h2>
+<p>Put a record in a readwrite transaction:</p>
+<pre><code>function addItem(db, item) {
+  return new Promise((resolve, reject) =&gt; {
+    const tx = db.transaction("items", "readwrite");
+    const req = tx.objectStore("items").add(item);
+    req.onsuccess = () =&gt; resolve(req.result);
+    req.onerror = () =&gt; reject(req.error);
+  });
+}
+</code></pre>
+<h2>Read</h2>
+<p>Get one key, or cursor the whole store into React state.</p>
+<pre><code>function listItems(db) {
+  return new Promise((resolve, reject) =&gt; {
+    const tx = db.transaction("items", "readonly");
+    const req = tx.objectStore("items").getAll();
+    req.onsuccess = () =&gt; resolve(req.result);
+    req.onerror = () =&gt; reject(req.error);
+  });
+}
+</code></pre>
+<h2>Update and delete</h2>
+<p><code>put</code> replaces a record with the same key. <code>delete</code> removes it. Wrap both in <code>readwrite</code> transactions and refresh the list when the transaction completes.</p>
+<h2>React</h2>
+<p>Open the database once in an effect, keep the connection in a ref, and expose add / list / update / delete helpers that set state. Close or leave the connection when the component unmounts; IndexedDB does not need a worker for this CRUD path.</p>
+<p>That is the loop: schema in <code>onupgradeneeded</code>, mutations in transactions, UI from <code>getAll</code>.</p>
+</article>

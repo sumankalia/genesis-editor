@@ -39,6 +39,7 @@ export default function EmbedsExample() {
   const theme = useSiteTheme(); // hide
   const editor = useRef<BlockEditorHandle>(null);
   const [policy, setPolicy] = useState<"open" | "allowlist">("open");
+  const [clickToLoad, setClickToLoad] = useState(false);
   const [form, setForm] = useState<"iframe" | "link" | null>(null);
   const [html, setHtml] = useState("");
 
@@ -75,15 +76,24 @@ export default function EmbedsExample() {
             <option value="allowlist">allowlist</option>
           </select>
         </label>
+        <label className="inline-flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={clickToLoad}
+            onChange={(e) => setClickToLoad(e.target.checked)}
+            data-testid="embed-click-to-load"
+          />
+          Wait for click
+        </label>
       </div>
       <BlockEditor
         theme={theme} // hide
         mobileToolbar={false} // hide
-        key={policy}
+        key={`${policy}-${clickToLoad}`}
         ref={editor}
         format="html"
         defaultValue={article}
-        embeds={{ policy, clickToLoad: false }}
+        embeds={{ policy, clickToLoad }}
       />
       <div className="flex flex-wrap items-center gap-2 px-15 text-sm">
         <button className="rounded-md border px-2.5 py-1 hover:bg-muted" onClick={() => show("iframe")}>

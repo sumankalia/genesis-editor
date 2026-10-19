@@ -109,7 +109,7 @@ await page.keyboard.press(`${mod}+Shift+Period`);
 await page.keyboard.press(`${mod}+Shift+Period`);
 await page.keyboard.press(`${mod}+Shift+Period`);
 await page.waitForTimeout(150);
-check("stepping up stops at 20", (await sizeOf("Doors"))[0] === "20px", String((await sizeOf("Doors"))[0]));
+check("stepping up from 16 reaches 24", (await sizeOf("Doors"))[0] === "24px", String((await sizeOf("Doors"))[0]));
 await page.keyboard.press(`${mod}+Shift+Comma`);
 await page.waitForTimeout(150);
 check("Mod+Shift+, steps down to 18", (await sizeOf("Doors"))[0] === "18px");
@@ -119,12 +119,12 @@ await page.keyboard.press(`${mod}+z`);
 await page.waitForTimeout(150);
 check("undo restores 20", (await sizeOf("Doors"))[0] === "20px", String((await sizeOf("Doors"))[0]));
 
-// 6. Not in headings.
+// 6. Headings keep a size; the menu still lists 6–20.
 await select("Event poster", "Event");
-check("dropdown hidden in a heading", (await toolbar.isVisible()) && !(await trigger.count()));
+check("dropdown shown in a heading", (await trigger.count()) > 0);
 await page.keyboard.press(`${mod}+Shift+Period`);
 await page.waitForTimeout(150);
-check("shortcut does nothing in a heading", !(await block("Event poster").locator("[data-style-type='fontSize']").count()));
+check("shortcut sizes a heading", (await block("Event poster").locator("[data-style-type='fontSize']").count()) > 0);
 
 // 7. Google Docs paste: 11 pt body stays Default; 9 pt → 12 × 16/14.67 ≈ 13.1 → 14; 14 pt → 18.67 × 16/14.67 ≈ 20.4 → 20.
 await page.mouse.click(5, 5);

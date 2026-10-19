@@ -95,6 +95,13 @@ export default function HtmlPage() {
         for example a heading becomes a paragraph, so whatever loads can be edited.
       </p>
 
+      <H2>Preview</H2>
+      <p>
+        The playground and <Link href="/paste">paste landing</Link> can show{" "}
+        <strong>Edit | Preview</strong>. Preview renders <code>getHTML()</code> with article CSS and
+        no editor chrome — the same markup a host would store, not a pixel match of Google Docs.
+      </p>
+
       <H2>Pasting</H2>
       <p>
         HTML pasted from outside the editor goes through the same engine, in every{" "}
@@ -189,7 +196,8 @@ export default function HtmlPage() {
         article (Chrome/Safari/Firefox), <code>&lt;picture&gt;</code>/<code>srcset</code>, and lazy{" "}
         <code>data-src</code> are recovered. An empty header row of empty <code>&lt;th&gt;</code>s
         is dropped as noise, an image that links to itself loses the link, and empty heading
-        anchors are dropped.
+        anchors are dropped. A one-row image-beside-text table, or a floated image with wrapping
+        copy, becomes a <Link href="/docs/columns">columns</Link> block instead of a data table.
       </p>
 
       <H2>On the server</H2>

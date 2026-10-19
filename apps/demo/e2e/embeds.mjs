@@ -40,6 +40,7 @@ check("YouTube is rebuilt on youtube-nocookie", initial[0]?.src === "https://www
 check("Spotify track", initial[1]?.src === "https://open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT");
 check("generic embed is sandboxed without allow-same-origin", initial[2]?.sandbox === GENERIC && initial[2]?.allow === null);
 check("caption bar shows the site and Open ↗", (await editor.locator(".genesis-embed-host").first().innerText()) === "YouTube" && (await editor.locator(".genesis-embed-open").count()) === 3);
+check("default has no Load button", (await editor.locator("[data-testid='embed-load']").count()) === 0);
 await page.waitForTimeout(2500);
 await demo.screenshot({ path: `${SHOTS}/embeds-overview.png` });
 
@@ -138,6 +139,15 @@ await page.waitForTimeout(2500);
 await demo.screenshot({ path: `${SHOTS}/embeds-dark.png` });
 await page.evaluate(() => document.documentElement.classList.remove("dark"));
 await page.emulateMedia({ colorScheme: "light" });
+
+await demo.getByTestId("embed-click-to-load").check();
+await editor.waitFor();
+await page.waitForTimeout(600);
+check("opt-in shows a Load button", (await editor.locator("[data-testid='embed-load']").count()) >= 1 && /Load .+ embed/.test(await editor.locator("[data-testid='embed-load']").first().innerText()));
+check("opt-in keeps iframes out of the DOM", (await frames().count()) === 0);
+await editor.locator("[data-testid='embed-load']").first().click();
+await page.waitForTimeout(300);
+check("opt-in Load click inserts the iframe", (await frames().count()) >= 1 && (await editor.locator("[data-testid='embed-load']").count()) === 2);
 
 const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 await mobile.goto(`${BASE_URL}/docs/embeds`);

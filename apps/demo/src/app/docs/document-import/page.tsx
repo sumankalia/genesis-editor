@@ -37,8 +37,9 @@ export default function DocumentImportPage() {
       </p>
       <ul>
         <li>
-          <strong>Word (.docx)</strong> and Google Docs downloads: converted with mammoth (BSD-2-Clause),
-          lazy-loaded.
+          <strong>Word (.docx)</strong> and Google Docs downloads: unpacked and walked to HTML with
+          inline color and size, then <code>parseHTML</code>. Mammoth (BSD-2-Clause) is the fallback
+          when that walk is empty. Font family is not copied.
         </li>
         <li>
           <strong>OpenDocument (.odt)</strong>: unzipped with fflate (MIT) and mapped to HTML.
@@ -62,8 +63,8 @@ export default function DocumentImportPage() {
       </p>
       <CodeBlock code={drive} />
       <Callout>
-        mammoth, marked, and fflate stay out of the initial editor chunk. They load the first time
-        you import a matching file. mammoth is BSD-2-Clause; marked and fflate are MIT.
+        marked, fflate, and mammoth stay out of the initial editor chunk. They load the first time
+        you import a matching file. fflate and marked are MIT; mammoth is BSD-2-Clause.
       </Callout>
     </>
   );

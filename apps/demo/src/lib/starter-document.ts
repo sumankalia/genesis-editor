@@ -1,6 +1,6 @@
-import type { PartialBlock } from "genesis-editor";
+import type { AnyPartialBlock } from "genesis-editor";
 
-export const starterDocument: PartialBlock[] = [
+export const starterDocument: AnyPartialBlock[] = [
   {
     type: "heading",
     props: { level: 1 },
@@ -53,6 +53,54 @@ export const starterDocument: PartialBlock[] = [
     type: "codeBlock",
     props: { language: "javascript" },
     content: 'const blocks = editor.document;\nconsole.log(blocks.length, "blocks");',
+  },
+  { type: "divider" },
+  {
+    type: "heading",
+    props: { level: 2 },
+    content: "Columns",
+  },
+  {
+    type: "paragraph",
+    content: "A product image beside its copy, like Google Docs — not a table of images.",
+  },
+  {
+    type: "columnList",
+    children: [
+      {
+        type: "column",
+        props: { width: 40 },
+        children: [
+          {
+            type: "image",
+            props: {
+              url: "/examples/lake.png",
+              alt: "A mountain lake",
+              name: "A mountain lake",
+            },
+          },
+        ],
+      },
+      {
+        type: "column",
+        props: { width: 60 },
+        children: [
+          {
+            type: "heading",
+            props: { level: 3 },
+            content: "Mountain lake",
+          },
+          {
+            type: "paragraph",
+            content: "Each column holds the same blocks as the rest of the document: headings, paragraphs, images, lists.",
+          },
+          {
+            type: "paragraph",
+            content: "Drag the handle between columns to resize. On a phone they stack.",
+          },
+        ],
+      },
+    ],
   },
   { type: "paragraph" },
 ];

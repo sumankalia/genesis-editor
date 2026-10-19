@@ -127,6 +127,10 @@ export function sanitizeBlocks(blocks: readonly AnyPartialBlock[], support: Sche
       return [next];
     }
 
+    if (type === "columnList" || type === "column") {
+      return children?.length ? children : [];
+    }
+
     if (type === "table") {
       return [
         ...tableRows(block.content).map((text, i) => ({ type: "paragraph", content: text, ...(i ? {} : metaProps) }) as AnyPartialBlock),

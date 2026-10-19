@@ -25,6 +25,7 @@ import { CODE_LANGUAGES } from "../parser/code-languages";
 import { resolveColorConfig } from "../parser/colors";
 import { ImageLinkButton } from "../components/image-link-dialog";
 import { genesisSyntaxHighlighting } from "./code-highlight";
+import { ColumnsButton, columnListSpec, columnSpec, columnsSlashItems } from "./columns";
 import { embedSlashItem, embedSpec } from "./embed";
 import { importSlashItems } from "./import-file";
 import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
@@ -53,7 +54,10 @@ function HeadingAwareBlockTypeSelect() {
     const levels = (editor.schema.blockSchema as Record<string, { propSchema: { level?: { values?: readonly number[] } } }>)
       .heading?.propSchema.level?.values;
     return blockTypeSelectItems(editor).filter(
-      (item) => item.type !== "heading" || !levels || levels.includes(Number(item.props?.level)),
+      (item) =>
+        item.type !== "column" &&
+        item.type !== "columnList" &&
+        (item.type !== "heading" || !levels || levels.includes(Number(item.props?.level))),
     );
   }, [editor]);
   return <BlockTypeSelect items={items} />;
@@ -136,6 +140,13 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
     }),
   divider: () => blockTool("divider", "divider"),
   table: () => blockTool("table", "table"),
+  columns: () =>
+    definePlugin({
+      name: "columns",
+      blocks: { columnList: columnListSpec, column: columnSpec },
+      slashItems: columnsSlashItems,
+      toolbarItems: { columns: ColumnsButton },
+    }),
   image: () =>
     definePlugin({
       name: "image",
