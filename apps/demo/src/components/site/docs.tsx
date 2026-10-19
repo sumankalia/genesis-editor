@@ -39,7 +39,7 @@ export function H3({ children, id }: { children: string; id?: string }) {
 
 export function Callout({ children }: { children: ReactNode }) {
   return (
-    <div className="my-6 rounded-xl border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground [&_code]:text-foreground">
+    <div data-callout="" className="my-6 rounded-xl border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground [&_code]:text-foreground">
       {children}
     </div>
   );

@@ -5,15 +5,19 @@ export function HighlightedCode({
   html,
   code,
   title,
+  language,
   className,
 }: {
   html: string;
   code: string;
   title?: string;
+  /** Written as `data-language`, which the Markdown versions of the docs read. */
+  language?: string;
   className?: string;
 }) {
   return (
     <div
+      data-language={language}
       className={cn(
         "code-block group relative overflow-hidden rounded-xl border bg-muted/40 text-[0.8125rem]",
         className,

@@ -4,7 +4,8 @@ export const site = {
   name: "genesis-editor",
   version: editorPackage.version,
   description: editorPackage.description,
-  repoUrl: "https://github.com/sandeep-code/genesis",
+  url: "https://genesis-editor-three.vercel.app",
+  repoUrl: "https://github.com/sumankalia/genesis-editor",
   npmUrl: "https://www.npmjs.com/package/genesis-editor",
   installCommand: "npm install genesis-editor",
 };

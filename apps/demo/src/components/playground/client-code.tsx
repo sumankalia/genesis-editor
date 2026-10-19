@@ -38,6 +38,7 @@ export function ClientCode({ code, lang }: { code: string; lang: Lang }) {
     <HighlightedCode
       code={code}
       html={html}
+      language={lang}
       className="max-h-[32rem] overflow-y-auto"
     />
   );

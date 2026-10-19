@@ -32,6 +32,12 @@ export function ExampleTabs({
           {preview}
         </div>
       </TabsContent>
+      {/* The example's source for the Markdown versions of the docs, which can't open the Code tab. */}
+      {sources.map((source) => (
+        <template key={source.file} data-source={source.file} data-language={source.file.split(".").pop()}>
+          {source.code}
+        </template>
+      ))}
       <TabsContent value="code" className="flex flex-col gap-3">
         {sources.map((source) => (
           <HighlightedCode
@@ -39,6 +45,7 @@ export function ExampleTabs({
             title={sources.length > 1 ? source.file : undefined}
             html={source.html}
             code={source.code}
+            language={source.file.split(".").pop()}
           />
         ))}
       </TabsContent>

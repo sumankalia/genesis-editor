@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   // The floating dev badge sits on top of the mobile block toolbar.
   devIndicators: false,
   partialPrefetching: true,
+  // Markdown versions of the docs pages (src/app/docs-md).
+  async rewrites() {
+    return [{ source: "/docs/:slug.md", destination: "/docs-md/:slug" }];
+  },
   outputFileTracingRoot: workspaceRoot,
   // Pages read these at render time ("use cache" with cacheLife("max")). They're prerendered at
   // build, but a revalidation runs on the server, where only traced files exist.
