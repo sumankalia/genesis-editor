@@ -1,5 +1,6 @@
 export { parseHTML } from "./parse";
 export { parseHTMLAsync, type ParseAsyncOptions } from "./async";
+export { htmlIsMarkdownSource, looksLikeMarkdown, markdownToHTML, parseMarkdown, parseMarkdownAsync } from "./markdown";
 export { toHTML } from "./serialize";
 export { browserDom, toDomAdapter, type DocumentFactory, type DomAdapter, type DomOption, type DOMParserLike } from "./dom";
 export { isSafeUrl } from "./sanitize";

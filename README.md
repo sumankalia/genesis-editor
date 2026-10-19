@@ -58,13 +58,14 @@ Then open <http://localhost:4317>:
 | ----------------------- | ----------------------------------------------------------- |
 | `/`                     | Landing page with install command and a live editor         |
 | `/docs/getting-started` | Guides and API reference, each example with Preview/Code    |
-| `/playground`           | Editor with a props and tools panel; JSON, Markdown, HTML and code; Paste HTML |
+| `/playground`           | Editor with a props and tools panel; JSON, Markdown, HTML and code; Paste HTML / Markdown |
 
 The playground autosaves its document to `localStorage` and has Copy Markdown
 and Reset buttons. Its **HTML** tab shows `getHTML()` pretty-printed, and
 **Paste HTML** loads raw or JSON-encoded HTML through `setHTML` with the panel's
 **HTML import** options (`htmlMode`, page-furniture removal), then shows the
-import report. Its samples are synthetic.
+import report. **Paste Markdown** does the same through `setMarkdown`. Samples
+are synthetic.
 
 ### Trying uploads
 

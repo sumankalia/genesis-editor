@@ -8,8 +8,10 @@ export type {
   HtmlChangeInfo,
   HtmlExportOptions,
   HtmlFormatProps,
+  MarkdownFormatProps,
   UploadErrorEvent,
 } from "./block-editor";
+export { htmlIsMarkdownSource, looksLikeMarkdown, markdownToHTML, parseMarkdown, parseMarkdownAsync } from "./parser/markdown";
 export type { CleanOptions, CleanupSummary, FidelityReport, ParseMode } from "./parser/types";
 export { META_VERSION, migrateMeta, stripMeta } from "./parser/meta";
 export { defineEmbedProvider, getEmbedFrameSrc, getEmbedScriptSrc, GENERIC_SANDBOX, PROVIDER_ALLOW, PROVIDER_SANDBOX, WIDGET_SANDBOX } from "./parser/embeds";

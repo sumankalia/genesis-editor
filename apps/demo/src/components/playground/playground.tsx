@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { calloutPlugin } from "@/components/examples/callout-plugin";
 import { ClientCode } from "@/components/playground/client-code";
 import { PasteHtmlPanel } from "@/components/playground/paste-html-panel";
+import { PasteMarkdownPanel } from "@/components/playground/paste-markdown-panel";
 import {
   ALL_TOOLS,
   OptionsPanel,
@@ -188,6 +189,7 @@ export default function Playground() {
             <TabsTrigger value="markdown">Markdown</TabsTrigger>
             <TabsTrigger value="html">HTML</TabsTrigger>
             <TabsTrigger value="paste-html">Paste HTML</TabsTrigger>
+            <TabsTrigger value="paste-markdown">Paste Markdown</TabsTrigger>
           </TabsList>
           <TabsContent value="code" data-testid="output-code">
             <ClientCode code={code} lang="tsx" />
@@ -203,6 +205,9 @@ export default function Playground() {
           </TabsContent>
           <TabsContent value="paste-html" forceMount className="data-[state=inactive]:hidden">
             <PasteHtmlPanel editorRef={editorRef} />
+          </TabsContent>
+          <TabsContent value="paste-markdown" forceMount className="data-[state=inactive]:hidden">
+            <PasteMarkdownPanel editorRef={editorRef} />
           </TabsContent>
         </Tabs>
       </section>

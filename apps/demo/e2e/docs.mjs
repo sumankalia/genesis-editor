@@ -46,6 +46,7 @@ const pages = [
   ["theming", "Theming"],
   ["api", "API reference"],
   ["shortcuts", "Keyboard shortcuts"],
+  ["markdown", "Markdown"],
 ];
 for (const [slug, title] of pages) {
   const response = await page.goto(`${BASE_URL}/docs/${slug}`);
@@ -100,7 +101,7 @@ await page.locator(".bn-editor .bn-block-content").last().click();
 await page.keyboard.type("Live output check");
 await page.waitForTimeout(600);
 check("JSON output updates live", (await page.getByTestId("output-json").innerText()).includes("Live output check"));
-await page.getByRole("tab", { name: "Markdown" }).click();
+await page.getByRole("tab", { name: "Markdown", exact: true }).click();
 check("Markdown output updates live", (await page.getByTestId("output-markdown").innerText()).includes("Live output check"));
 await page.getByRole("tab", { name: "Code" }).click();
 await page.evaluate(() => window.scrollTo(0, 0));

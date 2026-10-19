@@ -2,7 +2,7 @@ import { BlockNoteEditor, type PartialBlock } from "@blocknote/core";
 import { TextSelection } from "prosemirror-state";
 import { describe, expect, it, vi } from "vitest";
 
-import { createPasteHandler, exportHTML, importHTML, insertBlocks, pasteWithoutCleanup } from "../src/html";
+import { createPasteHandler, exportHTML, importHTML, importMarkdown, insertBlocks, pasteWithoutCleanup } from "../src/html";
 import { resolveEditorSetup } from "../src/plugins/resolve";
 import { schemaSupport, toEditorBlocks } from "../src/plugins/sanitize";
 import type { ToolSelection } from "../src/plugins/resolve";
@@ -53,6 +53,15 @@ describe("HTML import and export", () => {
     const { sanitize } = mounted();
     const { blocks } = importHTML(`<p><a href="/docs">Docs</a></p>`, { baseUrl: "https://example.com/a/" }, sanitize);
     expect(JSON.stringify(blocks)).toContain("https://example.com/docs");
+  });
+
+  it("importMarkdown goes through the same engine as importHTML", () => {
+    const { editor, sanitize } = mounted();
+    const { blocks, report } = importMarkdown("# Notes\n\nHello **world**.", {}, sanitize);
+    editor.replaceBlocks(editor.document, blocks);
+    expect(report.blocks).toBeGreaterThan(0);
+    expect(exportHTML(editor)).toContain("<h1>Notes</h1>");
+    expect(exportHTML(editor)).toContain("<strong>world</strong>");
   });
 });
 
@@ -196,13 +205,54 @@ describe("paste handler", () => {
     expect(editor.document.some((b) => b.type === "heading" || b.type === "bulletListItem")).toBe(false);
   });
 
-  it("leaves BlockNote's own clipboard, VS Code, and plain text to the default handler", () => {
+  it("leaves BlockNote's own clipboard, VS Code, and ordinary plain text to the default handler", () => {
     const { onImport, defaultPasteHandler, paste } = setup();
     paste({ "blocknote/html": "<p>x</p>", "text/html": "<p>x</p>" });
     paste({ "vscode-editor-data": "{}", "text/html": "<pre>x</pre>", "text/plain": "x" });
-    paste({ "text/plain": "# Heading" });
+    paste({ "text/plain": "Just a sentence." });
     expect(defaultPasteHandler).toHaveBeenCalledTimes(3);
     expect(onImport).not.toHaveBeenCalled();
+  });
+
+  it("imports Markdown plain text through the HTML engine", () => {
+    const { editor, onImport, defaultPasteHandler, paste } = setup();
+    expect(paste({ "text/plain": "# Heading\n\nA **bold** [link](https://example.com)." })).toBe(true);
+    expect(defaultPasteHandler).not.toHaveBeenCalled();
+    expect(editor.document[0].type).toBe("heading");
+    expect(JSON.stringify(editor.document)).toContain("https://example.com");
+    expect(onImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads clipboard getData even when types is empty", () => {
+    const { editor, sanitize } = mounted();
+    const onImport = vi.fn();
+    const handler = createPasteHandler(() => ({}), sanitize, onImport);
+    const defaultPasteHandler = vi.fn(() => true);
+    handler({
+      event: {
+        clipboardData: { types: [], getData: (type: string) => (type === "text/plain" ? "# From types-less paste" : "") },
+      } as unknown as ClipboardEvent,
+      editor,
+      defaultPasteHandler,
+    });
+    expect(defaultPasteHandler).not.toHaveBeenCalled();
+    expect(editor.document[0].type).toBe("heading");
+    expect(onImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports Markdown wrapped in a trivial HTML pre/div", () => {
+    const { editor, defaultPasteHandler, paste } = setup();
+    const md = "# Wrapped\n\n- one\n- two";
+    expect(paste({ "text/html": `<pre>${md}</pre>`, "text/plain": md })).toBe(true);
+    expect(defaultPasteHandler).not.toHaveBeenCalled();
+    expect(editor.document.map((b) => b.type)).toEqual(["heading", "bulletListItem", "bulletListItem"]);
+  });
+
+  it("prefers real HTML over Markdown-looking plain text", () => {
+    const { editor, paste } = setup();
+    paste({ "text/html": ARTICLE, "text/plain": "# Heading" });
+    expect(editor.document[0].type).toBe("heading");
+    expect((editor.document[0].content as { text: string }[])[0]?.text).toBe("Title");
   });
 
   it("imports the HTML inside JSON copied as text, instead of its escapes", () => {

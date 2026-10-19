@@ -41,6 +41,8 @@ export default defineConfig([
     splitting: true,
     clean: true,
     external: [...editorExternal, "linkedom", "jsdom"],
+    // marked is ESM-only; bundling it keeps the published package self-contained (Node < 22.12 cannot require() it).
+    noExternal: ["marked"],
     onSuccess: markClientEntry,
   },
   {
@@ -59,11 +61,12 @@ export default defineConfig([
   {
     ...shared,
     // linkedom's CommonJS build `require`s ESM-only css-select, so the CommonJS adapter bundles linkedom.
+    // marked is ESM-only too, so the parser CJS build bundles it (Node < 22.12 cannot require() it).
     format: ["cjs"],
     entry: parserEntries,
     clean: false,
     sourcemap: false,
     external: ["jsdom", "canvas"],
-    noExternal: ["linkedom", /^css-select/, /^css-what/, /^nth-check/, /^boolbase/, /^domutils/, /^domhandler/, /^dom-serializer/, /^domelementtype/, /^entities/, /^htmlparser2/, "cssom", "html-escaper", "uhyphen"],
+    noExternal: ["marked", "linkedom", /^css-select/, /^css-what/, /^nth-check/, /^boolbase/, /^domutils/, /^domhandler/, /^dom-serializer/, /^domelementtype/, /^entities/, /^htmlparser2/, "cssom", "html-escaper", "uhyphen"],
   },
 ]);

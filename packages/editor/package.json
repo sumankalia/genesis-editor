@@ -101,6 +101,7 @@
     "@blocknote/react": "~0.56.0",
     "@blocknote/shadcn": "~0.56.0",
     "lucide-react": "^0.525.0",
+    "marked": "^18.1.1",
     "prosemirror-history": "^1.5.1",
     "prosemirror-model": "^1.25.12",
     "prosemirror-state": "^1.4.4",

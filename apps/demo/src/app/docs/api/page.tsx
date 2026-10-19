@@ -10,6 +10,10 @@ export const metadata: Metadata = { title: "API reference" };
 const parserExports: [string, string][] = [
   ["parseHTML(html, options?)", "Parses HTML into blocks. Returns { blocks, report }."],
   ["parseHTMLAsync(html, options?)", "parseHTML, then copies remote images with uploadRemote or an absolute uploadFromUrl before returning. For bulk imports on a server."],
+  ["markdownToHTML(markdown)", "Converts CommonMark/GFM to HTML. Does not sanitize; pass the result to parseHTML."],
+  ["parseMarkdown(markdown, options?)", "markdownToHTML, then parseHTML. The path setMarkdown and format=\"markdown\" use."],
+  ["parseMarkdownAsync(markdown, options?)", "parseMarkdown, then the same image re-hosting as parseHTMLAsync."],
+  ["looksLikeMarkdown(text) / htmlIsMarkdownSource(html, plain)", "Paste detection: headings, lists, quotes, fences, tables, Markdown links. A trivial HTML wrapper of the same source counts as Markdown."],
   ["toHTML(blocks, options?)", "Serializes blocks to HTML that parseHTML reads back to the same blocks. embeds: \"auto\" (default) | \"iframe\" | \"link\"; embedScripts adds each site's official script once."],
   ["stripMeta(blocks)", "Removes meta from blocks and their children, for exports that shouldn't carry it."],
   ["migrateMeta(meta)", "Reads meta in any stored form (object or the editor's JSON string) and brings it to META_VERSION. Newer versions are returned untouched."],
@@ -157,6 +161,14 @@ export default async function ApiPage() {
         <code>defaultValue</code>. See <Link href="/docs/html">HTML &amp; paste</Link>.
       </p>
       <MembersTable members={api.htmlProps} kind="prop" testId="api-html-props" />
+
+      <H3 id="markdown-format">With format=&quot;markdown&quot;</H3>
+      <p>
+        These props take Markdown strings instead. Incoming Markdown is converted to HTML and parsed
+        by the same engine; outgoing Markdown is the lossy export. See{" "}
+        <Link href="/docs/markdown">Markdown</Link>.
+      </p>
+      <MembersTable members={api.markdownProps} kind="prop" testId="api-markdown-props" />
 
       <H2 id="ref">Ref (BlockEditorHandle)</H2>
       <p>
