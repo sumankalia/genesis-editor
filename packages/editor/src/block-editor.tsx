@@ -75,6 +75,13 @@ import { getUploadMode, uploadWithConfig, type RehostSource, type UploadConfig }
 import { useColorScheme, type EditorTheme } from "./lib/use-color-scheme";
 import { resolveColorConfig } from "./parser/colors";
 import { registerEmbedRegistry } from "./plugins/embed";
+import {
+  DOCUMENT_IMPORT_ACCEPT,
+  DocumentImportError,
+  importFileSource,
+  registerDocumentImport,
+  type GoogleDriveImport,
+} from "./plugins/import-file";
 import { swatchCss } from "./plugins/text-styles";
 import { acceptsFile } from "./plugins/files";
 import { REHOST_META, registerRehostQueue } from "./plugins/specs";
@@ -195,7 +202,7 @@ export type BlockEditorProps = UploadConfig &
    * background. Only the rendering changes; the stored colour stays exact. Palette colours already adapt.
    */
   colorContrast?: "auto" | "off";
-  /** Called after HTML or Markdown is imported: the initial `value`, `setHTML`/`setMarkdown`, or a paste from outside the editor. */
+  /** Called after HTML, Markdown, or a document file is imported: the initial `value`, `setHTML`/`setMarkdown`/`importFile`, or a paste from outside the editor. */
   onImportReport?: (report: FidelityReport) => void;
   /** Opt-in autosave to localStorage. `true` uses the default key; pass `{ key }` for one key per document. */
   persist?: boolean | PersistOptions;
@@ -226,6 +233,13 @@ export type BlockEditorProps = UploadConfig &
   toolbar?: ToolbarConfig | false;
   /** Plugins from `definePlugin`, adding blocks, menu items, toolbar items, and shortcuts. */
   plugins?: readonly GenesisPlugin[];
+  /**
+   * Optional hook for "Import from Google Drive" in the slash menu. genesis does not talk to Google;
+   * `pickFile` should return a `File` your app already obtained.
+   */
+  googleDrive?: GoogleDriveImport;
+  /** Called when `importFile` or the slash Import document picker cannot read a file (Pages, unknown type, empty). */
+  onImportError?: (error: DocumentImportError) => void;
 };
 
 export type BlockEditorHandle = {
@@ -248,7 +262,12 @@ export type BlockEditorHandle = {
   setHTML: (html: string) => FidelityReport;
   /** Replaces the whole document with Markdown (via the HTML engine) and returns the import report. Counts as an edit. */
   setMarkdown: (markdown: string) => FidelityReport;
-  /** The report from the most recent HTML or Markdown import, or `null` if nothing was imported yet. */
+  /**
+   * Replaces the whole document from a Word, OpenDocument, RTF, HTML, Markdown, or text file.
+   * Conversion is lazy-loaded. Apple Pages is refused with a request to export as Word.
+   */
+  importFile: (file: File) => Promise<FidelityReport>;
+  /** The report from the most recent HTML, Markdown, or document import, or `null` if nothing was imported yet. */
   readonly lastReport: FidelityReport | null;
   /** Removes the persisted copy from localStorage and cancels any pending save. */
   clearPersisted: () => void;
@@ -354,6 +373,8 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     embedProviders,
     linkPreview,
     colorContrast = "off",
+    googleDrive,
+    onImportError,
     latestDocument,
   },
   ref,
@@ -759,6 +780,35 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
     [applyHtml],
   );
 
+  const fileInput = useRef<HTMLInputElement>(null);
+  const importFile = useCallback(
+    async (file: File) => {
+      try {
+        const loaded = await importFileSource(file, documentOptions(htmlOptions.current));
+        const result = { blocks: sanitize(loaded.blocks as PartialBlock[]), report: loaded.report };
+        editor.replaceBlocks(editor.document, result.blocks.length ? result.blocks : [{ type: "paragraph" }]);
+        recordImport.current(result);
+        scheduleRehost(editor.document, "value", result.report);
+        return result.report;
+      } catch (error) {
+        const wrapped =
+          error instanceof DocumentImportError ? error : new DocumentImportError(error instanceof Error ? error.message : String(error), "unsupported");
+        onImportError?.(wrapped);
+        throw wrapped;
+      }
+    },
+    [editor, sanitize, scheduleRehost, onImportError],
+  );
+
+  useLayoutEffect(() => {
+    registerDocumentImport(editor, {
+      openPicker: () => fileInput.current?.click(),
+      importFile,
+      googleDrive,
+    });
+    return () => registerDocumentImport(editor, null);
+  }, [editor, importFile, googleDrive]);
+
   useEffect(() => {
     if (htmlValue === undefined || htmlValue === lastHtml.current) return;
     lastHtml.current = htmlValue;
@@ -823,6 +873,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       getHTML: exportedHtml,
       setHTML: (html) => applyHtml(html, true),
       setMarkdown: (markdown) => applyMarkdown(markdown, true),
+      importFile,
       get lastReport() {
         return lastReport.current;
       },
@@ -836,7 +887,7 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
       },
       uploadsSettled: () => rehost.settled(),
     }),
-    [editor, initial.key, sanitize, applyHtml, applyMarkdown, exportedBlocks, exportedHtml, rehost, scheduleRehost],
+    [editor, initial.key, sanitize, applyHtml, applyMarkdown, importFile, exportedBlocks, exportedHtml, rehost, scheduleRehost],
   );
 
   // Links
@@ -1046,6 +1097,18 @@ const EditorInstance = forwardRef<BlockEditorHandle, EditorInstanceProps>(functi
         />
         <ImageLinkDialog target={imageLinkTarget} onClose={closeImageLink} onSubmit={applyImageLink} />
         <InlineImageDialog request={inlineImageDialogRequest} onClose={closeInlineImage} upload={uploadInlineImage} />
+        <input
+          ref={fileInput}
+          type="file"
+          accept={DOCUMENT_IMPORT_ACCEPT}
+          hidden
+          data-testid="document-import-input"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void importFile(file);
+          }}
+        />
       </div>
     </UploadContext.Provider>
   );

@@ -45,6 +45,7 @@ const examples = {
   colors: load(() => import("./colors")),
   "font-size": load(() => import("./font-size")),
   "code-blocks": load(() => import("./code-blocks")),
+  "document-import": load(() => import("./document-import")),
 };
 
 export type ExampleName = keyof typeof examples;

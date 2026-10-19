@@ -26,6 +26,7 @@ import { resolveColorConfig } from "../parser/colors";
 import { ImageLinkButton } from "../components/image-link-dialog";
 import { genesisSyntaxHighlighting } from "./code-highlight";
 import { embedSlashItem, embedSpec } from "./embed";
+import { importSlashItems } from "./import-file";
 import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
 import { LinkPreviewButton, linkPreviewSlashItems, linkPreviewSpec } from "./link-preview";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
@@ -81,6 +82,7 @@ const styleButton = (style: "bold" | "italic" | "underline" | "strike" | "code")
 export const corePlugin = definePlugin({
   name: "core",
   blocks: { paragraph: defaultBlockSpecs.paragraph },
+  slashItems: (editor) => importSlashItems(editor),
   toolbarItems: {
     blockType: HeadingAwareBlockTypeSelect,
     tableMerge: TableCellMergeButton,

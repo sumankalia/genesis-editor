@@ -9,6 +9,9 @@ export const metadata: Metadata = { title: "API reference" };
 
 const parserExports: [string, string][] = [
   ["parseHTML(html, options?)", "Parses HTML into blocks. Returns { blocks, report }."],
+  ["importDocument(source, options?)", "Converts a Word, OpenDocument, RTF, HTML, Markdown, or text file to HTML, then parseHTML. Throws DocumentImportError for Pages, empty, or unknown types."],
+  ["detectDocumentFormat(source)", "Sniffs the file name, MIME type, and magic bytes. Returns html, markdown, txt, docx, odt, rtf, pages, or unknown."],
+  ["DocumentImportError", "Thrown by importDocument. code is pages, unsupported, or empty."],
   ["parseHTMLAsync(html, options?)", "parseHTML, then copies remote images with uploadRemote or an absolute uploadFromUrl before returning. For bulk imports on a server."],
   ["markdownToHTML(markdown)", "Converts CommonMark/GFM to HTML. Does not sanitize; pass the result to parseHTML."],
   ["parseMarkdown(markdown, options?)", "markdownToHTML, then parseHTML. The path setMarkdown and format=\"markdown\" use."],

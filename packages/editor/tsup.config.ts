@@ -8,6 +8,7 @@ const shared = {
   target: "es2020",
 };
 
+const lazyDocumentImport = ["mammoth", "fflate"];
 const editorExternal = [
   "react",
   "react-dom",
@@ -19,6 +20,7 @@ const editorExternal = [
   "prosemirror-model",
   "shiki",
   /^@shikijs\//,
+  ...lazyDocumentImport,
 ];
 // The editor relies on hooks and browser APIs, so it must be a client component in React Server Components apps.
 const editorBanner = { js: '"use client";' };
@@ -65,9 +67,10 @@ export default defineConfig([
     clean: false,
     // A bundled BlockNote's source map would be ~18 MB.
     sourcemap: false,
-    // Keep shiki out of the CJS bundle (it's ESM-only and large); load it with import() when highlighting.
-    external: ["react", "react-dom", "shiki", /^@shikijs\//],
-    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/|shiki$|@shikijs\/)/],
+    // Keep shiki/mammoth/fflate out of the CJS bundle; load them with import() on first use.
+    // marked stays bundled (Node < 22.12 cannot require() it).
+    external: ["react", "react-dom", "shiki", /^@shikijs\//, ...lazyDocumentImport],
+    noExternal: [/^(?!react$|react-dom$|react\/|react-dom\/|shiki$|@shikijs\/|mammoth$|fflate$)/],
     banner: editorBanner,
   },
   {
@@ -78,7 +81,7 @@ export default defineConfig([
     entry: parserEntries,
     clean: false,
     sourcemap: false,
-    external: ["jsdom", "canvas"],
+    external: ["jsdom", "canvas", ...lazyDocumentImport],
     noExternal: ["marked", "linkedom", /^css-select/, /^css-what/, /^nth-check/, /^boolbase/, /^domutils/, /^domhandler/, /^dom-serializer/, /^domelementtype/, /^entities/, /^htmlparser2/, "cssom", "html-escaper", "uhyphen"],
   },
 ]);

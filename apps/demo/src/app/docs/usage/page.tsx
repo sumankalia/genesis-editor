@@ -71,7 +71,8 @@ export default function UsagePage() {
       <H2>Ref methods</H2>
       <p>
         A ref gives you <code>getMarkdown()</code>, <code>setMarkdown()</code>, <code>getBlocks()</code>,{" "}
-        <code>setBlocks()</code>, <code>focus()</code>, and the underlying BlockNote editor. See the{" "}
+        <code>setBlocks()</code>, <code>setHTML()</code>, <code>importFile()</code>,{" "}
+        <code>focus()</code>, and the underlying BlockNote editor. See the{" "}
         <Link href="/docs/api#ref">API reference</Link>.
       </p>
       <Example name="ref-methods" />
