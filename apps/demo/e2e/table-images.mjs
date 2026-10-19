@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { chromium } from "playwright-core";
 
+import { placeCaret } from "./caret.mjs";
 import { BASE_URL, SHOTS, launchOptions } from "./config.mjs";
 
 // A dev.to article as browsers copy it (StartFragment, meta charset, inline styles, picture/srcset, data-src),
@@ -39,6 +40,37 @@ const openExample = async () => {
 
 const cellImages = (editor) => editor.locator("table td .genesis-inline-image img");
 const srcs = (editor) => cellImages(editor).evaluateAll((els) => els.map((el) => el.getAttribute("src")));
+
+/** Pins the caret in a table cell. Empty cells have no text node, so `placeCaret` would throw. */
+async function placeCaretInCell(cell) {
+  const content = cell.locator("p").first();
+  await content.waitFor({ timeout: 5000 });
+  await content.click({ force: true });
+  const text = (await content.textContent()) ?? "";
+  if (text.length > 0) {
+    await placeCaret(content, "end");
+    return;
+  }
+  const handle = await content.elementHandle();
+  await handle.evaluate((el) => {
+    const selection = getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+  await page.waitForFunction(
+    (el) => {
+      const selection = getSelection();
+      return Boolean(selection.rangeCount && selection.anchorNode && el.contains(selection.anchorNode));
+    },
+    handle,
+    { timeout: 5000 },
+  );
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await handle.dispose();
+}
 
 // 1. A paste event carrying the browser's text/html, as ⌘V delivers it.
 let { demo, editor } = await openExample();
@@ -123,25 +155,29 @@ await page.waitForTimeout(150);
 check("Apply updates the alt text", (await cellImages(editor).first().getAttribute("alt")) === "On stage");
 check("Apply adds the link", (await editor.locator("table td").first().getByTestId("inline-image-link").getAttribute("href")) === "https://example.org/talk");
 const last = editor.locator("table .genesis-inline-image").last();
+const cellIndex = await last.evaluate((el) => {
+  const td = el.closest("td");
+  return [...td.closest("table").querySelectorAll("td")].indexOf(td);
+});
+const lastCell = editor.locator("table td").nth(cellIndex);
 await last.hover();
 await last.getByTestId("inline-image-edit").click();
 await dialog.getByRole("button", { name: "Remove image" }).click();
 await dialog.waitFor({ state: "hidden" });
+await lastCell.locator(".genesis-inline-image").waitFor({ state: "detached" });
 check("Remove image deletes it", (await cellImages(editor).count()) === 5);
 
 // 5. Insert from the slash menu, into a cell.
-const lastCell = editor.locator("table td").last();
-await lastCell.locator("p").click({ force: true });
-await page.waitForFunction(() => {
-  const node = window.getSelection()?.anchorNode;
-  const el = node instanceof Element ? node : node?.parentElement;
-  return Boolean(el?.closest("[data-example='image-rehost'] table tr:last-child td:last-child"));
-});
-await page.keyboard.type("/inline");
-const slashItem = page.getByRole("option", { name: /Inline image/ });
-await slashItem.waitFor({ timeout: 5000 });
-// Clicking the menu blurs the cell; Enter keeps the selection so the image lands in it.
-await page.keyboard.press("Enter");
+// Type only `/` (a space in the query closes the menu). Click the item by title so we don't
+// depend on which option is highlighted. The menu's mousedown preventDefault keeps the caret.
+await placeCaretInCell(lastCell);
+await page.keyboard.type("/");
+const menu = page.locator(".bn-suggestion-menu");
+await menu.waitFor({ state: "visible", timeout: 5000 });
+const slashItem = menu.getByRole("option", { name: /^Inline image\b/ });
+await slashItem.click();
+// Empty placeholder has no src, so it is 0×0 and Playwright treats it as hidden.
+await lastCell.locator(".genesis-inline-image").waitFor({ state: "attached", timeout: 5000 });
 await dialog.waitFor();
 await dialog.getByLabel("Image URL").fill(`${PAGE_ORIGIN}/examples/lake.png`);
 await dialog.getByLabel("Alt text").fill("Lake");
@@ -149,7 +185,7 @@ await dialog.getByRole("button", { name: "Insert" }).click();
 const inserted = lastCell.locator(".genesis-inline-image img[alt='Lake']");
 await inserted.waitFor({ timeout: 5000 });
 check("/Inline image inserts into the cell", (await inserted.count()) === 1 && (await inserted.getAttribute("alt")) === "Lake");
-check("the slash text is gone", !(await editor.locator("table td").last().innerText()).includes("/inline"));
+check("the slash text is gone", !/\//.test(await lastCell.innerText()));
 
 // 6. One undo step removes the whole paste; the URL swaps never were steps.
 for (let i = 0; i < 8; i++) await page.keyboard.press(`${mod}+z`);
