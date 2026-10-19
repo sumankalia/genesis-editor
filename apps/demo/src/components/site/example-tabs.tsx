@@ -32,11 +32,12 @@ export function ExampleTabs({
           {preview}
         </div>
       </TabsContent>
-      {/* The example's source for the Markdown versions of the docs, which can't open the Code tab. */}
+      {/* The example's source for the Markdown versions of the docs, which can't open the Code tab.
+          Not a <template>: its text moves into template.content, which React can't hydrate. */}
       {sources.map((source) => (
-        <template key={source.file} data-source={source.file} data-language={source.file.split(".").pop()}>
+        <div key={source.file} hidden data-source={source.file} data-language={source.file.split(".").pop()}>
           {source.code}
-        </template>
+        </div>
       ))}
       <TabsContent value="code" className="flex flex-col gap-3">
         {sources.map((source) => (

@@ -46,7 +46,7 @@ function inlineNodes(nodes: Node[], links = true): string {
     if (child.nodeType !== 1) continue;
     const el = child as Element;
     const tag = el.tagName;
-    if (SKIP.has(tag) || tag === "TEMPLATE") continue;
+    if (SKIP.has(tag) || el.hasAttribute("data-source")) continue;
     if (tag === "BR") out += "\n";
     else if (tag === "CODE" || tag === "KBD") out += codeSpan(el.textContent ?? "");
     else if (tag === "STRONG" || tag === "B") out += wrap(inline(el, links), "**");
@@ -124,10 +124,9 @@ function blocksOf(root: Element, exclude = new Set<Element>()): string {
     } else if (tag === "PRE") {
       flush();
       blocks.push(fenced(el.textContent ?? "", el.closest("[data-language]")?.getAttribute("data-language") ?? ""));
-    } else if (tag === "TEMPLATE" && el.hasAttribute("data-source")) {
+    } else if (el.hasAttribute("data-source")) {
       flush();
-      const code = (el as HTMLTemplateElement).content?.textContent || el.textContent || "";
-      blocks.push(`${codeSpan(el.getAttribute("data-source")!)}:\n\n${fenced(code, el.getAttribute("data-language") ?? "")}`);
+      blocks.push(`${codeSpan(el.getAttribute("data-source")!)}:\n\n${fenced(el.textContent ?? "", el.getAttribute("data-language") ?? "")}`);
     } else if (tag === "TABLE") {
       flush();
       blocks.push(table(el));
