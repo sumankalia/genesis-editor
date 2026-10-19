@@ -33,6 +33,7 @@ import {
 import { useSiteTheme } from "@/lib/use-site-theme";
 
 const DOCUMENT_KEY = "genesis:document:v1";
+const MOCK_LINK_PREVIEW_URL = "/api/mock-link-preview";
 
 export default function Playground() {
   const editorRef = useRef<BlockEditorHandle>(null);
@@ -46,6 +47,7 @@ export default function Playground() {
     toolbarPlacement: "floating",
     htmlMode: "clean",
     cleanNoise: true,
+    linkPreviews: true,
   }));
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [markdown, setMarkdown] = useState("");
@@ -120,6 +122,7 @@ export default function Playground() {
     [options.toolbarPlacement],
   );
   const clean = useMemo(() => (options.cleanNoise ? undefined : { noise: false }), [options.cleanNoise]);
+  const linkPreview = useMemo(() => (options.linkPreviews ? { endpoint: MOCK_LINK_PREVIEW_URL } : undefined), [options.linkPreviews]);
 
   const editorTheme = options.theme === "site" ? siteTheme : options.theme;
   const json = useMemo(() => JSON.stringify(blocks, shortenDataUrls, 2), [blocks]);
@@ -157,6 +160,7 @@ export default function Playground() {
               plugins={plugins}
               htmlMode={options.htmlMode}
               clean={clean}
+              linkPreview={linkPreview}
               uploadFile={uploads.mode === "custom" ? demoUploadFile : undefined}
               uploadUrl={serverMode ? uploadUrl : undefined}
               mapUploadResponse={serverMode ? mapUploadResponse : undefined}
@@ -234,7 +238,7 @@ function arrayProp(name: string, values: readonly string[]) {
 }
 
 function generateCode(options: PlaygroundOptions) {
-  const { theme, editable, uploads, callout, toolbarPlacement, htmlMode, cleanNoise } = options;
+  const { theme, editable, uploads, callout, toolbarPlacement, htmlMode, cleanNoise, linkPreviews } = options;
   const props = [`persist={{ key: "my-document" }}`];
   if (theme === "site") props.push(`theme={resolvedTheme} // "light" | "dark" from your app`);
   else if (theme !== "system") props.push(`theme="${theme}"`);
@@ -246,6 +250,7 @@ function generateCode(options: PlaygroundOptions) {
   if (callout) props.push("plugins={[calloutPlugin]}");
   if (htmlMode === "strict") props.push(`htmlMode="strict"`);
   if (!cleanNoise) props.push("clean={{ noise: false }}");
+  if (linkPreviews) props.push(`linkPreview={{ endpoint: "/api/link-preview" }}`);
 
   const url = uploads.uploadUrl.trim();
   const path = uploads.responsePath.trim();

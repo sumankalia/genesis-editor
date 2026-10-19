@@ -39,6 +39,8 @@ export type PlaygroundOptions = {
   htmlMode: ParseMode;
   /** `clean.noise`: remove page furniture (share bars, navigation, related posts) from pasted HTML. */
   cleanNoise: boolean;
+  /** `linkPreview={{ endpoint: "/api/mock-link-preview" }}`. */
+  linkPreviews: boolean;
 };
 
 export const ALL_TOOLS: BuiltInToolName[] = [...BLOCK_TOOLS, ...INLINE_TOOLS];
@@ -132,6 +134,16 @@ export function OptionsPanel({
             id="option-clean-noise"
             checked={options.cleanNoise}
             onCheckedChange={(cleanNoise) => onChange({ ...options, cleanNoise })}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="option-link-previews" className="font-normal">
+            Link preview cards
+          </Label>
+          <Switch
+            id="option-link-previews"
+            checked={options.linkPreviews}
+            onCheckedChange={(linkPreviews) => onChange({ ...options, linkPreviews })}
           />
         </div>
       </fieldset>

@@ -39,6 +39,7 @@ const examples = {
   "image-rehost": load(() => import("./image-rehost")),
   embeds: load(() => import("./embeds")),
   "embed-code": load(() => import("./embed-code")),
+  "link-previews": load(() => import("./link-previews")),
   colors: load(() => import("./colors")),
   "font-size": load(() => import("./font-size")),
 };

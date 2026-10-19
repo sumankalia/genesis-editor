@@ -20,6 +20,7 @@ export const docsNav: { title: string; items: NavItem[] }[] = [
       { title: "Usage", href: "/docs/usage" },
       { title: "Image uploads", href: "/docs/image-uploads" },
       { title: "Embeds", href: "/docs/embeds" },
+      { title: "Link previews", href: "/docs/link-previews" },
       { title: "Colors", href: "/docs/colors" },
       { title: "Font size", href: "/docs/font-size" },
       { title: "Theming", href: "/docs/theming" },
