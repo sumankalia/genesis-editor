@@ -8,7 +8,7 @@
     "url": "git+https://github.com/sumankalia/genesis-editor.git",
     "directory": "packages/editor"
   },
-  "homepage": "https://github.com/sumankalia/genesis-editor#readme",
+  "homepage": "https://genesis-editor-three.vercel.app",
   "bugs": {
     "url": "https://github.com/sumankalia/genesis-editor/issues"
   },

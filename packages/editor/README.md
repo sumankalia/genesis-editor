@@ -8,6 +8,9 @@ Built on [BlockNote](https://www.blocknotejs.org/) (TipTap/ProseMirror) with a
 shadcn/ui-style skin. The stylesheet is precompiled and scoped, so you don't need
 Tailwind or shadcn/ui in your app.
 
+**[Docs and live demo](https://genesis-editor-three.vercel.app)** ·
+[Playground](https://genesis-editor-three.vercel.app/playground)
+
 - Slash menu (`/`), drag handles, `Tab` / `Shift+Tab` nesting
 - Floating formatting toolbar and shortcuts (`Mod+B`, `Mod+I`, `Mod+U`,
   `Mod+Shift+S`, `Mod+E` for code, `Mod+K` for links)

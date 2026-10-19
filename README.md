@@ -6,7 +6,8 @@ block that can be inserted, converted, reordered, and nested independently.
 
 The editor is published as [`genesis-editor`](packages/editor) on npm. See the
 [package README](packages/editor/README.md) for installation, usage, upload
-options, and the full API.
+options, and the full API, or try it on the
+[docs site and live demo](https://genesis-editor-three.vercel.app).
 
 ```tsx
 import { BlockEditor } from "genesis-editor";
@@ -66,8 +67,9 @@ The playground's **Image uploads** options switch between (changes apply live):
   `/api/mock-upload`.
 - **Custom function**: an example `uploadFile` with its own request code.
 
-The mock server (`apps/demo/src/app/api/mock-upload`) is for local testing only.
-It stores files in `apps/demo/.uploads/` (git-ignored), serves them from
+The mock server (`apps/demo/src/app/api/mock-upload`) is for testing only.
+It stores files in `apps/demo/.uploads/` (git-ignored; on Vercel, in the
+function's temp directory or memory, so uploads there are short-lived), serves them from
 `/api/mock-upload/<id>`, accepts raster images up to 10 MB, and supports:
 
 | Parameter      | Effect                                         |
@@ -88,6 +90,12 @@ It stores files in `apps/demo/.uploads/` (git-ignored), serves them from
 | `pnpm --filter demo e2e` | Browser checks against the running docs site        |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development details.
+
+### Deploying the docs site
+
+The live site, <https://genesis-editor-three.vercel.app>, is a Vercel project
+with **Root Directory** `apps/demo`. `apps/demo/vercel.json` builds the package
+before the site (`pnpm --filter genesis-editor build && pnpm run build`).
 
 ## Limitations
 
