@@ -78,6 +78,11 @@ export type EmbedOptions = {
   providers?: string[];
   /** Generic iframes under the `"open"` policy. Defaults to `true`. */
   generic?: boolean;
+  /**
+   * Wait for a click before loading the iframe (privacy and speed). Defaults to `true` in the editor.
+   * The parser ignores this; it only affects drawing.
+   */
+  clickToLoad?: boolean;
 };
 
 export const PROVIDER_SANDBOX = "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation";
@@ -100,7 +105,7 @@ export function defineEmbedProvider<const P extends EmbedProvider>(provider: P):
   return provider;
 }
 
-export type EmbedRegistry = { providers: readonly EmbedProvider[]; generic: boolean; origin?: string };
+export type EmbedRegistry = { providers: readonly EmbedProvider[]; generic: boolean; origin?: string; clickToLoad: boolean };
 
 /** The enabled providers (custom ones first, replacing built-ins of the same name) and whether generic iframes are allowed. */
 export function embedRegistry(
@@ -116,7 +121,7 @@ export function embedRegistry(
   });
   const generic = (options.policy ?? "open") === "open" && options.generic !== false && !context.strict;
   const origin = context.origin ?? (typeof location !== "undefined" ? location.origin : undefined);
-  return { providers, generic, origin };
+  return { providers, generic, origin, clickToLoad: options.clickToLoad !== false };
 }
 
 export type ResolvedEmbed = {

@@ -18,6 +18,7 @@ import {
 } from "@blocknote/react";
 import { useMemo } from "react";
 
+import { AltTextButton } from "../components/alt-text-button";
 import { ColorPickerButton } from "../components/color-picker";
 import { FontSizeSelect } from "../components/font-size-select";
 import { resolveColorConfig } from "../parser/colors";
@@ -55,6 +56,7 @@ function HeadingAwareBlockTypeSelect() {
 function FileButtons() {
   return (
     <>
+      <AltTextButton />
       <FileCaptionButton />
       <FileReplaceButton />
       <FileRenameButton />

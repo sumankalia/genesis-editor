@@ -102,4 +102,19 @@ describe("image block", () => {
     expect(replaced.props.width).toBeUndefined();
     expect(rehosted.props).toMatchObject({ srcset: "https://x.com/a.png 1x, https://x.com/a2.png 2x", width: 800, height: 600 });
   });
+
+  it("stores alt separately from the file name, and alignment on the block", () => {
+    const setup = resolveEditorSetup(undefined);
+    const editor = BlockNoteEditor.create({
+      schema: setup.schema,
+      initialContent: toEditorBlocks(parse('<img src="https://x.com/a.png" alt="A cat">'), schemaSupport(setup.schema)) as never,
+    });
+    const root = document.createElement("div");
+    editor.mount(root);
+    editor.updateBlock(editor.document[0], { props: { alt: "A tabby cat", textAlignment: "center" } as never });
+    const block = root.querySelector("[data-content-type='image']")!;
+    expect(editor.document[0].props).toMatchObject({ alt: "A tabby cat", name: "A cat", textAlignment: "center" });
+    expect(root.querySelector("img.bn-visual-media")?.getAttribute("alt")).toBe("A tabby cat");
+    expect(block.getAttribute("data-text-alignment")).toBe("center");
+  });
 });

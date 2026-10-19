@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Embeds" };
 
 const policy = `<BlockEditor embeds={{ policy: "open" }} />        // providers + sandboxed generic iframes (default)
 <BlockEditor embeds={{ policy: "allowlist" }} />   // providers only; unknown iframes become links
+<BlockEditor embeds={{ clickToLoad: false }} />    // load iframes immediately (default waits for a click)
 <BlockEditor embeds={{ providers: ["youtube", "vimeo", "loom"] }} />`;
 
 const csp = `import { getEmbedFrameSrc } from "genesis-editor";
@@ -131,8 +132,16 @@ export default function EmbedsPage() {
       </ul>
       <Example name="embeds" minHeight={560} />
       <p>
-        Every embed has a bar with the site and an <em>Open ↗</em> link. Many sites refuse to be
-        framed, and a page can&apos;t detect that across origins, so the link is always there.
+        Every embed has a bar with the site, an editable caption, and an <em>Open ↗</em> link. Many
+        sites refuse to be framed, and a page can&apos;t detect that across origins, so the link is
+        always there. Drag the right edge to resize; the width is stored as{" "}
+        <code>previewWidth</code> and exported.
+      </p>
+      <p>
+        Iframes wait for a click before they load (<code>embeds.clickToLoad</code>, default{" "}
+        <code>true</code>), so a document full of videos doesn&apos;t talk to those sites until the
+        reader asks. Pass <code>clickToLoad: false</code> to restore 0.1.0&apos;s immediate load.
+        The examples on this page do that so you can see the frames.
       </p>
 
       <H2 id="embed-code">Embed code</H2>

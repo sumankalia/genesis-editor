@@ -76,6 +76,7 @@ export default function EmbedCodeExample() {
         ref={editor}
         format="html"
         defaultValue={article}
+        embeds={{ clickToLoad: false }} // hide
       />
       <div className="flex flex-wrap items-center gap-2 px-15 text-sm">
         {exports.map(({ label, options }) => (

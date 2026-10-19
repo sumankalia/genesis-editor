@@ -2,6 +2,10 @@
 
 All notable changes to `genesis-editor`.
 
+## Unreleased
+
+- **Media polish.** An **Alt text** control on the image toolbar edits `props.alt` (kept apart from the file name). Image captions were already editable through **Edit caption**; image alignment (`textAlignment` left/center/right) now actually positions the image in the editor. Embeds wait for a click before loading the iframe (`embeds.clickToLoad`, default `true`; pass `false` for 0.1.0's immediate load), have a drag handle for `previewWidth` (160–1200px), and an editable caption in the bar.
+
 ## 0.1.0 (2026-10-19)
 
 First release. Everything below is new in it; the "breaking" notes concern documents and handlers written against earlier unreleased builds. See the README's [Known limitations](README.md#known-limitations).
