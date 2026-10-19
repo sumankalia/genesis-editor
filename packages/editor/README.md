@@ -13,7 +13,13 @@ Tailwind or shadcn/ui in your app.
   `Mod+Shift+S`, `Mod+E` for code, `Mod+K` for links)
 - Markdown shortcuts: `#` headings, `-` / `1.` / `[]` lists, `>` quotes,
   ```` ``` ```` code, `---` dividers
-- Images by URL or upload (picker, drop, paste) to your server or your own function
+- Images by URL or upload (picker, drop, paste) to your server or your own function,
+  with optional re-hosting of pasted images
+- HTML in and out (`format="html"`, `getHTML`/`setHTML`), and pastes from Google
+  Docs, Word, WordPress and web pages cleaned into blocks
+- Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
+  or a site's embed code, always in sandboxed frames
+- Text and background colours, font sizes
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
 - A bottom block toolbar on small screens
@@ -92,6 +98,39 @@ function WithExport() {
   );
 }
 ```
+
+## HTML
+
+With `format="html"`, `value`, `defaultValue` and `onChange` carry HTML strings:
+
+```tsx
+<BlockEditor format="html" defaultValue={savedHtml} onChange={(html) => save(html)} />
+```
+
+Pasted HTML, the HTML `value` and `setHTML` go through `genesis-editor/parser`.
+It maps what the editor can show, sanitizes the rest, removes page furniture
+from pastes (with an "Undo cleanup" toast), and reports what changed through
+`onImportReport`. `htmlMode="strict"` also snaps custom colours to the palette.
+On a server, parse with `linkedom`:
+
+```ts
+import { parseHTML, toHTML } from "genesis-editor/parser";
+import { linkedomDom } from "genesis-editor/parser/linkedom";
+
+const { blocks, report } = parseHTML(html, { dom: linkedomDom });
+const back = toHTML(blocks); // reads back to the same blocks
+```
+
+- Whitespace follows HTML's rules, and `&nbsp;` padding next to other spaces
+  collapses too (`Land,&nbsp; some` reads as one space). `toHTML` keeps
+  intentional spaces in `<span style="white-space:pre-wrap">`, so its output
+  reads back exactly.
+- HTML that arrives JSON-encoded (copied from an API response, DevTools or a
+  `.json` file) is decoded instead of showing `\n` and `\"` as text. This
+  covers a quoted JSON string, JSON holding HTML strings such as
+  `[{ "HTML": "…" }]`, and the inside of a JSON string when its escapes are
+  clearly structural. The report gets a warning; `decodeEscaped: false` turns it
+  off. `decodeEscapedHTML(text)` is exported for your own inputs.
 
 ## Image uploads
 
@@ -266,15 +305,32 @@ rebuilds the editor: the document is kept, the undo history isn't.
 
 | Prop                    | Type                                                      | Default    | Description                                                                                          |
 | ----------------------- | --------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| `format`                | `"blocks" \| "html"`                                      | `"blocks"` | Shape of `value`, `initialContent`/`defaultValue` and `onChange`. See [HTML](#html).                 |
 | `initialContent`        | `EditorContent`                                           | —          | Content for the first render. Ignored when `value` is set or a persisted document exists.            |
-| `value`                 | `EditorContent`                                           | —          | Controlled content. A new value that differs from the document replaces it.                           |
-| `onChange`              | `(blocks: Block[], editor: BlockNoteEditor) => void`      | —          | Called after every edit with the full document. Not called for changes made through `value`.         |
+| `defaultValue`          | `string`                                                  | —          | With `format="html"`: HTML for the first render.                                                     |
+| `value`                 | `EditorContent \| string`                                 | —          | Controlled content (HTML with `format="html"`). A new value that differs from the document replaces it. |
+| `onChange`              | `(blocks, editor) => void` / `(html, info) => void`       | —          | Called after every edit with the full document. Not called for changes made through `value`.         |
+| `htmlMode`              | `"clean" \| "strict"`                                     | `"clean"`  | How pasted and loaded HTML is cleaned.                                                               |
+| `baseUrl`               | `string`                                                  | —          | Resolves relative links and image sources in pasted and loaded HTML.                                 |
+| `clean`                 | `CleanOptions`                                            | —          | Page-furniture removal for pastes: `{ noise: false }`, `keepSelectors`, `dropSelectors`.             |
+| `cleanupToast`          | `boolean`                                                 | `true`     | Show "Removed N sections · Undo cleanup" after a paste that removed furniture.                       |
+| `onImportReport`        | `(report: FidelityReport) => void`                        | —          | Called after HTML is imported (value, `setHTML`, or paste).                                          |
+| `meta`                  | `MetaOptions`                                             | —          | Per-block metadata kept from imports: `policy: "keep" \| "strip-on-export" \| "off"`.                |
+| `embeds`                | `EmbedOptions`                                            | `"open"`   | `policy: "allowlist"` allows provider embeds only (recommended for user content). Read once.         |
+| `embedProviders`        | `EmbedProvider[]`                                         | —          | Extra providers from `defineEmbedProvider`. Read once.                                               |
+| `colorContrast`         | `"auto" \| "off"`                                         | `"off"`    | `"auto"` adjusts hex text below 3:1 contrast with the theme, at render time only.                     |
 | `persist`               | `boolean \| { key?: string; debounceMs?: number }`        | `false`    | Autosave to `localStorage`. Default key `"genesis-editor:document"`, default delay 400 ms.          |
 | `onPersistStatusChange` | `(status: PersistStatus) => void`                         | —          | Autosave progress: `idle`, `saving`, `saved` (with `savedAt`), or `error`.                          |
 | `uploadUrl`             | `string`                                                  | —          | Endpoint for multipart `POST` uploads (field `file`, response `{ url }`).                           |
-| `uploadFile`            | `(file: File) => Promise<string>`                         | —          | Custom upload function. Takes precedence over `uploadUrl`.                                           |
-| `mapUploadResponse`     | `(body: unknown, response: Response) => string \| Promise<string>` | — | Reads the URL from an `uploadUrl` response.                                                       |
-| `onUploadError`         | `(event: UploadErrorEvent) => void`                       | —          | Called when an upload fails, with `{ error, file, blockId, retry }`.                                |
+| `uploadFile`            | `(file: File, ctx) => Promise<string>`                    | —          | Custom upload function. Takes precedence over `uploadUrl`. `ctx` has `signal`, `onProgress`, `blockId`, `source`. |
+| `mapUploadResponse`     | `(body: unknown, response: Response) => string \| Promise<string>` | — | Reads the URL from an `uploadUrl` or `uploadFromUrl` response.                                    |
+| `uploadHeaders`         | `object \| () => Promise<object>`                         | —          | Extra request headers (auth) for `uploadUrl` and `uploadFromUrl`.                                   |
+| `uploadFromUrl`         | `string`                                                  | —          | Endpoint that copies a remote image: JSON `POST { url, alt?, filename? }` → `{ url }`.              |
+| `uploadRemote`          | `(url: string, ctx) => Promise<string>`                   | —          | Custom re-hosting of a remote image. Takes precedence over `uploadFromUrl`.                          |
+| `rehostImages`          | `"auto" \| "off" \| (url) => boolean`                     | `"auto"`   | Which pasted and loaded images are copied to your storage, when a destination is configured.       |
+| `trustedHosts`          | `string[] \| (url) => boolean`                            | —          | Hosts whose images are never re-hosted (`"cdn.example.com"`, `"*.example.com"`).                     |
+| `uploadConcurrency`     | `number`                                                  | `4`        | Re-uploads running at once.                                                                          |
+| `onUploadError`         | `(event: UploadErrorEvent) => void`                       | —          | Called when an upload fails: `{ kind: "file", error, file, blockId, retry }` or `{ kind: "rehost", error, url, blockId, retry }`. |
 | `theme`                 | `"light" \| "dark" \| "system"`                           | `"system"` | Color scheme. `"system"` follows `prefers-color-scheme`.                                             |
 | `editable`              | `boolean`                                                 | `true`     | `false` renders a read-only document.                                                                |
 | `className`             | `string`                                                  | —          | Class names for the root element.                                                                    |
@@ -290,9 +346,14 @@ rebuilds the editor: the document is kept, the undo history isn't.
 | ------------------- | ------------------------------------------------------------------- |
 | `editor`            | The underlying `BlockNoteEditor`, for anything the props don't cover. |
 | `focus()`           | Focuses the editor.                                                 |
-| `getBlocks()`       | Returns the current document.                                       |
+| `getBlocks(options?)` | Returns the current document. `{ meta: "strip" }` leaves out `meta`. |
 | `setBlocks(blocks)` | Replaces the document. Counts as an edit.                           |
 | `getMarkdown()`     | Lossy Markdown export of the document.                              |
+| `getHTML(options?)` | The document as HTML that `parseHTML` reads back losslessly. Options: `embeds`, `embedScripts`. |
+| `setHTML(html)`     | Replaces the document with parsed HTML and returns the import report. |
+| `lastReport`        | The report from the most recent HTML import, or `null`.             |
+| `pendingUploads`    | File uploads and image re-uploads still running.                    |
+| `uploadsSettled()`  | Resolves once nothing is uploading.                                 |
 | `clearPersisted()`  | Removes the saved copy from `localStorage`.                          |
 
 ### Other exports
@@ -305,6 +366,11 @@ rebuilds the editor: the document is kept, the undo history isn't.
 - `definePlugin(plugin)`, `ToolbarButton` (a toolbar button for plugins), and
   BlockNote's `createReactBlockSpec`.
 - `BLOCK_TOOLS`, `INLINE_TOOLS`, `BUILT_IN_TOOLS`, `DEFAULT_TOOLBAR`.
+- From `genesis-editor/parser` (no React): `parseHTML`, `parseHTMLAsync`,
+  `toHTML`, `decodeEscapedHTML`, `defineEmbedProvider`, `BUILT_IN_EMBED_PROVIDERS`,
+  `getEmbedFrameSrc`/`getEmbedScriptSrc` (CSP lists), `stripMeta`, colour and
+  font-size helpers. `genesis-editor/parser/linkedom` exports `linkedomDom` for
+  servers (install `linkedom`).
 - Types: `BlockEditorProps`, `BlockEditorHandle`, `UploadConfig`,
   `UploadErrorEvent`, `UploadMode`, `UploadResponseMapper`, `PersistOptions`,
   `PersistStatus`, `StoredDocument`, `EditorTheme`, `EditorContent`,
@@ -347,6 +413,50 @@ from the host. Set `--genesis-gutter` (default `3.75rem`; keep it at least
 `3.25rem`) to change it, and `--genesis-gutter-end` for a different right
 padding. Below 640px, with the mobile toolbar on, the side menu is hidden and
 the gutter is `1.25rem`.
+
+## Known limitations
+
+HTML import and export:
+
+- Round trips are exact for the editor's own HTML. Pasted HTML loses what the
+  editor can't show: `<sub>`/`<sup>` become plain text; link `title`, `target`
+  and `rel`, and `<picture>` sources aren't kept; a definition list becomes a
+  bold term with its definition nested below; `dir="ltr"` is dropped (only `rtl`
+  and `auto` are kept).
+- `&nbsp;` becomes an ordinary space, and `&nbsp;` padding collapses (see
+  [HTML](#html)). Trailing newlines in code blocks are trimmed.
+- Hex colours within ΔE2000 3 of a palette colour or brand swatch snap to it.
+- Captions and image `alt` text come from pasted or loaded HTML; there's no UI to
+  edit them. Embeds have no resize handle (`previewWidth` is stored and exported).
+- JSON-encoded HTML is decoded only in clear cases. The inside of a JSON string
+  whose only escapes are newlines inside text, or that shows escapes inside code,
+  is parsed as it is.
+- Multi-line plain-text pastes use BlockNote's own handling, so a provider URL
+  on one of their lines stays a link.
+- `genesis-editor/parser/linkedom` needs ESM (`import`) on Node versions before
+  22.12, because linkedom's CommonJS build can't `require` its dependencies.
+
+Embeds:
+
+- A site that refuses to be framed can't be detected across origins; the embed's
+  "Open ↗" link stays the way out.
+- Bluesky links with a handle (not a DID) stay links. Mastodon servers outside
+  `MASTODON_SERVERS` become generic embeds, which the `allowlist` policy refuses.
+  Flickr exports as its player iframe rather than its snippet. Twitch and
+  Calendly aren't built in.
+- The GitHub Gist widget runs in a `srcdoc` frame that inherits your CSP: allow
+  `getEmbedScriptSrc()` and the inline height reporter.
+- `tools`, `embeds` and `embedProviders` are read when the editor is created;
+  changing `tools` rebuilds the editor, and the embed options need a remount.
+
+Colours and uploads:
+
+- The block colour menu offers the palette only; hex block colours come from
+  pastes and loaded HTML. Brand swatches have one hex for both themes.
+- `uploadUrl` and `uploadFromUrl` show an indeterminate spinner (no byte
+  progress). Redoing an undone paste doesn't queue its images for re-hosting
+  again.
+- `uploadFromUrl` servers fetch URLs supplied by users: guard against SSRF there.
 
 ## License
 

@@ -122,6 +122,20 @@ export default function HtmlPage() {
       </p>
       <Example name="html-paste" minHeight={300} />
 
+      <H3>Whitespace and JSON-encoded HTML</H3>
+      <p>
+        Spaces follow HTML&apos;s rules, and <code>&amp;nbsp;</code> padding next to other spaces
+        collapses too, so pasted text doesn&apos;t keep double or trailing spaces. Exported HTML
+        keeps intentional spacing in <code>white-space:pre-wrap</code> spans and reads back the same.
+      </p>
+      <p>
+        HTML copied from an API response, DevTools, or a <code>.json</code> file arrives
+        JSON-encoded, with <code>\n</code> and <code>\&quot;</code> escapes. The parser decodes it
+        when the encoding is unambiguous (a quoted JSON string, JSON holding HTML strings, or
+        escapes that are clearly structural) and adds a warning to the report. Pass{" "}
+        <code>decodeEscaped: false</code> to <code>parseHTML</code> to turn this off.
+      </p>
+
       <H3>Import report</H3>
       <p>
         Every import (the initial HTML <code>value</code>, <code>setHTML</code>, or a paste) calls{" "}

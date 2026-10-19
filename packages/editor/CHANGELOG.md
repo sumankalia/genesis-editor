@@ -1,8 +1,10 @@
 # Changelog
 
-All notable changes to `genesis-editor`. The package is not published yet; everything below ships in the first release.
+All notable changes to `genesis-editor`.
 
-## Unreleased
+## 0.1.0 (2026-10-19)
+
+First release. Everything below is new in it; the "breaking" notes concern documents and handlers written against earlier unreleased builds. See the README's [Known limitations](README.md#known-limitations).
 
 ### Block JSON (breaking for documents saved by earlier builds)
 
@@ -73,7 +75,10 @@ All notable changes to `genesis-editor`. The package is not published yet; every
 - External HTML pastes go through `genesis-editor/parser` in both formats: one undo step, leading-paragraph merge, and split at the cursor.
 - Page-furniture removal for pastes (`clean`, `CleanOptions`) with an "Undo cleanup" toast (`cleanupToast`); empty paragraphs collapsed in pastes.
 - `genesis-editor/parser`: `parseHTML`, `toHTML`, and the `linkedom` adapter for servers.
+- **JSON-encoded HTML is decoded** instead of showing `\n`, `\t` and `\"` as text and breaking attributes: a quoted JSON string, JSON holding HTML strings (`[{ "HTML": "…" }]`), or the inside of a JSON string when its escapes are structural (escaped attribute quotes, `<\/`, `\u003c`, or newlines only between tags and never inside code). Applies to `parseHTML`, `value`/`setHTML` and pastes, including JSON copied as plain text. The report gets a warning; `ParseOptions.decodeEscaped: false` turns it off. New export `decodeEscapedHTML`.
+- **`&nbsp;` padding collapses.** An `&nbsp;` next to other whitespace, or at a line's start or end, collapses like a space, so `Land,&nbsp; some` and `seasons.&nbsp;&nbsp; &nbsp;</p>` no longer leave double or trailing spaces. A lone `&nbsp;` between words is still a space. `toHTML` writes intentional double and edge spaces as `<span style="white-space:pre-wrap">` instead of `&nbsp;`, so they still read back exactly.
 
 ### Fixed
 
+- Instagram embeds from an iframe or embed code store the bare post URL (`https://www.instagram.com/p/ID/`). The pasted `src`'s tracking query, which can include the embedding page's URL (`rd`, `rp`), was kept and exported.
 - Pasting lists with the list tools off could leave a stray empty paragraph that a second clean removed.
