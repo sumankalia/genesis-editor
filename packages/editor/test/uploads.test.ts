@@ -4,6 +4,7 @@ import { normalizeUrl } from "../src/components/link-dialog";
 import { resolvePersistOptions } from "../src/lib/persistence";
 import {
   MAX_LOCAL_UPLOAD_BYTES,
+  detectAssetKind,
   getUploadMode,
   mapResponsePath,
   uploadWithConfig,
@@ -34,6 +35,15 @@ describe("getUploadMode", () => {
   });
 });
 
+describe("detectAssetKind", () => {
+  it("classifies common file types by MIME type", () => {
+    expect(detectAssetKind(new File(["x"], "a.png", { type: "image/png" }))).toBe("image");
+    expect(detectAssetKind(new File(["x"], "a.mp4", { type: "video/mp4" }))).toBe("video");
+    expect(detectAssetKind(new File(["x"], "a.mp3", { type: "audio/mpeg" }))).toBe("audio");
+    expect(detectAssetKind(new File(["x"], "notes.txt", { type: "text/plain" }))).toBe("file");
+  });
+});
+
 describe("uploadWithConfig", () => {
   it("passes the file to uploadFile and returns its URL", async () => {
     const uploadFile = vi.fn(async (file: File) => `https://cdn.test/${file.name}`);
@@ -51,6 +61,17 @@ describe("uploadWithConfig", () => {
     expect(init?.method).toBe("POST");
     const body = init?.body as FormData;
     expect((body.get("file") as File).name).toBe("pixel.png");
+  });
+
+  it("supports generic asset fields and custom multipart names", async () => {
+    const fetchMock = mockFetch(Response.json({ url: "https://cdn.test/video.mp4" }));
+    const file = new File(["video"], "video.mp4", { type: "video/mp4" });
+    await expect(uploadWithConfig({ uploadUrl: "https://api.test/upload", uploadField: "asset" }, file)).resolves.toBe(
+      "https://cdn.test/video.mp4",
+    );
+    const [endpoint, init] = fetchMock.mock.calls[0];
+    expect(endpoint).toBe("https://api.test/upload");
+    expect(((init?.body as FormData).get("asset") as File | null)?.name).toBe("video.mp4");
   });
 
   it("resolves relative URLs against the upload endpoint", async () => {
@@ -86,7 +107,7 @@ describe("uploadWithConfig", () => {
   it("rejects responses without a URL", async () => {
     mockFetch(Response.json({ ok: true }));
     await expect(uploadWithConfig({ uploadUrl: "https://api.test/upload" }, png())).rejects.toThrow(
-      "didn't include an image URL",
+      "didn't include a URL",
     );
   });
 

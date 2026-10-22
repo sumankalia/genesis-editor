@@ -1,7 +1,7 @@
 {
   "name": "genesis-editor",
-  "version": "0.1.0",
-  "description": "A Notion-style block editor for React: slash menu, drag handles, nesting, markdown shortcuts, and image uploads.",
+  "version": "0.2.0",
+  "description": "A production-grade, backend-agnostic block editor for React with markdown import/export, HTML support, embeds, multi-column layouts, media uploads, and a plugin-based architecture.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,8 +20,16 @@
     "notion",
     "wysiwyg",
     "markdown",
+    "html-import",
+    "document-import",
+    "embeds",
+    "columns",
+    "media",
+    "file-upload",
+    "link-preview",
     "blocknote",
-    "slash-menu"
+    "slash-menu",
+    "backend-agnostic"
   ],
   "type": "module",
   "main": "./dist/index.cjs",
