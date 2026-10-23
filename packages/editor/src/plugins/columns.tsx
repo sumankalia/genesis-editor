@@ -150,10 +150,7 @@ export function exitColumnOnEnter(editor: AnyEditor): boolean {
   const isLastColumn = (columnList.children ?? []).at(-1)?.id === column.id;
   if (!isLastColumn) return false;
 
-  const existingAfter = nextSibling(editor, columnList);
-  const after = existingAfter && existingAfter.type !== "column" && existingAfter.type !== "columnList"
-    ? existingAfter
-    : (editor.insertBlocks([{ type: "paragraph" }], columnList, "after")[0] as unknown as LooseBlock);
+  const after = ensureFullWidthAfter(editor, columnList);
 
   if (isEmptyParagraph(cursor) && kids.length > 1) editor.removeBlocks([cursor.id]);
   editor.setTextCursorPosition(after, "start");
