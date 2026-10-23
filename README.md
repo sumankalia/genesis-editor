@@ -1,8 +1,12 @@
 # Genesis
 
-Genesis is a Notion-style, block-based rich text editor for React. Every
-paragraph, heading, list item, quote, code block, to-do, and image is its own
-block that can be inserted, converted, reordered, and nested independently.
+## Open-source editor core for modern writing products
+
+Genesis is a production-grade, backend-agnostic rich text editor for React.
+It gives you a modern block-based writing experience while staying compatible
+with real-world content pipelines. The same editor can work with blocks, HTML,
+Markdown, and plain text, so it fits into existing product workflows without
+forcing a new platform, backend, or content model.
 
 The editor is published as [`genesis-editor`](packages/editor) on npm. See the
 [package README](packages/editor/README.md) for installation, usage, upload
@@ -13,6 +17,47 @@ and coding agents, the docs are also served as Markdown:
 [`/llms-full.txt`](https://genesis-editor-three.vercel.app/llms-full.txt) is
 every page in one file, and each docs page has a `.md` version, such as
 [`/docs/html.md`](https://genesis-editor-three.vercel.app/docs/html.md).
+
+### Why it exists
+
+We are building the editor foundation, not a complete hosted SaaS. Genesis
+Editor focuses on the actual editing experience: reliable document structure,
+rich formatting, import/export, media handling, and clean extension points for
+apps that need a modern writing surface.
+
+Storage, auth, upload strategy, and deployment remain pluggable so each app can
+integrate its own backend choices without changing the editor's core behavior.
+
+### Supported formats
+
+Genesis Editor supports multiple content formats, so it can fit into existing
+systems instead of forcing a single content model:
+
+- Blocks
+- HTML
+- Markdown
+- Plain text
+
+The editor can import and export in each of these formats, and it can be used in
+apps that already have their own content pipeline, storage layer, or upload flow.
+
+### Highlights
+
+- slash menu and block nesting for rich content structures
+- Markdown, HTML and plain-text import/export
+- document import from Word, ODT, RTF, Markdown, and HTML files
+- backend-agnostic upload hooks for images, files, and video assets
+- link preview cards, embed providers, and syntax-highlighted code blocks
+- multi-column layouts, preview mode, and theme support
+- autosave and editor persistence for local document workflows
+
+### v0.2.0 release summary
+
+This release focuses on editor maturity: stronger multi-column behavior, a more
+reliable media upload abstraction, broader import/export support, and a clearer
+product definition as an open-source editor core rather than a full application
+stack. The package remains intentionally backend-agnostic so teams can plug in
+custom upload, storage, and hosting strategies when they integrate it.
 
 ```tsx
 import { BlockEditor } from "genesis-editor";

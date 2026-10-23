@@ -170,19 +170,32 @@ describe("editor", () => {
     expect(lists[0].children.some((c) => c.type === "columnList")).toBe(false);
   });
 
-  it("inserts a full-width sibling after the column section", () => {
+  it("exits the last column on Enter even when the final paragraph is not empty", () => {
+    const { editor } = editorFor();
+    insertColumns(editor, 2);
+    const list = editor.document.find((block) => block.type === "columnList")!;
+    const lastParagraph = list.children![1].children![0];
+    editor.setTextCursorPosition(lastParagraph, "end");
+    editor.insertInlineContent("Tail");
+    expect(exitColumnOnEnter(editor)).toBe(true);
+    expect(editor.document.map((block) => block.type)).toEqual(["columnList", "paragraph"]);
+    const cursor = editor.getTextCursorPosition().block;
+    expect(editor.document.some((b) => b.id === cursor.id && b.type === "paragraph")).toBe(true);
+  });
+
+  it("reuses the existing full-width sibling when the last column block is empty", () => {
     const { editor } = editorFor();
     insertColumns(editor, 2);
     expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
     const list = editor.document.find((b) => b.type === "columnList")!;
     editor.setTextCursorPosition(list.children[1].children[0], "end");
     editor.insertInlineContent("Right column");
-    expect(exitColumnOnEnter(editor)).toBe(false);
+    expect(exitColumnOnEnter(editor)).toBe(true);
     editor.insertBlocks([{ type: "paragraph" }], list.children[1].children[0], "after");
     const empty = editor.getBlock(list.id)!.children[1].children[1];
     editor.setTextCursorPosition(empty, "start");
     expect(exitColumnOnEnter(editor)).toBe(true);
-    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph", "paragraph"]);
+    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
     const cursor = editor.getTextCursorPosition().block;
     expect(editor.document.some((b) => b.id === cursor.id && b.type === "paragraph")).toBe(true);
   });

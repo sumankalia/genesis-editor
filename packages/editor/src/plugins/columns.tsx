@@ -140,11 +140,19 @@ export function exitColumnOnEnter(editor: AnyEditor): boolean {
   const list = found?.ancestors.find((block) => block.type === "columnList");
   const column = found?.ancestors.find((block) => block.type === "column");
   if (!list || !column) return false;
-  const kids = (liveBlock(editor, column) ?? column).children ?? [];
+
+  const columnList = liveBlock(editor, list) ?? list;
+  const columnBlock = liveBlock(editor, column) ?? column;
+  const kids = columnBlock.children ?? [];
   const last = kids[kids.length - 1];
-  if (!last || last.id !== cursor.id || !isEmptyParagraph(cursor)) return false;
-  const after = editor.insertBlocks([{ type: "paragraph" }], list, "after")[0] as unknown as LooseBlock;
-  if (kids.length > 1) editor.removeBlocks([cursor.id]);
+  if (!last || last.id !== cursor.id) return false;
+
+  const isLastColumn = (columnList.children ?? []).at(-1)?.id === column.id;
+  if (!isLastColumn) return false;
+
+  const after = ensureFullWidthAfter(editor, columnList);
+
+  if (isEmptyParagraph(cursor) && kids.length > 1) editor.removeBlocks([cursor.id]);
   editor.setTextCursorPosition(after, "start");
   return true;
 }
