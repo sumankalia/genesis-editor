@@ -170,19 +170,32 @@ describe("editor", () => {
     expect(lists[0].children.some((c) => c.type === "columnList")).toBe(false);
   });
 
-  it("inserts a full-width sibling after the column section", () => {
+  it("exits the last column on Enter even when the final paragraph is not empty", () => {
+    const { editor } = editorFor();
+    insertColumns(editor, 2);
+    const list = editor.document.find((block) => block.type === "columnList")!;
+    const lastParagraph = list.children![1].children![0];
+    editor.setTextCursorPosition(lastParagraph, "end");
+    editor.insertInlineContent("Tail");
+    expect(exitColumnOnEnter(editor)).toBe(true);
+    expect(editor.document.map((block) => block.type)).toEqual(["columnList", "paragraph"]);
+    const cursor = editor.getTextCursorPosition().block;
+    expect(editor.document.some((b) => b.id === cursor.id && b.type === "paragraph")).toBe(true);
+  });
+
+  it("reuses the existing full-width sibling when the last column block is empty", () => {
     const { editor } = editorFor();
     insertColumns(editor, 2);
     expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
     const list = editor.document.find((b) => b.type === "columnList")!;
     editor.setTextCursorPosition(list.children[1].children[0], "end");
     editor.insertInlineContent("Right column");
-    expect(exitColumnOnEnter(editor)).toBe(false);
+    expect(exitColumnOnEnter(editor)).toBe(true);
     editor.insertBlocks([{ type: "paragraph" }], list.children[1].children[0], "after");
     const empty = editor.getBlock(list.id)!.children[1].children[1];
     editor.setTextCursorPosition(empty, "start");
     expect(exitColumnOnEnter(editor)).toBe(true);
-    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph", "paragraph"]);
+    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
     const cursor = editor.getTextCursorPosition().block;
     expect(editor.document.some((b) => b.id === cursor.id && b.type === "paragraph")).toBe(true);
   });
@@ -201,6 +214,33 @@ describe("editor", () => {
     expect(JSON.stringify(editor.document[2])).toContain("After");
     expect(JSON.stringify(editor.document[1])).not.toContain("After");
     expect(JSON.stringify(editor.document[3])).toContain("Next chapter");
+  });
+
+  it("keeps the full-width paragraph boundary when inserting a later column section", () => {
+    const { editor } = editorFor();
+    editor.replaceBlocks(editor.document, [
+      { type: "heading", props: { level: 2 }, content: "Columns" },
+      { type: "paragraph", content: "A product image beside its copy." },
+      {
+        type: "columnList",
+        children: [
+          { type: "column", props: { width: 40 }, children: [{ type: "image", props: { url: "https://x.test/a.png" } }] },
+          { type: "column", props: { width: 60 }, children: [{ type: "heading", props: { level: 3 }, content: "Mountain lake" }] },
+        ],
+      },
+      { type: "paragraph" },
+    ] as never);
+    const trailing = editor.document.at(-1)!;
+    editor.setTextCursorPosition(trailing, "start");
+    insertColumns(editor, 2);
+    expect(editor.document.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList", "paragraph", "columnList", "paragraph"]);
+    const lastList = editor.document.filter((b) => b.type === "columnList").at(-1)!;
+    const lastParagraph = lastList.children![1].children![0];
+    editor.setTextCursorPosition(lastParagraph, "end");
+    editor.insertInlineContent("Tail");
+    expect(exitColumnOnEnter(editor)).toBe(true);
+    expect(editor.document.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList", "paragraph", "columnList", "paragraph"]);
+    expect(JSON.stringify(editor.document.at(-1))).toContain("Tail");
   });
 
   it("flattens columns when the tool is off", () => {

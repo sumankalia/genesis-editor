@@ -30,8 +30,9 @@ export {
   migrateStoredDocument,
 } from "./lib/persistence";
 export type { PersistOptions, PersistStatus, StoredDocument } from "./lib/persistence";
-export { MAX_LOCAL_UPLOAD_BYTES, UploadError, getUploadMode, mapResponsePath, uploadWithConfig } from "./lib/uploads";
+export { MAX_LOCAL_UPLOAD_BYTES, UploadError, detectAssetKind, getUploadMode, mapResponsePath, uploadWithConfig } from "./lib/uploads";
 export type {
+  AssetKind,
   RehostSource,
   UploadCallContext,
   UploadConfig,

@@ -15,24 +15,40 @@ export type UploadCallContext = {
   blockId?: string;
   /** `"upload"` for files the user picked, pasted or dropped. */
   source: RehostSource | "upload";
+  /** The kind of asset being transferred. Defaults to the file's MIME type when available. */
+  kind?: AssetKind;
 };
 
 export type UploadHeaders = Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
+
+export type AssetKind = "image" | "video" | "audio" | "file";
+
+export function detectAssetKind(file: Pick<File, "type"> | { type?: string } | undefined): AssetKind {
+  if (!file?.type) return "file";
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("audio/")) return "audio";
+  return "file";
+}
 
 export type UploadConfig = {
   /** Custom upload logic. Receives the file and resolves to its public URL. Takes precedence over `uploadUrl`. */
   uploadFile?: (file: File, ctx: UploadCallContext) => Promise<string>;
   /** Endpoint that accepts a multipart/form-data POST with the file in a `file` field. */
   uploadUrl?: string;
-  /** Turns the `uploadUrl` and `uploadFromUrl` response body (parsed JSON, or text) into the image URL. Defaults to reading `url`. */
+  /** Field name for multipart file uploads. Defaults to `file`. */
+  uploadField?: string;
+  /** Backwards-compatible alias for `uploadField`. */
+  uploadFieldName?: string;
+  /** Turns the `uploadUrl` and `uploadFromUrl` response body (parsed JSON, or text) into the asset URL. Defaults to reading `url`. */
   mapUploadResponse?: UploadResponseMapper;
   /**
-   * Endpoint that copies a remote image: a JSON POST of `{ url, alt?, filename? }` answered with `{ url }`.
-   * The server fetches the image, so it must refuse private and link-local addresses (SSRF), cap the size
+   * Endpoint that copies a remote asset: a JSON POST of `{ url, alt?, filename?, kind? }` answered with `{ url }`.
+   * The server fetches the asset, so it must refuse private and link-local addresses (SSRF), cap the size
    * and check the content type.
    */
   uploadFromUrl?: string;
-  /** Custom re-hosting of a remote image URL. Takes precedence over `uploadFromUrl`. */
+  /** Custom re-hosting of a remote asset URL. Takes precedence over `uploadFromUrl`. */
   uploadRemote?: (url: string, ctx: UploadCallContext) => Promise<string>;
   /** Extra request headers (auth) for `uploadUrl` and `uploadFromUrl`. */
   uploadHeaders?: UploadHeaders;
@@ -81,28 +97,34 @@ export function getUploadMode(config: UploadConfig): UploadMode {
 const idleContext = (): UploadCallContext => ({ signal: new AbortController().signal, onProgress: () => {}, source: "upload" });
 
 export function uploadWithConfig(config: UploadConfig, file: File, ctx: UploadCallContext = idleContext()): Promise<string> {
+  const context = { ...ctx, kind: ctx.kind ?? detectAssetKind(file) };
   switch (getUploadMode(config)) {
     case "custom":
-      return config.uploadFile!(file, ctx);
+      return config.uploadFile!(file, context);
     case "server": {
       const body = new FormData();
-      body.append("file", file, file.name);
-      return post(config.uploadUrl!.trim(), body, config, ctx.signal);
+      body.append(config.uploadField ?? config.uploadFieldName ?? "file", file, file.name);
+      return post(config.uploadUrl!.trim(), body, config, context.signal, undefined, context.kind);
     }
     case "local":
       return readAsDataUrl(file);
   }
 }
 
-/** Sends a remote image URL to `uploadFromUrl`, whose server fetches and stores it. */
+/** Sends a remote asset URL to `uploadFromUrl`, whose server fetches and stores it. */
 export function uploadUrlToServer(
   config: UploadConfig,
   url: string,
-  details: { alt?: string; filename?: string },
+  details: { alt?: string; filename?: string; kind?: AssetKind },
   signal: AbortSignal,
 ): Promise<string> {
-  const body = JSON.stringify({ url, ...(details.alt ? { alt: details.alt } : {}), ...(details.filename ? { filename: details.filename } : {}) });
-  return post(config.uploadFromUrl!.trim(), body, config, signal, { "Content-Type": "application/json" });
+  const body = JSON.stringify({
+    url,
+    ...(details.alt ? { alt: details.alt } : {}),
+    ...(details.filename ? { filename: details.filename } : {}),
+    ...(details.kind ? { kind: details.kind } : {}),
+  });
+  return post(config.uploadFromUrl!.trim(), body, config, signal, { "Content-Type": "application/json" }, details.kind);
 }
 
 async function resolveHeaders(headers: UploadHeaders | undefined) {
@@ -119,6 +141,7 @@ async function post(
   config: UploadConfig,
   signal: AbortSignal,
   extraHeaders: Record<string, string> = {},
+  kind?: AssetKind,
 ): Promise<string> {
   const headers = { ...extraHeaders, ...(await resolveHeaders(config.uploadHeaders)) };
   let response: Response;
@@ -144,7 +167,12 @@ async function post(
       ? payload.url
       : undefined;
   if (typeof url !== "string" || !url) {
-    throw new UploadError("The upload server's response didn't include an image URL.", response.status);
+    throw new UploadError(
+      kind === "video" || kind === "audio" || kind === "file"
+        ? "The upload server's response didn't include an asset URL."
+        : "The upload server's response didn't include a URL.",
+      response.status,
+    );
   }
   // Relative URLs are relative to the upload endpoint, not the editor page.
   return new URL(url, new URL(endpoint, pageUrl())).href;
@@ -164,7 +192,7 @@ function readAsDataUrl(file: File): Promise<string> {
   if (file.size > MAX_LOCAL_UPLOAD_BYTES) {
     return Promise.reject(
       new Error(
-        `Images saved in the browser must be under ${MAX_LOCAL_UPLOAD_BYTES / 1024 / 1024} MB. Configure an upload server for larger files.`,
+        `Files saved in the browser must be under ${MAX_LOCAL_UPLOAD_BYTES / 1024 / 1024} MB. Configure an upload server for larger files.`,
       ),
     );
   }
