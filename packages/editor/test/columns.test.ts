@@ -216,6 +216,33 @@ describe("editor", () => {
     expect(JSON.stringify(editor.document[3])).toContain("Next chapter");
   });
 
+  it("keeps the full-width paragraph boundary when inserting a later column section", () => {
+    const { editor } = editorFor();
+    editor.replaceBlocks(editor.document, [
+      { type: "heading", props: { level: 2 }, content: "Columns" },
+      { type: "paragraph", content: "A product image beside its copy." },
+      {
+        type: "columnList",
+        children: [
+          { type: "column", props: { width: 40 }, children: [{ type: "image", props: { url: "https://x.test/a.png" } }] },
+          { type: "column", props: { width: 60 }, children: [{ type: "heading", props: { level: 3 }, content: "Mountain lake" }] },
+        ],
+      },
+      { type: "paragraph" },
+    ] as never);
+    const trailing = editor.document.at(-1)!;
+    editor.setTextCursorPosition(trailing, "start");
+    insertColumns(editor, 2);
+    expect(editor.document.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList", "paragraph", "columnList", "paragraph"]);
+    const lastList = editor.document.filter((b) => b.type === "columnList").at(-1)!;
+    const lastParagraph = lastList.children![1].children![0];
+    editor.setTextCursorPosition(lastParagraph, "end");
+    editor.insertInlineContent("Tail");
+    expect(exitColumnOnEnter(editor)).toBe(true);
+    expect(editor.document.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList", "paragraph", "columnList", "paragraph"]);
+    expect(JSON.stringify(editor.document.at(-1))).toContain("Tail");
+  });
+
   it("flattens columns when the tool is off", () => {
     const support = schemaSupport(editorFor(["heading", "image"]).editor.schema);
     const blocks = sanitizeBlocks(

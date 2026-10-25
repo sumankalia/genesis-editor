@@ -93,6 +93,12 @@ function nextSibling(editor: AnyEditor, block: LooseBlock): LooseBlock | undefin
   return index >= 0 ? siblings[index + 1] : undefined;
 }
 
+function previousSibling(editor: AnyEditor, block: LooseBlock): LooseBlock | undefined {
+  const siblings = siblingsOf(editor, block);
+  const index = siblings.findIndex((item) => item.id === block.id);
+  return index > 0 ? siblings[index - 1] : undefined;
+}
+
 function liveBlock(editor: AnyEditor, block: { id: string }): LooseBlock | undefined {
   return editor.getBlock(block.id) as unknown as LooseBlock | undefined;
 }
@@ -100,7 +106,10 @@ function liveBlock(editor: AnyEditor, block: { id: string }): LooseBlock | undef
 /** A full-width paragraph after this columnList, created if the list is the last sibling. */
 function ensureFullWidthAfter(editor: AnyEditor, list: LooseBlock): LooseBlock {
   const current = liveBlock(editor, list) ?? list;
-  const next = nextSibling(editor, current);
+  let next = nextSibling(editor, current);
+  while (next && (next.type === "column" || next.type === "columnList")) {
+    next = nextSibling(editor, next);
+  }
   if (next && next.type !== "column" && next.type !== "columnList") return next;
   const inserted = editor.insertBlocks([{ type: "paragraph" }], current, "after");
   return inserted[0] as unknown as LooseBlock;
@@ -118,12 +127,16 @@ export function insertColumns(editor: AnyEditor, count: 2 | 3 = 2) {
   const list = emptyColumns(count);
   const cursor = editor.getTextCursorPosition().block as unknown as LooseBlock;
   const found = locate(editor.document as unknown as LooseBlock[], cursor.id);
-  const ancestorList = found?.ancestors.find((block) => block.type === "columnList");
+  const ancestorList = found?.ancestors.filter((block) => block.type === "columnList").at(-1);
+  const previous = previousSibling(editor, cursor);
+  const isEmptyFullWidthBoundary = isEmptyParagraph(cursor) && previous?.type === "columnList";
   const created = ancestorList
     ? (editor.insertBlocks([list], ancestorList, "after")[0] as unknown as LooseBlock)
-    : isEmptyParagraph(cursor)
-      ? ((editor.replaceBlocks([cursor.id], [list] as never) as { insertedBlocks: LooseBlock[] }).insertedBlocks[0] as LooseBlock)
-      : (editor.insertBlocks([list], cursor, "after")[0] as unknown as LooseBlock);
+    : isEmptyFullWidthBoundary
+      ? (editor.insertBlocks([list], cursor, "after")[0] as unknown as LooseBlock)
+      : isEmptyParagraph(cursor)
+        ? ((editor.replaceBlocks([cursor.id], [list] as never) as { insertedBlocks: LooseBlock[] }).insertedBlocks[0] as LooseBlock)
+        : (editor.insertBlocks([list], cursor, "after")[0] as unknown as LooseBlock);
   if (!created) return;
   ensureFullWidthAfter(editor, created);
   focusFirstCell(editor, created);
@@ -137,20 +150,28 @@ export function exitColumnOnEnter(editor: AnyEditor): boolean {
   if (!editor.isEditable) return false;
   const cursor = editor.getTextCursorPosition().block as unknown as LooseBlock;
   const found = locate(editor.document as unknown as LooseBlock[], cursor.id);
-  const list = found?.ancestors.find((block) => block.type === "columnList");
-  const column = found?.ancestors.find((block) => block.type === "column");
+  const list = found?.ancestors.filter((block) => block.type === "columnList").at(-1);
+  const column = found?.ancestors.filter((block) => block.type === "column").at(-1);
   if (!list || !column) return false;
 
   const columnList = liveBlock(editor, list) ?? list;
   const columnBlock = liveBlock(editor, column) ?? column;
-  const kids = columnBlock.children ?? [];
-  const last = kids[kids.length - 1];
-  if (!last || last.id !== cursor.id) return false;
-
-  const isLastColumn = (columnList.children ?? []).at(-1)?.id === column.id;
+  const lastColumn = (columnList.children ?? []).at(-1);
+  const isLastColumn = lastColumn?.id === column.id;
   if (!isLastColumn) return false;
 
+  const kids = columnBlock.children ?? [];
+  const last = kids[kids.length - 1];
+  const isCursorOnLastLeaf = Boolean(
+    last && (last.id === cursor.id || cursor.id === column.id || found?.ancestors.some((ancestor) => ancestor.id === last.id || ancestor.id === column.id)),
+  );
+  if (!isCursorOnLastLeaf && !isEmptyParagraph(cursor)) return false;
+
   const after = ensureFullWidthAfter(editor, columnList);
+
+  if (after && isEmptyParagraph(after) && last && !isEmptyParagraph(last)) {
+    editor.updateBlock(after.id, { content: last.content } as never);
+  }
 
   if (isEmptyParagraph(cursor) && kids.length > 1) editor.removeBlocks([cursor.id]);
   editor.setTextCursorPosition(after, "start");
