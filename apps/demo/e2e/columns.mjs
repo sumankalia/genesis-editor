@@ -131,7 +131,10 @@ check(
 const tabs = page.getByTestId("output-tabs");
 
 // Diagnostic: inspect the editor before and after typing.
-const lastList = play.locator('[data-content-type="columnList"]').last();
+const lastList = play
+  .locator('[data-content-type="columnList"]')
+  .last()
+  .locator("xpath=ancestor::*[contains(@class,'bn-block')][1]");
 
 await lastList.locator(".bn-inline-content").last().click();
 await page.keyboard.press("Enter");
