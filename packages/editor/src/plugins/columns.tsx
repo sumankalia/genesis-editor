@@ -125,6 +125,15 @@ function nextSibling(
   return index >= 0 ? siblings[index + 1] : undefined;
 }
 
+function previousSibling(
+  editor: AnyEditor,
+  block: LooseBlock,
+): LooseBlock | undefined {
+  const siblings = siblingsOf(editor, block);
+  const index = siblings.findIndex((item) => item.id === block.id);
+  return index > 0 ? siblings[index - 1] : undefined;
+}
+
 function liveBlock(
   editor: AnyEditor,
   block: { id: string },
@@ -160,23 +169,34 @@ export function insertColumns(editor: AnyEditor, count: 2 | 3 = 2) {
   const ancestorList = found?.ancestors.find(
     (block) => block.type === "columnList",
   );
+  // An empty paragraph right after a columnList is that section's full-width exit paragraph.
+  // Keep it, so two column sections are never adjacent.
+  const isEmptyFullWidthBoundary =
+    isEmptyParagraph(cursor) &&
+    previousSibling(editor, cursor)?.type === "columnList";
   const created = ancestorList
     ? (editor.insertBlocks(
         [list],
         ancestorList,
         "after",
       )[0] as unknown as LooseBlock)
-    : isEmptyParagraph(cursor)
-      ? ((
-          editor.replaceBlocks([cursor.id], [list] as never) as {
-            insertedBlocks: LooseBlock[];
-          }
-        ).insertedBlocks[0] as LooseBlock)
-      : (editor.insertBlocks(
+    : isEmptyFullWidthBoundary
+      ? (editor.insertBlocks(
           [list],
           cursor,
           "after",
-        )[0] as unknown as LooseBlock);
+        )[0] as unknown as LooseBlock)
+      : isEmptyParagraph(cursor)
+        ? ((
+            editor.replaceBlocks([cursor.id], [list] as never) as {
+              insertedBlocks: LooseBlock[];
+            }
+          ).insertedBlocks[0] as LooseBlock)
+        : (editor.insertBlocks(
+            [list],
+            cursor,
+            "after",
+          )[0] as unknown as LooseBlock);
   if (!created) return;
   ensureFullWidthAfter(editor, created);
   focusFirstCell(editor, created);

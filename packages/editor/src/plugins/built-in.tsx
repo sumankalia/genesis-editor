@@ -1,4 +1,10 @@
-import { createCodeBlockSpec, createHeadingBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, defaultStyleSpecs } from "@blocknote/core";
+import {
+  createCodeBlockSpec,
+  createHeadingBlockSpec,
+  defaultBlockSpecs,
+  defaultInlineContentSpecs,
+  defaultStyleSpecs,
+} from "@blocknote/core";
 import {
   BasicTextStyleButton,
   BlockTypeSelect,
@@ -25,14 +31,39 @@ import { CODE_LANGUAGES } from "../parser/code-languages";
 import { resolveColorConfig } from "../parser/colors";
 import { ImageLinkButton } from "../components/image-link-dialog";
 import { genesisSyntaxHighlighting } from "./code-highlight";
-import { ColumnsButton, columnListSpec, columnSpec, columnsSectionExtension, columnsSlashItems, exitColumnOnEnter } from "./columns";
+import {
+  ColumnsButton,
+  columnListSpec,
+  columnSpec,
+  columnsSectionExtension,
+  columnsSlashItems,
+} from "./columns";
 import { embedSlashItem, embedSpec } from "./embed";
 import { importSlashItems } from "./import-file";
-import { InlineImageButton, inlineImageSlashItem, inlineImageSpec } from "./inline-image";
-import { LinkPreviewButton, linkPreviewSlashItems, linkPreviewSpec } from "./link-preview";
+import {
+  InlineImageButton,
+  inlineImageSlashItem,
+  inlineImageSpec,
+} from "./inline-image";
+import {
+  LinkPreviewButton,
+  linkPreviewSlashItems,
+  linkPreviewSpec,
+} from "./link-preview";
 import { imageSourceExtension, imageSpec, quoteSpec } from "./specs";
-import { backgroundColorSpec, blockHexColorsExtension, fontSizeKeysExtension, fontSizeSpec, textColorSpec } from "./text-styles";
-import { type BlockToolName, type BuiltInToolName, type HeadingLevel, type ToolOptions } from "./tool-names";
+import {
+  backgroundColorSpec,
+  blockHexColorsExtension,
+  fontSizeKeysExtension,
+  fontSizeSpec,
+  textColorSpec,
+} from "./text-styles";
+import {
+  type BlockToolName,
+  type BuiltInToolName,
+  type HeadingLevel,
+  type ToolOptions,
+} from "./tool-names";
 import { definePlugin, type GenesisPlugin } from "./types";
 
 export {
@@ -51,13 +82,19 @@ export {
 function HeadingAwareBlockTypeSelect() {
   const editor = useBlockNoteEditor();
   const items = useMemo(() => {
-    const levels = (editor.schema.blockSchema as Record<string, { propSchema: { level?: { values?: readonly number[] } } }>)
-      .heading?.propSchema.level?.values;
+    const levels = (
+      editor.schema.blockSchema as Record<
+        string,
+        { propSchema: { level?: { values?: readonly number[] } } }
+      >
+    ).heading?.propSchema.level?.values;
     return blockTypeSelectItems(editor).filter(
       (item) =>
         item.type !== "column" &&
         item.type !== "columnList" &&
-        (item.type !== "heading" || !levels || levels.includes(Number(item.props?.level))),
+        (item.type !== "heading" ||
+          !levels ||
+          levels.includes(Number(item.props?.level))),
     );
   }, [editor]);
   return <BlockTypeSelect items={items} />;
@@ -77,7 +114,9 @@ function FileButtons() {
   );
 }
 
-const styleButton = (style: "bold" | "italic" | "underline" | "strike" | "code") =>
+const styleButton = (
+  style: "bold" | "italic" | "underline" | "strike" | "code",
+) =>
   function StyleButton() {
     return <BasicTextStyleButton basicTextStyle={style} />;
   };
@@ -117,7 +156,10 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       name: "heading",
       blocks: {
         heading: options?.levels?.length
-          ? createHeadingBlockSpec({ levels: [...options.levels].sort(), defaultLevel: Math.min(...options.levels) as HeadingLevel })
+          ? createHeadingBlockSpec({
+              levels: [...options.levels].sort(),
+              defaultLevel: Math.min(...options.levels) as HeadingLevel,
+            })
           : defaultBlockSpecs.heading,
       },
     }),
@@ -146,7 +188,6 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       blocks: { columnList: columnListSpec, column: columnSpec },
       slashItems: columnsSlashItems,
       toolbarItems: { columns: ColumnsButton },
-      keyboardShortcuts: { Enter: exitColumnOnEnter },
       extensions: [columnsSectionExtension()],
     }),
   image: () =>
@@ -156,12 +197,20 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
       inlineContent: { inlineImage: inlineImageSpec },
       extensions: [imageSourceExtension],
       slashItems: [inlineImageSlashItem],
-      toolbarItems: { imageLink: ImageLinkButton, inlineImage: InlineImageButton },
+      toolbarItems: {
+        imageLink: ImageLinkButton,
+        inlineImage: InlineImageButton,
+      },
     }),
   video: () => blockTool("video", "video"),
   audio: () => blockTool("audio", "audio"),
   file: () => blockTool("file", "file"),
-  embed: () => definePlugin({ name: "embed", blocks: { embed: embedSpec }, slashItems: [embedSlashItem] }),
+  embed: () =>
+    definePlugin({
+      name: "embed",
+      blocks: { embed: embedSpec },
+      slashItems: [embedSlashItem],
+    }),
   linkPreview: () =>
     definePlugin({
       name: "linkPreview",
@@ -184,7 +233,10 @@ export const builtInTools: Record<BuiltInToolName, ToolFactory> = {
     const config = resolveColorConfig(options);
     return definePlugin({
       name: "colors",
-      styles: { textColor: textColorSpec, backgroundColor: backgroundColorSpec },
+      styles: {
+        textColor: textColorSpec,
+        backgroundColor: backgroundColorSpec,
+      },
       extensions: [blockHexColorsExtension],
       toolbarItems: { colors: () => <ColorPickerButton config={config} /> },
     });
