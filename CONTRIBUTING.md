@@ -2,10 +2,21 @@
 
 Thanks for helping with Genesis. This repository is a pnpm workspace:
 
-| Path              | What it is                                                       |
-| ----------------- | ---------------------------------------------------------------- |
-| `packages/editor` | `genesis-editor`, the published React component                  |
-| `apps/demo`       | Docs and playground site (Next.js) with a mock upload server     |
+| Path              | What it is                                                   |
+| ----------------- | ------------------------------------------------------------ |
+| `packages/editor` | `genesis-editor`, the published React component              |
+| `apps/demo`       | Docs and playground site (Next.js) with a mock upload server |
+
+## BlockNote version
+
+Genesis is built on **BlockNote 0.56** and stays on it. Features (columns and their repair, text styles,
+images) depend on BlockNote's document structure and markup, and BlockNote's pre-1.0 releases change
+those without notice.
+
+- Don't bump `@blocknote/core`, `@blocknote/react` or `@blocknote/shadcn`. If a bot proposes it, close the PR.
+- `test/blocknote-contract.test.ts` fails if the installed version leaves 0.56 or the structure we rely on changes.
+- A deliberate upgrade needs its own PR: bump all three packages together, then make typecheck, unit tests
+  and the browser checks pass.
 
 ## Setup
 
