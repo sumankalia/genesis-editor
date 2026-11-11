@@ -19,12 +19,13 @@ export type SchemaSupport = {
   meta: boolean;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- reads arbitrary BlockNote schemas
+/* eslint-disable @typescript-eslint/no-explicit-any -- reads arbitrary BlockNote schemas */
 export function schemaSupport(schema: {
   blockSchema: any;
   styleSchema: any;
   inlineContentSchema: any;
 }): SchemaSupport {
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   const blocks: Record<string, string> = {};
   for (const [type, config] of Object.entries(
     schema.blockSchema as Record<string, { content: string }>,
