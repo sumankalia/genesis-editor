@@ -24,6 +24,7 @@ import { exitColumnOnEnter, insertColumns } from "../src/plugins/columns";
 import { mergeSlashItems, resolveEditorSetup } from "../src/plugins/resolve";
 import { sanitizeBlocks, schemaSupport } from "../src/plugins/sanitize";
 import type { AnyEditor } from "../src/plugins/types";
+import { repairColumns } from "../src/plugins/columns-normalize";
 
 const parse = (html: string, tools?: ParseOptions["tools"]) =>
   parseHTML(html, { dom: linkedomDom, tools });
@@ -356,6 +357,99 @@ describe("editor", () => {
       "columnList",
       "paragraph",
     ]);
+  });
+
+  describe("normalization", () => {
+    const col = (children: unknown[], width = 50) => ({
+      type: "column",
+      props: { width },
+      children,
+    });
+    const para = (text?: string) => ({
+      type: "paragraph",
+      ...(text ? { content: text } : {}),
+    });
+    const types = (blocks: { type: string }[]) => blocks.map((b) => b.type);
+    // The headless test editor doesn't mount extension plugins, so run the repair the plugin runs.
+    const load = (blocks: unknown[]) => {
+      const { editor } = editorFor();
+      editor.replaceBlocks(editor.document, blocks as never);
+      (
+        editor as unknown as {
+          transact: (
+            fn: (tr: Parameters<typeof repairColumns>[0]) => void,
+          ) => void;
+        }
+      ).transact((tr) => {
+        while (repairColumns(tr));
+      });
+      return editor;
+    };
+
+    it("lifts a block that ended up between two columns out of the section", () => {
+      const editor = load([
+        {
+          type: "columnList",
+          children: [col([para("a")]), para("stray"), col([para("b")])],
+        },
+        para("end"),
+      ]);
+      expect(types(editor.document)).toEqual([
+        "columnList",
+        "paragraph",
+        "paragraph",
+      ]);
+      expect(types(editor.document[0].children)).toEqual(["column", "column"]);
+      expect(JSON.stringify(editor.document[1])).toContain("stray");
+      expect(JSON.stringify(editor.document[0])).not.toContain("stray");
+    });
+
+    it("repairs the broken shape from the Enter bug: an empty column beside a stray paragraph", () => {
+      const editor = load([
+        {
+          type: "columnList",
+          children: [col([]), para("Full width after"), col([para()])],
+        },
+        para(),
+      ]);
+      expect(editor.document.some((b) => b.type === "columnList")).toBe(false);
+      expect(types(editor.document)).toEqual([
+        "paragraph",
+        "paragraph",
+        "paragraph",
+      ]);
+      expect(JSON.stringify(editor.document[0])).toContain("Full width after");
+    });
+
+    it("dissolves a list with a single column into full-width blocks", () => {
+      const editor = load([
+        { type: "columnList", children: [col([para("solo")])] },
+        para("end"),
+      ]);
+      expect(types(editor.document)).toEqual(["paragraph", "paragraph"]);
+      expect(JSON.stringify(editor.document[0])).toContain("solo");
+    });
+
+    it("removes a column list that has no columns", () => {
+      const editor = load([
+        para("a"),
+        { type: "columnList", children: [] },
+        para("b"),
+      ]);
+      expect(types(editor.document)).toEqual(["paragraph", "paragraph"]);
+    });
+
+    it("leaves a well-formed section alone", () => {
+      const { editor } = editorFor();
+      insertColumns(editor, 3);
+      expect(types(editor.document)).toEqual(["columnList", "paragraph"]);
+      expect(editor.document[0].children).toHaveLength(3);
+      expect(
+        editor.document[0].children.every(
+          (c) => c.type === "column" && c.children.length === 1,
+        ),
+      ).toBe(true);
+    });
   });
 
   it("flattens columns when the tool is off", () => {

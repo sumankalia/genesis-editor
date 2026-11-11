@@ -7,6 +7,7 @@ import { Columns2, Columns3 } from "lucide-react";
 import { Plugin, PluginKey } from "prosemirror-state";
 
 import { columnWidthOf, resizePair, splitWidths } from "../parser/columns";
+import { columnsNormalizePlugin } from "./columns-normalize";
 import { ToolbarButton } from "./toolbar-button";
 import type { AnyEditor, AnyPartialBlock, SlashMenuItem } from "./types";
 
@@ -390,6 +391,7 @@ export function columnsSectionExtension(): ExtensionFactoryInstance {
           },
         },
       }),
+      columnsNormalizePlugin(),
     ],
   }))();
 }
