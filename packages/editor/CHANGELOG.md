@@ -2,6 +2,13 @@
 
 All notable changes to `genesis-editor`.
 
+## 0.2.1
+
+### Fixed
+
+- Pasting text with a differently coloured code background no longer fails ("Invalid collection of marks"); the `code` mark now stays exclusive.
+- Pasted list items keep the same font size as the surrounding text.
+
 ## 0.2.0
 
 - **The editor and `genesis-editor/parser` share chunks** in the ESM build, so an app that imports both downloads the HTML engine once: about 37 KB (gzip) less (re-measured with esbuild against 0.1.0; Vite and Next.js are in the same range). Apps that import only one of them are unchanged within 1 KB, as are the API, the behaviour and the CommonJS build. Only the editor entry is marked `"use client"`.
