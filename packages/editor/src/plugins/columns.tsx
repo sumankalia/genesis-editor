@@ -1,8 +1,13 @@
-import { createBlockSpec, createExtension, type ExtensionFactoryInstance } from "@blocknote/core";
+import {
+  createBlockSpec,
+  createExtension,
+  type ExtensionFactoryInstance,
+} from "@blocknote/core";
 import { Columns2, Columns3 } from "lucide-react";
 import { Plugin, PluginKey } from "prosemirror-state";
 
 import { columnWidthOf, resizePair, splitWidths } from "../parser/columns";
+import { columnsNormalizePlugin } from "./columns-normalize";
 import { ToolbarButton } from "./toolbar-button";
 import type { AnyEditor, AnyPartialBlock, SlashMenuItem } from "./types";
 
@@ -21,7 +26,15 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string) {
 }
 
 function isolate(node: HTMLElement) {
-  for (const type of ["keydown", "keypress", "beforeinput", "input", "mousedown", "paste", "drop"]) {
+  for (const type of [
+    "keydown",
+    "keypress",
+    "beforeinput",
+    "input",
+    "mousedown",
+    "paste",
+    "drop",
+  ]) {
     node.addEventListener(type, (event) => event.stopPropagation());
   }
 }
@@ -31,7 +44,11 @@ const WIDTH_STYLE_ID = "genesis-column-widths";
 /** Widths live on our node (`data-width`); the outer's flex-grow is a :has() rule. Mutating
  * BlockNote's `.bn-block-outer` is a ProseMirror mutation and remounts the document. */
 function ensureWidthStyles() {
-  if (typeof document === "undefined" || document.getElementById(WIDTH_STYLE_ID)) return;
+  if (
+    typeof document === "undefined" ||
+    document.getElementById(WIDTH_STYLE_ID)
+  )
+    return;
   const style = document.createElement("style");
   style.id = WIDTH_STYLE_ID;
   const rules = Array.from({ length: 99 }, (_, i) => {
@@ -46,7 +63,11 @@ function setColumnWidth(dom: HTMLElement, width: number) {
   dom.dataset.width = String(Math.max(1, Math.min(99, Math.round(width))));
 }
 
-function locate(blocks: LooseBlock[], id: string, ancestors: LooseBlock[] = []): { block: LooseBlock; ancestors: LooseBlock[] } | null {
+function locate(
+  blocks: LooseBlock[],
+  id: string,
+  ancestors: LooseBlock[] = [],
+): { block: LooseBlock; ancestors: LooseBlock[] } | null {
   for (const block of blocks) {
     if (block.id === id) return { block, ancestors };
     const kids = block.children ?? [];
@@ -58,14 +79,22 @@ function locate(blocks: LooseBlock[], id: string, ancestors: LooseBlock[] = []):
   return null;
 }
 
-function isEmptyParagraph(block: { type: string; content?: unknown; children?: unknown[] }) {
+function isEmptyParagraph(block: {
+  type: string;
+  content?: unknown;
+  children?: unknown[];
+}) {
   if (block.type !== "paragraph") return false;
   if (block.children?.length) return false;
   const content = block.content;
   if (!content) return true;
   if (typeof content === "string") return !content.trim();
   if (!Array.isArray(content)) return false;
-  return content.every((part) => typeof part === "string" ? !part.trim() : !(part as { text?: string }).text?.trim());
+  return content.every((part) =>
+    typeof part === "string"
+      ? !part.trim()
+      : !(part as { text?: string }).text?.trim(),
+  );
 }
 
 export function emptyColumns(count: 2 | 3): AnyPartialBlock {
@@ -83,17 +112,33 @@ export function emptyColumns(count: 2 | 3): AnyPartialBlock {
 function siblingsOf(editor: AnyEditor, block: LooseBlock): LooseBlock[] {
   const found = locate(editor.document as unknown as LooseBlock[], block.id);
   if (!found) return [];
-  if (!found.ancestors.length) return editor.document as unknown as LooseBlock[];
+  if (!found.ancestors.length)
+    return editor.document as unknown as LooseBlock[];
   return found.ancestors[found.ancestors.length - 1].children ?? [];
 }
 
-function nextSibling(editor: AnyEditor, block: LooseBlock): LooseBlock | undefined {
+function nextSibling(
+  editor: AnyEditor,
+  block: LooseBlock,
+): LooseBlock | undefined {
   const siblings = siblingsOf(editor, block);
   const index = siblings.findIndex((item) => item.id === block.id);
   return index >= 0 ? siblings[index + 1] : undefined;
 }
 
-function liveBlock(editor: AnyEditor, block: { id: string }): LooseBlock | undefined {
+function previousSibling(
+  editor: AnyEditor,
+  block: LooseBlock,
+): LooseBlock | undefined {
+  const siblings = siblingsOf(editor, block);
+  const index = siblings.findIndex((item) => item.id === block.id);
+  return index > 0 ? siblings[index - 1] : undefined;
+}
+
+function liveBlock(
+  editor: AnyEditor,
+  block: { id: string },
+): LooseBlock | undefined {
   return editor.getBlock(block.id) as unknown as LooseBlock | undefined;
 }
 
@@ -102,7 +147,11 @@ function ensureFullWidthAfter(editor: AnyEditor, list: LooseBlock): LooseBlock {
   const current = liveBlock(editor, list) ?? list;
   const next = nextSibling(editor, current);
   if (next && next.type !== "column" && next.type !== "columnList") return next;
-  const inserted = editor.insertBlocks([{ type: "paragraph" }], current, "after");
+  const inserted = editor.insertBlocks(
+    [{ type: "paragraph" }],
+    current,
+    "after",
+  );
   return inserted[0] as unknown as LooseBlock;
 }
 
@@ -118,12 +167,37 @@ export function insertColumns(editor: AnyEditor, count: 2 | 3 = 2) {
   const list = emptyColumns(count);
   const cursor = editor.getTextCursorPosition().block as unknown as LooseBlock;
   const found = locate(editor.document as unknown as LooseBlock[], cursor.id);
-  const ancestorList = found?.ancestors.find((block) => block.type === "columnList");
+  const ancestorList = found?.ancestors.find(
+    (block) => block.type === "columnList",
+  );
+  // An empty paragraph right after a columnList is that section's full-width exit paragraph.
+  // Keep it, so two column sections are never adjacent.
+  const isEmptyFullWidthBoundary =
+    isEmptyParagraph(cursor) &&
+    previousSibling(editor, cursor)?.type === "columnList";
   const created = ancestorList
-    ? (editor.insertBlocks([list], ancestorList, "after")[0] as unknown as LooseBlock)
-    : isEmptyParagraph(cursor)
-      ? ((editor.replaceBlocks([cursor.id], [list] as never) as { insertedBlocks: LooseBlock[] }).insertedBlocks[0] as LooseBlock)
-      : (editor.insertBlocks([list], cursor, "after")[0] as unknown as LooseBlock);
+    ? (editor.insertBlocks(
+        [list],
+        ancestorList,
+        "after",
+      )[0] as unknown as LooseBlock)
+    : isEmptyFullWidthBoundary
+      ? (editor.insertBlocks(
+          [list],
+          cursor,
+          "after",
+        )[0] as unknown as LooseBlock)
+      : isEmptyParagraph(cursor)
+        ? ((
+            editor.replaceBlocks([cursor.id], [list] as never) as {
+              insertedBlocks: LooseBlock[];
+            }
+          ).insertedBlocks[0] as LooseBlock)
+        : (editor.insertBlocks(
+            [list],
+            cursor,
+            "after",
+          )[0] as unknown as LooseBlock);
   if (!created) return;
   ensureFullWidthAfter(editor, created);
   focusFirstCell(editor, created);
@@ -143,7 +217,11 @@ export function exitColumnOnEnter(editor: AnyEditor): boolean {
   const kids = (liveBlock(editor, column) ?? column).children ?? [];
   const last = kids[kids.length - 1];
   if (!last || last.id !== cursor.id || !isEmptyParagraph(cursor)) return false;
-  const after = editor.insertBlocks([{ type: "paragraph" }], list, "after")[0] as unknown as LooseBlock;
+  const after = editor.insertBlocks(
+    [{ type: "paragraph" }],
+    list,
+    "after",
+  )[0] as unknown as LooseBlock;
   if (kids.length > 1) editor.removeBlocks([cursor.id]);
   editor.setTextCursorPosition(after, "start");
   return true;
@@ -161,8 +239,14 @@ function clickBelowColumns(editor: AnyEditor, event: MouseEvent): boolean {
     if (event.clientY <= rect.bottom + 2) continue;
     const next = outer.nextElementSibling as HTMLElement | null;
     if (next && event.clientY >= next.getBoundingClientRect().top) continue;
-    const id = (outer.getAttribute("data-id") || outer.querySelector("[data-id]")?.getAttribute("data-id") || "").trim();
-    const list = id ? (editor.getBlock(id) as unknown as LooseBlock | undefined) : undefined;
+    const id = (
+      outer.getAttribute("data-id") ||
+      outer.querySelector("[data-id]")?.getAttribute("data-id") ||
+      ""
+    ).trim();
+    const list = id
+      ? (editor.getBlock(id) as unknown as LooseBlock | undefined)
+      : undefined;
     if (!list || list.type !== "columnList") continue;
     const after = ensureFullWidthAfter(editor, list);
     editor.setTextCursorPosition(after, "start");
@@ -184,19 +268,39 @@ function attachResize(dom: HTMLElement, block: LooseBlock, editor: AnyEditor) {
     const next = outer?.nextElementSibling as HTMLElement | null;
     if (!outer || !next) return;
     const leftId = block.id;
-    const rightContent = next.querySelector("[data-content-type='column']") as HTMLElement | null;
-    const rightId =
-      (rightContent?.closest("[data-id]")?.getAttribute("data-id") || rightContent?.getAttribute("data-id") || "").trim();
-    const leftBlock = editor.getBlock(leftId) as unknown as LooseBlock | undefined;
-    const rightBlock = rightId ? (editor.getBlock(rightId) as unknown as LooseBlock | undefined) : undefined;
-    if (!leftBlock || !rightBlock || rightBlock.type !== "column" || !rightContent) return;
+    const rightContent = next.querySelector(
+      "[data-content-type='column']",
+    ) as HTMLElement | null;
+    const rightId = (
+      rightContent?.closest("[data-id]")?.getAttribute("data-id") ||
+      rightContent?.getAttribute("data-id") ||
+      ""
+    ).trim();
+    const leftBlock = editor.getBlock(leftId) as unknown as
+      | LooseBlock
+      | undefined;
+    const rightBlock = rightId
+      ? (editor.getBlock(rightId) as unknown as LooseBlock | undefined)
+      : undefined;
+    if (
+      !leftBlock ||
+      !rightBlock ||
+      rightBlock.type !== "column" ||
+      !rightContent
+    )
+      return;
     const startLeft = columnWidthOf(leftBlock);
     const startRight = columnWidthOf(rightBlock);
-    const pair = outer.getBoundingClientRect().width + next.getBoundingClientRect().width;
+    const pair =
+      outer.getBoundingClientRect().width + next.getBoundingClientRect().width;
     const origin = outer.getBoundingClientRect().left;
     const apply = (clientX: number) => {
       const ratio = pair > 0 ? (clientX - origin) / pair : 0.5;
-      const [left, right] = resizePair(startLeft, startRight, ratio * (startLeft + startRight));
+      const [left, right] = resizePair(
+        startLeft,
+        startRight,
+        ratio * (startLeft + startRight),
+      );
       setColumnWidth(dom, left);
       setColumnWidth(rightContent, right);
       return [left, right] as const;
@@ -249,7 +353,11 @@ export const columnSpec = createBlockSpec(
     content: "none",
   },
   {
-    render: (block, editor) => renderColumn(block as unknown as LooseBlock, editor as unknown as AnyEditor),
+    render: (block, editor) =>
+      renderColumn(
+        block as unknown as LooseBlock,
+        editor as unknown as AnyEditor,
+      ),
   },
 )();
 
@@ -261,15 +369,29 @@ export function columnsSectionExtension(): ExtensionFactoryInstance {
       new Plugin({
         key: new PluginKey("genesis-columns-section"),
         props: {
-          handleKeyDown(_view, event) {
-            if (event.key !== "Enter" || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) return false;
-            return exitColumnOnEnter(editor);
+          // handleDOMEvents runs before any plugin's handleKeyDown, including BlockNote's own
+          // Enter handling (which would lift an empty block out of its column instead).
+          handleDOMEvents: {
+            keydown(_view, event) {
+              if (
+                event.key !== "Enter" ||
+                event.shiftKey ||
+                event.altKey ||
+                event.metaKey ||
+                event.ctrlKey
+              )
+                return false;
+              if (!exitColumnOnEnter(editor)) return false;
+              event.preventDefault();
+              return true;
+            },
           },
           handleClick(_view, _pos, event) {
             return clickBelowColumns(editor, event);
           },
         },
       }),
+      columnsNormalizePlugin(),
     ],
   }))();
 }
@@ -302,8 +424,14 @@ export function ColumnsButton() {
       icon={<Columns2 size={16} />}
       onClick={(editor) => insertColumns(editor, 2)}
       isSelected={(editor) => {
-        const cursor = editor.getTextCursorPosition().block as unknown as LooseBlock;
-        return Boolean(locate(editor.document as unknown as LooseBlock[], cursor.id)?.ancestors.some((block) => block.type === "columnList"));
+        const cursor = editor.getTextCursorPosition()
+          .block as unknown as LooseBlock;
+        return Boolean(
+          locate(
+            editor.document as unknown as LooseBlock[],
+            cursor.id,
+          )?.ancestors.some((block) => block.type === "columnList"),
+        );
       }}
     />
   );

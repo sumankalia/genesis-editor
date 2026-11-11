@@ -1,8 +1,12 @@
 # genesis-editor
 
-A Notion-style block editor for React. Every paragraph, heading, list item,
-quote, code block, to-do, and image is its own block that can be inserted from a
-slash menu, dragged to reorder, and nested with `Tab`.
+## Flexible, production-grade editor core for React
+
+Genesis Editor is a backend-agnostic, format-flexible rich text editor for
+React. It gives applications a modern block-based writing experience while
+staying compatible with existing product workflows. The same editor can work with
+blocks, HTML, Markdown, and plain text, so it fits into existing content and
+document pipelines without forcing a new backend or a new content model.
 
 Built on [BlockNote](https://www.blocknotejs.org/) (TipTap/ProseMirror) with a
 shadcn/ui-style skin. The stylesheet is precompiled and scoped, so you don't need
@@ -10,15 +14,42 @@ Tailwind or shadcn/ui in your app.
 
 **[Docs and live demo](https://genesis-editor-three.vercel.app)** ·
 [Playground](https://genesis-editor-three.vercel.app/playground) ·
-[llms.txt](https://genesis-editor-three.vercel.app/llms.txt)
+[llms.txt](https://genesis-editor-three.vercel.app/llms.txt) ·
+[Try it in the browser](https://genesis-editor-three.vercel.app/playground)
 
-- Slash menu (`/`), drag handles, `Tab` / `Shift+Tab` nesting
+### Why teams choose Genesis Editor
+
+We are building the editor itself, not a full application backend. Genesis
+Editor focuses on the writing experience: reliable block structure, rich
+formatting, import/export, media support, and extension points that let apps
+integrate their own storage, auth, and upload strategies.
+
+This keeps the editor reusable and portable while leaving infrastructure choices
+with the app that embeds it. It is easy to integrate into existing products,
+backend-agnostic, and designed to avoid vendor lock-in.
+
+### Supported formats
+
+Genesis Editor supports multiple content formats, so it fits into real product
+workflows instead of forcing a single source of truth:
+
+- Blocks
+- HTML
+- Markdown
+- Plain text
+
+The editor can import and export in each of these formats, and it can be used in
+apps that already have an established content pipeline or custom backend.
+
+### Core features
+
+- Slash menu (`/`), drag handles, `Tab` / `Shift+Tab` nesting, and block conversion
 - Floating formatting toolbar and shortcuts (`Mod+B`, `Mod+I`, `Mod+U`,
   `Mod+Shift+S`, `Mod+E` for code, `Mod+K` for links)
 - Markdown shortcuts: `#` headings, `-` / `1.` / `[]` lists, `>` quotes,
   ```` ``` ```` code, `---` dividers
-- Images by URL or upload (picker, drop, paste) to your server or your own function,
-  with optional re-hosting of pasted images; alt text, captions, and alignment in the toolbar
+- Images, files, and video assets via backend-agnostic upload hooks; optional
+  re-hosting of pasted images; alt text, captions, alignment, and image links
 - Two- and three-column layouts (`/Columns`), resized by dragging; pasted
   Google Docs / Word image-beside-text wraps become columns, exported as an
   email-safe `<table data-genesis-columns>`
@@ -27,12 +58,23 @@ Tailwind or shadcn/ui in your app.
   Docs, Word, WordPress and web pages cleaned into blocks, including images inside
   table cells
 - Import a Word, OpenDocument, HTML, Markdown, or text file (`importFile`, `/import`)
-- Embeds: YouTube, Vimeo, X, Instagram, Spotify and 28 more, from links, iframes
+- Link previews: auto-card URLs for pages that resolve metadata
+- Embeds: YouTube, Vimeo, X, Instagram, Spotify and many more, from links, iframes
   or a site's embed code, always in sandboxed frames; captions, resize, and optional click-to-load
 - Text and background colours, font sizes, code-block syntax highlighting
+- Document preview mode for rendered HTML without editor chrome
 - Light, dark, or system theme; read-only mode
 - Optional autosave to `localStorage`
 - A bottom block toolbar on small screens
+- Built-in support for files, media blocks, and rich import/export workflows
+
+### v0.2.0 highlights
+
+This release focuses on editor maturity: stronger multi-column behavior, more
+reliable media upload abstraction, broader import/export support, and a clearer
+product definition as an open-source editor core rather than a full application
+stack. It remains intentionally backend-agnostic so teams can plug in their own
+storage and upload strategy without changing the editor's API.
 
 ## Install
 

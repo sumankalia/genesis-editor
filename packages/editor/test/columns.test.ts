@@ -1,16 +1,38 @@
-import { BlockNoteEditor, getDefaultSlashMenuItems, type PartialBlock } from "@blocknote/core";
+import {
+  BlockNoteEditor,
+  getDefaultSlashMenuItems,
+  type PartialBlock,
+} from "@blocknote/core";
 import { describe, expect, it } from "vitest";
 
-import { parseHTML, toHTML, type HtmlBlock, type ParseOptions } from "../src/parser";
+import {
+  parseHTML,
+  toHTML,
+  type HtmlBlock,
+  type ParseOptions,
+} from "../src/parser";
 import { linkedomDom } from "../src/parser/linkedom";
-import { columnBlock, columnListBlock, layoutWidths, normalizeWidths, resizePair, splitWidths } from "../src/parser/columns";
+import {
+  columnBlock,
+  columnListBlock,
+  layoutWidths,
+  normalizeWidths,
+  resizePair,
+  splitWidths,
+} from "../src/parser/columns";
 import { exitColumnOnEnter, insertColumns } from "../src/plugins/columns";
 import { mergeSlashItems, resolveEditorSetup } from "../src/plugins/resolve";
 import { sanitizeBlocks, schemaSupport } from "../src/plugins/sanitize";
 import type { AnyEditor } from "../src/plugins/types";
+import { repairColumns } from "../src/plugins/columns-normalize";
 
-const parse = (html: string, tools?: ParseOptions["tools"]) => parseHTML(html, { dom: linkedomDom, tools });
-const t = (text: string, styles = {}) => ({ type: "text" as const, text, styles });
+const parse = (html: string, tools?: ParseOptions["tools"]) =>
+  parseHTML(html, { dom: linkedomDom, tools });
+const t = (text: string, styles = {}) => ({
+  type: "text" as const,
+  text,
+  styles,
+});
 
 const LAYOUT = `<h2>Summer drop</h2><p>A product image beside its copy.</p>
 <table><tr>
@@ -28,8 +50,16 @@ describe("width helpers", () => {
   });
 
   it("uses 40/60 when one of two columns is a lone image", () => {
-    const image = { type: "column", props: { width: 50 }, children: [{ type: "image", props: { url: "https://x.test/a.png" } }] };
-    const text = { type: "column", props: { width: 50 }, children: [{ type: "heading", props: { level: 3 }, content: [t("Hi")] }] };
+    const image = {
+      type: "column",
+      props: { width: 50 },
+      children: [{ type: "image", props: { url: "https://x.test/a.png" } }],
+    };
+    const text = {
+      type: "column",
+      props: { width: 50 },
+      children: [{ type: "heading", props: { level: 3 }, content: [t("Hi")] }],
+    };
     expect(layoutWidths([image, text] as HtmlBlock[])).toEqual([40, 60]);
     expect(layoutWidths([text, image] as HtmlBlock[])).toEqual([60, 40]);
   });
@@ -38,31 +68,44 @@ describe("width helpers", () => {
 describe("parse layout tables and floats", () => {
   it("turns an image|heading+body table into columns", () => {
     const { blocks } = parse(LAYOUT);
-    expect(blocks.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList"]);
+    expect(blocks.map((b) => b.type)).toEqual([
+      "heading",
+      "paragraph",
+      "columnList",
+    ]);
     const list = blocks[2];
     expect(list.children).toHaveLength(2);
     expect(list.children![0].type).toBe("column");
     expect(list.children![0].children?.map((c) => c.type)).toEqual(["image"]);
-    expect(list.children![1].children?.map((c) => c.type)).toEqual(["heading", "paragraph", "paragraph"]);
+    expect(list.children![1].children?.map((c) => c.type)).toEqual([
+      "heading",
+      "paragraph",
+      "paragraph",
+    ]);
     expect(list.children![0].props?.width).toBe(40);
     expect(list.children![1].props?.width).toBe(60);
   });
 
   it("keeps a one-row image plus short caption as a table", () => {
-    const { blocks } = parse('<table><tr><td><img src="https://a.test/x.png" alt="X" width="320" height="200"></td><td>b</td></tr></table>');
+    const { blocks } = parse(
+      '<table><tr><td><img src="https://a.test/x.png" alt="X" width="320" height="200"></td><td>b</td></tr></table>',
+    );
     expect(blocks.map((b) => b.type)).toEqual(["table"]);
   });
 
   it("keeps an image grid as a table", () => {
-    const { blocks } = parse('<table><tr><td><img src="https://a.test/a.png"></td><td><img src="https://a.test/b.png"></td></tr></table>');
+    const { blocks } = parse(
+      '<table><tr><td><img src="https://a.test/a.png"></td><td><img src="https://a.test/b.png"></td></tr></table>',
+    );
     expect(blocks.map((b) => b.type)).toEqual(["table"]);
   });
 
   it("still unwraps presentation tables that are only short text", () => {
-    expect(parse('<table role="presentation"><tr><td><p>a</p></td><td><p>b</p></td></tr></table>').blocks.map((b) => b.type)).toEqual([
-      "paragraph",
-      "paragraph",
-    ]);
+    expect(
+      parse(
+        '<table role="presentation"><tr><td><p>a</p></td><td><p>b</p></td></tr></table>',
+      ).blocks.map((b) => b.type),
+    ).toEqual(["paragraph", "paragraph"]);
   });
 
   it("wraps a floated image and following copy", () => {
@@ -71,34 +114,69 @@ describe("parse layout tables and floats", () => {
     expect(blocks.map((b) => b.type)).toEqual(["paragraph", "columnList"]);
     const cols = blocks[1].children!;
     expect(cols[0].children?.map((c) => c.type)).toEqual(["image"]);
-    expect(cols[1].children?.map((c) => c.type)).toEqual(["heading", "paragraph"]);
+    expect(cols[1].children?.map((c) => c.type)).toEqual([
+      "heading",
+      "paragraph",
+    ]);
   });
 
   it("keeps blocks after a column section full-width", () => {
-    const { blocks } = parse(`${LAYOUT}<p>After the section.</p><h2>Next chapter</h2>`);
-    expect(blocks.map((b) => b.type)).toEqual(["heading", "paragraph", "columnList", "paragraph", "heading"]);
-    expect(blocks[3]).toMatchObject({ type: "paragraph", content: [t("After the section.")] });
+    const { blocks } = parse(
+      `${LAYOUT}<p>After the section.</p><h2>Next chapter</h2>`,
+    );
+    expect(blocks.map((b) => b.type)).toEqual([
+      "heading",
+      "paragraph",
+      "columnList",
+      "paragraph",
+      "heading",
+    ]);
+    expect(blocks[3]).toMatchObject({
+      type: "paragraph",
+      content: [t("After the section.")],
+    });
   });
 
   it("does not pour later siblings into a float wrap", () => {
     const html = `<p>Lead</p><img src="https://x.test/lake.png" alt="Lake" style="float:left"><h3>Mountain lake</h3><p>Beside the image.</p><p>Full width after.</p><h2>Next</h2>`;
     const { blocks } = parse(html);
-    expect(blocks.map((b) => b.type)).toEqual(["paragraph", "columnList", "paragraph", "heading"]);
-    expect(blocks[2]).toMatchObject({ type: "paragraph", content: [t("Full width after.")] });
+    expect(blocks.map((b) => b.type)).toEqual([
+      "paragraph",
+      "columnList",
+      "paragraph",
+      "heading",
+    ]);
+    expect(blocks[2]).toMatchObject({
+      type: "paragraph",
+      content: [t("Full width after.")],
+    });
   });
 
   it("caps a float wrap so later paragraphs stay full-width", () => {
     const html = `<img src="https://x.test/lake.png" alt="Lake" style="float:left"><p>One.</p><p>Two.</p><p>Three full width.</p>`;
     const { blocks } = parse(html);
     expect(blocks.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
-    expect(blocks[0].children?.[1].children?.map((c) => c.type)).toEqual(["paragraph", "paragraph"]);
-    expect(blocks[1]).toMatchObject({ type: "paragraph", content: [t("Three full width.")] });
+    expect(blocks[0].children?.[1].children?.map((c) => c.type)).toEqual([
+      "paragraph",
+      "paragraph",
+    ]);
+    expect(blocks[1]).toMatchObject({
+      type: "paragraph",
+      content: [t("Three full width.")],
+    });
   });
 
   it("flattens layout HTML when the columns tool is off", () => {
     const { blocks } = parse(LAYOUT, ["heading", "image", "table"]);
     expect(blocks.some((b) => b.type === "columnList")).toBe(false);
-    expect(blocks.map((b) => b.type)).toEqual(["heading", "paragraph", "image", "heading", "paragraph", "paragraph"]);
+    expect(blocks.map((b) => b.type)).toEqual([
+      "heading",
+      "paragraph",
+      "image",
+      "heading",
+      "paragraph",
+      "paragraph",
+    ]);
   });
 });
 
@@ -107,11 +185,13 @@ describe("HTML export", () => {
     const { blocks } = parse(LAYOUT);
     const html = toHTML(blocks);
     expect(html).toContain('data-genesis-columns="2"');
-    expect(html).toContain("role=\"presentation\"");
+    expect(html).toContain('role="presentation"');
     expect(html).toContain("data-genesis-column-widths=");
     const again = parse(html).blocks;
     expect(again.map((b) => b.type)).toEqual(blocks.map((b) => b.type));
-    expect(again[2].children?.map((c) => c.props?.width)).toEqual(blocks[2].children?.map((c) => c.props?.width));
+    expect(again[2].children?.map((c) => c.props?.width)).toEqual(
+      blocks[2].children?.map((c) => c.props?.width),
+    );
     expect(toHTML(again)).toBe(html);
   });
 
@@ -133,16 +213,28 @@ describe("HTML export", () => {
     expect(html).toMatch(/<\/table>\s*<p>After<\/p>/);
     const again = parse(html).blocks;
     expect(again.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
-    expect(again[0].children?.[0].children?.map((c) => c.type)).toEqual(["paragraph", "bulletListItem"]);
-    expect(again[0].children?.[1].children?.map((c) => c.type)).toEqual(["quote", "codeBlock"]);
-    expect(again[1]).toMatchObject({ type: "paragraph", content: [t("After")] });
+    expect(again[0].children?.[0].children?.map((c) => c.type)).toEqual([
+      "paragraph",
+      "bulletListItem",
+    ]);
+    expect(again[0].children?.[1].children?.map((c) => c.type)).toEqual([
+      "quote",
+      "codeBlock",
+    ]);
+    expect(again[1]).toMatchObject({
+      type: "paragraph",
+      content: [t("After")],
+    });
   });
 });
 
 describe("editor", () => {
   function editorFor(tools?: Parameters<typeof resolveEditorSetup>[0]) {
     const setup = resolveEditorSetup(tools);
-    const editor = BlockNoteEditor.create({ schema: setup.schema, extensions: setup.extensions });
+    const editor = BlockNoteEditor.create({
+      schema: setup.schema,
+      extensions: setup.extensions,
+    });
     return { setup, editor: editor as unknown as AnyEditor };
   }
 
@@ -150,7 +242,11 @@ describe("editor", () => {
     const { editor, setup } = editorFor();
     expect("columnList" in editor.schema.blockSchema).toBe(true);
     expect("column" in editor.schema.blockSchema).toBe(true);
-    const titles = mergeSlashItems(editor, getDefaultSlashMenuItems(editor), setup.plugins).map((item) => item.title);
+    const titles = mergeSlashItems(
+      editor,
+      getDefaultSlashMenuItems(editor),
+      setup.plugins,
+    ).map((item) => item.title);
     expect(titles).toContain("Columns");
     expect(titles).toContain("3 columns");
   });
@@ -173,18 +269,31 @@ describe("editor", () => {
   it("inserts a full-width sibling after the column section", () => {
     const { editor } = editorFor();
     insertColumns(editor, 2);
-    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph"]);
+    expect(editor.document.map((b) => b.type)).toEqual([
+      "columnList",
+      "paragraph",
+    ]);
     const list = editor.document.find((b) => b.type === "columnList")!;
     editor.setTextCursorPosition(list.children[1].children[0], "end");
     editor.insertInlineContent("Right column");
     expect(exitColumnOnEnter(editor)).toBe(false);
-    editor.insertBlocks([{ type: "paragraph" }], list.children[1].children[0], "after");
+    editor.insertBlocks(
+      [{ type: "paragraph" }],
+      list.children[1].children[0],
+      "after",
+    );
     const empty = editor.getBlock(list.id)!.children[1].children[1];
     editor.setTextCursorPosition(empty, "start");
     expect(exitColumnOnEnter(editor)).toBe(true);
-    expect(editor.document.map((b) => b.type)).toEqual(["columnList", "paragraph", "paragraph"]);
+    expect(editor.document.map((b) => b.type)).toEqual([
+      "columnList",
+      "paragraph",
+      "paragraph",
+    ]);
     const cursor = editor.getTextCursorPosition().block;
-    expect(editor.document.some((b) => b.id === cursor.id && b.type === "paragraph")).toBe(true);
+    expect(
+      editor.document.some((b) => b.id === cursor.id && b.type === "paragraph"),
+    ).toBe(true);
   });
 
   it("does not pull following blocks into the last column", () => {
@@ -197,21 +306,175 @@ describe("editor", () => {
     ] as never);
     editor.setTextCursorPosition(editor.document[1], "start");
     insertColumns(editor, 2);
-    expect(editor.document.map((b) => b.type)).toEqual(["paragraph", "columnList", "paragraph", "heading"]);
+    expect(editor.document.map((b) => b.type)).toEqual([
+      "paragraph",
+      "columnList",
+      "paragraph",
+      "heading",
+    ]);
     expect(JSON.stringify(editor.document[2])).toContain("After");
     expect(JSON.stringify(editor.document[1])).not.toContain("After");
     expect(JSON.stringify(editor.document[3])).toContain("Next chapter");
   });
 
+  it("keeps the full-width paragraph between two column sections", () => {
+    const { editor } = editorFor();
+    editor.replaceBlocks(editor.document, [
+      { type: "heading", props: { level: 2 }, content: "Columns" },
+      { type: "paragraph", content: "A product image beside its copy." },
+      {
+        type: "columnList",
+        children: [
+          {
+            type: "column",
+            props: { width: 40 },
+            children: [
+              { type: "image", props: { url: "https://x.test/a.png" } },
+            ],
+          },
+          {
+            type: "column",
+            props: { width: 60 },
+            children: [
+              {
+                type: "heading",
+                props: { level: 3 },
+                content: "Mountain lake",
+              },
+            ],
+          },
+        ],
+      },
+      { type: "paragraph" },
+    ] as never);
+    editor.setTextCursorPosition(editor.document.at(-1)!, "start");
+    insertColumns(editor, 2);
+    expect(editor.document.map((b) => b.type)).toEqual([
+      "heading",
+      "paragraph",
+      "columnList",
+      "paragraph",
+      "columnList",
+      "paragraph",
+    ]);
+  });
+
+  describe("normalization", () => {
+    const col = (children: unknown[], width = 50) => ({
+      type: "column",
+      props: { width },
+      children,
+    });
+    const para = (text?: string) => ({
+      type: "paragraph",
+      ...(text ? { content: text } : {}),
+    });
+    const types = (blocks: { type: string }[]) => blocks.map((b) => b.type);
+    // The headless test editor doesn't mount extension plugins, so run the repair the plugin runs.
+    const load = (blocks: unknown[]) => {
+      const { editor } = editorFor();
+      editor.replaceBlocks(editor.document, blocks as never);
+      (
+        editor as unknown as {
+          transact: (
+            fn: (tr: Parameters<typeof repairColumns>[0]) => void,
+          ) => void;
+        }
+      ).transact((tr) => {
+        while (repairColumns(tr));
+      });
+      return editor;
+    };
+
+    it("lifts a block that ended up between two columns out of the section", () => {
+      const editor = load([
+        {
+          type: "columnList",
+          children: [col([para("a")]), para("stray"), col([para("b")])],
+        },
+        para("end"),
+      ]);
+      expect(types(editor.document)).toEqual([
+        "columnList",
+        "paragraph",
+        "paragraph",
+      ]);
+      expect(types(editor.document[0].children)).toEqual(["column", "column"]);
+      expect(JSON.stringify(editor.document[1])).toContain("stray");
+      expect(JSON.stringify(editor.document[0])).not.toContain("stray");
+    });
+
+    it("repairs the broken shape from the Enter bug: an empty column beside a stray paragraph", () => {
+      const editor = load([
+        {
+          type: "columnList",
+          children: [col([]), para("Full width after"), col([para()])],
+        },
+        para(),
+      ]);
+      expect(editor.document.some((b) => b.type === "columnList")).toBe(false);
+      expect(types(editor.document)).toEqual([
+        "paragraph",
+        "paragraph",
+        "paragraph",
+      ]);
+      expect(JSON.stringify(editor.document[0])).toContain("Full width after");
+    });
+
+    it("dissolves a list with a single column into full-width blocks", () => {
+      const editor = load([
+        { type: "columnList", children: [col([para("solo")])] },
+        para("end"),
+      ]);
+      expect(types(editor.document)).toEqual(["paragraph", "paragraph"]);
+      expect(JSON.stringify(editor.document[0])).toContain("solo");
+    });
+
+    it("removes a column list that has no columns", () => {
+      const editor = load([
+        para("a"),
+        { type: "columnList", children: [] },
+        para("b"),
+      ]);
+      expect(types(editor.document)).toEqual(["paragraph", "paragraph"]);
+    });
+
+    it("leaves a well-formed section alone", () => {
+      const { editor } = editorFor();
+      insertColumns(editor, 3);
+      expect(types(editor.document)).toEqual(["columnList", "paragraph"]);
+      expect(editor.document[0].children).toHaveLength(3);
+      expect(
+        editor.document[0].children.every(
+          (c) => c.type === "column" && c.children.length === 1,
+        ),
+      ).toBe(true);
+    });
+  });
+
   it("flattens columns when the tool is off", () => {
-    const support = schemaSupport(editorFor(["heading", "image"]).editor.schema);
+    const support = schemaSupport(
+      editorFor(["heading", "image"]).editor.schema,
+    );
     const blocks = sanitizeBlocks(
       [
         {
           type: "columnList",
           children: [
-            { type: "column", props: { width: 40 }, children: [{ type: "image", props: { url: "https://x.test/a.png" } }] },
-            { type: "column", props: { width: 60 }, children: [{ type: "heading", props: { level: 3 }, content: "Hi" }] },
+            {
+              type: "column",
+              props: { width: 40 },
+              children: [
+                { type: "image", props: { url: "https://x.test/a.png" } },
+              ],
+            },
+            {
+              type: "column",
+              props: { width: 60 },
+              children: [
+                { type: "heading", props: { level: 3 }, content: "Hi" },
+              ],
+            },
           ],
         },
       ] as unknown as PartialBlock[],
@@ -219,6 +482,8 @@ describe("editor", () => {
     );
     expect(blocks.map((b) => b.type)).toEqual(["image", "heading"]);
     const reduced = editorFor(["heading", "image"]);
-    expect(() => reduced.editor.replaceBlocks(reduced.editor.document, blocks as never)).not.toThrow();
+    expect(() =>
+      reduced.editor.replaceBlocks(reduced.editor.document, blocks as never),
+    ).not.toThrow();
   });
 });

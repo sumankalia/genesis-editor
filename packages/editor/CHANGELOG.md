@@ -2,7 +2,7 @@
 
 All notable changes to `genesis-editor`.
 
-## Unreleased
+## 0.2.0
 
 - **The editor and `genesis-editor/parser` share chunks** in the ESM build, so an app that imports both downloads the HTML engine once: about 37 KB (gzip) less (re-measured with esbuild against 0.1.0; Vite and Next.js are in the same range). Apps that import only one of them are unchanged within 1 KB, as are the API, the behaviour and the CommonJS build. Only the editor entry is marked `"use client"`.
 - **Inline images in table cells** (and in paragraphs). Pasted or loaded `<img>` inside `<td>`/`<th>` is kept as an `inlineImage` node instead of being dropped. The same URL, upload and re-hosting path as image blocks applies, with width/resize capped to the cell, alt text, and an image link. Export is `<td><img data-genesis-inline>` (or `<td><a href><img></a></td>`); `data-genesis-inline` keeps a paragraph image inline on the way back. Browser clipboard HTML is recovered (Chrome/Safari/Firefox wrappers, `<picture>`/`srcset`, lazy `data-src`); fixture: `test/fixtures/devto-clipboard.html`. An empty `<thead>` of empty `<th>`s is dropped as noise. An image wrapped in a link to its own `src` loses the link. Empty heading anchors are dropped. `/Inline image` inserts one at the caret.
